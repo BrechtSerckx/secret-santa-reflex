@@ -1,0 +1,5 @@
+/frontend-result
+/dist-newstyle/
+/dist-ghcjs/
+/backend-result
+cabal.project.local
