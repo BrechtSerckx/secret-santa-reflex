@@ -3,3 +3,4 @@
 /dist-ghcjs/
 /backend-result
 cabal.project.local
+/ghc-frontend-result

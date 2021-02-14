@@ -1,0 +1,28 @@
+* TODO
+
+** Create a secret santa app
+
++ Create a reflex frontend
++ Common: create a match function and a test function
++ Backend: have `create` endpoint that matches and sends emails
+
+** Allow hosts to update the config
+
++ Store the SS information in a database
++ Also store a host-key
++ Send the host-key to the host
++ add an admin page, accessible with the host-key, where the host can update the SS info
+
+** Allow participants to add a wishlist
+
++ Send a secret key to the participants
++ Add participant page
++ Add wishlist table
+
+** Allow hosts to check participant status
+
++ add tracking links to emails
++ add email status table
++ add info to admin page
++ refresh info periodically
++ add `resend` buttons
