@@ -11,5 +11,5 @@
     ghc = ["common" "backend" "frontend"];
     ghcjs = ["common" "frontend"];
   };
-  # useWarp = true;
+  useWarp = true;
 })
