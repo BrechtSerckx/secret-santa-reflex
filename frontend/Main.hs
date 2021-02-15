@@ -98,7 +98,7 @@ locationWidget = Rx.elClass "div" "field" $ do
 
 submitWidget :: Rx.DomBuilder t m => m (Rx.Event t Submit)
 submitWidget = Rx.elClass "div" "field" . Rx.elClass "div" "control" $ do
-  let btnAttrs = [("class", "button is-link")]
+  let btnAttrs = [("class", "button is-link"), ("type", "button")]
   (e, _) <-
     Rx.element "button" (def & Rx.elementConfig_initialAttributes .~ btnAttrs)
       $ Rx.text "Submit"
