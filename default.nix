@@ -1,6 +1,9 @@
 # default.nix
 { system ? builtins.currentSystem }:
-(import ./reflex-platform { inherit system; }).project ({ pkgs, ... }: {
+(import ./reflex-platform { inherit system; }).project ({ pkgs, ... }:
+  let hlib = pkgs.haskell.lib;
+      sources = import nix/sources.nix;
+  in {
   packages = {
     common = ./common;
     backend = ./backend;
@@ -12,4 +15,7 @@
     ghcjs = ["common" "frontend"];
   };
   useWarp = true;
+  overrides = self: super: {
+    servant-reflex = self.callCabal2nix "servant-reflex" sources.servant-reflex { };
+  };
 })
