@@ -27,6 +27,7 @@ library
     , data-default-class
     , servant
     , text
+    , time
     , aeson
     , protolude
   hs-source-dirs: src

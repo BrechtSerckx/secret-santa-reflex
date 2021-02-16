@@ -1,8 +1,10 @@
 #! /bin/sh
 
 common="ghcid -l --command 'cabal repl common'"
-backend="ghcid -l --command 'cabal repl frontend' -T Main.main"
-frontend="ghcid -l --command 'cabal repl backend' -T Main.main"
+# backend="ghcid -l --command 'cabal repl frontend' -T Main.main"
+# frontend="ghcid -l --command 'cabal repl backend' -T Main.main"
+backend="ghcid -l --command 'cabal repl frontend'"
+frontend="ghcid -l --command 'cabal repl backend'"
 
 init="tmux new-session"
 add="split-window -h"

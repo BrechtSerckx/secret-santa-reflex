@@ -32,6 +32,7 @@ executable frontend
     , data-default-class
     , lens
     , servant-reflex
+    , time
   hs-source-dirs:
     src
   default-language:    Haskell2010

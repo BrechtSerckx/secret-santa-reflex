@@ -36,13 +36,13 @@ bodyWidget =
         (Proxy @())
         (Rx.constDyn $ SR.BaseFullUrl SR.Http "localhost" 8080 "/")
   in  Rx.elClass "section" "section" . Rx.elClass "div" "container" $ do
-                                                -- header
+                                                                        -- header
         Rx.elClass "h1" "title" $ Rx.text "Secret Santa"
         Rx.el "p" $ Rx.text "My first website with Bulma!"
 
         Rx.el "hr" $ pure ()
 
         -- form
-        eFormSubmitted <- formWidget
+        eFormSubmitted <- Rx.traceEvent "form" <$> formWidget
         formDisplayWidget eFormSubmitted echoForm
 
