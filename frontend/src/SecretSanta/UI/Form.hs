@@ -36,7 +36,7 @@ formWidget = do
           fDescription  <- wDescription
           fDate         <- wDate
           fPrice        <- wPrice
-          fParticipants <- pure []
+          fParticipants <- Map.elems <$> wParticipants
           pure Form { .. }
     pure . Rx.tag submit $ eSubmit
 
@@ -115,17 +115,20 @@ addNewParticipant m = case Map.maxViewWithKey m of
 participantsWidget
   :: (Rx.DomBuilder t m, Rx.MonadHold t m, MonadFix m, Rx.PostBuild t m)
   => Rx.Event t AddParticipant
-  -> m ()
+  -> m (Rx.Behavior t ParticipantMap)
 participantsWidget eAddNewParticipant = do
-  rec dCurrParticipants <-
-        Rx.foldDyn ($) initialParticipants
-        . Rx.mergeWith (.)
-        $ [ addNewParticipant <$ eAddNewParticipant
-          , deleteParticipants dDeleteParticipantsMap
-          ]
-      dDeleteParticipantsMap <- Rx.listWithKey dCurrParticipants
-        $ \k p -> participantWidget k p
-  pure ()
+  rec
+    dCurrParticipants <-
+      Rx.foldDyn ($) initialParticipants
+      . Rx.mergeWith (.)
+      $ [ addNewParticipant <$ eAddNewParticipant
+        , deleteParticipants $ map snd <$> dParticipantsMap
+        ]
+    dParticipantsMap :: Rx.Dynamic
+        t
+        (Map Int (Rx.Dynamic t Participant, Rx.Event t DeleteParticipant)) <-
+      Rx.listWithKey dCurrParticipants $ \k p -> participantWidget k p
+  pure . Rx.current . Rx.joinDynThroughMap $ map fst <$> dParticipantsMap
  where
   deleteParticipants m =
     Rx.switch
@@ -141,14 +144,14 @@ participantWidget
   :: (Rx.DomBuilder t m, Rx.PostBuild t m)
   => Int
   -> Rx.Dynamic t Participant
-  -> m (Rx.Event t DeleteParticipant)
+  -> m ((Rx.Dynamic t Participant, Rx.Event t DeleteParticipant))
 participantWidget k p = Rx.elClass "li" "element" $ do
   Rx.dynText $ fmap (("Participant: ") <>) p
   let btnAttrs = [("class", "button is-link"), ("type", "button")]
   (input, _) <-
     Rx.element "button" (def & Rx.elementConfig_initialAttributes .~ btnAttrs)
       $ Rx.text "x"
-  pure $ const (DeleteParticipant k) <$> Rx.domEvent Rx.Click input
+  pure $ (p, const (DeleteParticipant k) <$> Rx.domEvent Rx.Click input)
 
 
 
