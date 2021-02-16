@@ -8,7 +8,12 @@ import           Data.Time                      ( Day )
 
 type Email = Text
 -- type Participant = (Text, Email)
-type Participant = Text
+data Participant = Participant
+  { pName  :: Text
+  , pEmail :: Email
+  }
+  deriving (Eq, Show, Generic, ToJSON, FromJSON)
+
 type Date = Text
 type Price = Double
 
