@@ -8,7 +8,9 @@ import           Control.Lens
 import           Control.Monad.Fix
 import qualified Data.Map                      as Map
 import qualified Data.Text                     as T
+import qualified Data.Text.Lazy                as TL
 import qualified Data.Time                     as Time
+import qualified Text.Pretty.Simple            as Pretty
 
 import qualified Reflex                        as Rx
 import qualified Reflex.Dom                    as Rx
@@ -185,9 +187,7 @@ formDisplayWidget eFormSubmitted echoForm = do
   dReqBody <- Rx.holdDyn (Left "") $ Right <$> eFormSubmitted
   eReqRes  <- echoForm dReqBody $ void eFormSubmitted
   let displayErr = Rx.text
-      mkForm Form {..} = Rx.el "ul" $ do
-        Rx.el "li" . Rx.text $ "Description: " <> fDescription
-        Rx.el "li" . Rx.text $ "Date: " <> show fDate
+      mkForm f = Rx.text . TL.toStrict . Pretty.pShowNoColor $ f
       displayReqRes rr = case rr of
         SR.ResponseSuccess _ f _ -> mkForm f
         SR.ResponseFailure _ t _ -> displayErr t
