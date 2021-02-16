@@ -94,105 +94,164 @@ priceWidget = Rx.elClass "div" "field is-horizontal" $ do
   let mkPrice = fromMaybe 0 . readMaybe . T.unpack
   pure . fmap mkPrice . Rx.current . Rx._inputElement_value $ input
 
+data AddParticipant = AddParticipant
 newParticipantWidget
-  :: (Rx.DomBuilder t m, MonadFix m) => m (Rx.Event t Participant)
-newParticipantWidget = Rx.elClass "div" "field is-horizontal" $ do
-  Rx.elClass "label" "label field-label" $ Rx.text "Name"
-  Rx.elClass "div" "field-body" $ do
-    rec dName              <- nameWidget eSubmitParticipant
-        dEmail             <- emailWidget eSubmitParticipant
-        eSubmitParticipant <- submitParticipantWidget
-    pure $ Rx.tag dName eSubmitParticipant
- where
-  nameWidget e = do
-    input <-
-      Rx.elClass "div" "field"
-      . Rx.elClass "p" "control"
-      . Rx.inputElement
-      $ def
-      & (Rx.inputElementConfig_setValue .~ fmap (const "") e)
-      & (  Rx.inputElementConfig_elementConfig
-        .  Rx.elementConfig_initialAttributes
-        .~ mconcat
-             [ "placeholder" =: "Participant name"
-             , "class" =: "input"
-             , "type" =: "text"
-             ]
-        )
-    pure . Rx.current . Rx._inputElement_value $ input
-  emailWidget e = do
-    input <-
-      Rx.elClass "div" "field"
-      . Rx.elClass "p" "control is-expanded"
-      . Rx.inputElement
-      $ def
-      & (Rx.inputElementConfig_setValue .~ fmap (const "") e)
-      & (  Rx.inputElementConfig_elementConfig
-        .  Rx.elementConfig_initialAttributes
-        .~ mconcat
-             [ "placeholder" =: "me@you.com"
-             , "class" =: "input"
-             , "type" =: "email"
-             ]
-        )
-    pure . Rx.current . Rx._inputElement_value $ input
-  submitParticipantWidget =
-    Rx.elClass "div" "field" . Rx.elClass "div" "control" $ do
-      let btnAttrs = [("class", "button is-link"), ("type", "button")]
-      (e, _) <-
-        Rx.element "button"
-                   (def & Rx.elementConfig_initialAttributes .~ btnAttrs)
-          $ Rx.text "Add Participant"
-      pure $ Rx.domEvent Rx.Click e
+  :: (Rx.DomBuilder t m, MonadFix m) => m (Rx.Event t AddParticipant)
+newParticipantWidget = do
+  Rx.elClass "div" "field" . Rx.elClass "div" "control" $ do
+    let btnAttrs = [("class", "button is-link"), ("type", "button")]
+    (e, _) <-
+      Rx.element "button" (def & Rx.elementConfig_initialAttributes .~ btnAttrs)
+        $ Rx.text "Add Participant"
+    pure $ Rx.domEvent Rx.Click e $> AddParticipant
+
+type ParticipantMap = Map Int Participant
+initialParticipants :: ParticipantMap
+initialParticipants = [(0, "fred"), (1, "george")]
+addNewParticipant m = case Map.maxViewWithKey m of
+  Nothing          -> [(0, "unknown")]
+  Just ((k, _), _) -> Map.insert (succ k) "unknown" m
 
 participantsWidget
-  :: forall t m
-   . (Rx.DomBuilder t m, MonadFix m, Rx.MonadHold t m, Rx.PostBuild t m)
-  => Rx.Event t Participant
+  :: (Rx.DomBuilder t m, Rx.MonadHold t m, MonadFix m, Rx.PostBuild t m)
+  => Rx.Event t AddParticipant
   -> m ()
-participantsWidget eNewParticipant = Rx.el "div" $ do
-  rec dCurrParticipants <- Rx.foldDyn ($) Map.empty
-        $ Rx.mergeWith (.) [eNewParticipant', eDeleteParticipants dPDeleteMap]
-      dPDeleteMap <- listParticipantsWidget dCurrParticipants
+participantsWidget eAddNewParticipant = do
+  rec dCurrParticipants <-
+        Rx.foldDyn ($) initialParticipants
+        . Rx.mergeWith (.)
+        $ [ addNewParticipant <$ eAddNewParticipant
+          , deleteParticipants dDeleteParticipantsMap
+          ]
+      dDeleteParticipantsMap <- Rx.listWithKey dCurrParticipants
+        $ \k p -> participantWidget k p
   pure ()
-
  where
-  eNewParticipant' :: Rx.Event t (Map Int Participant -> Map Int Participant)
-  eNewParticipant' = new <$> eNewParticipant
-  eDeleteParticipants m =
+  deleteParticipants m =
     Rx.switch
       . Rx.current
       . Rx.ffor m
       $ Rx.mergeWith (.)
-      . map (fmap Map.delete)
+      . map (fmap $ \(DeleteParticipant i) -> Map.delete i)
       . Map.elems
-  listParticipantsWidget
-    :: Rx.Dynamic t (Map Int Text)
-    -> m (Rx.Dynamic t (Map Int (Rx.Event t Int)))
-  listParticipantsWidget ps =
-    Rx.elClass "ul" "list" $ Rx.listWithKey ps $ \k p -> do
-      pw <- participantWidget p
-      pure $ const k <$> Rx.domEvent Rx.Click pw
-      -- Rx.elClass "li" "element" $ do
-      --   Rx.dynText $ fmap (("Key: " <> show k <> " for name ") <>) p
-      --   let btnAttrs = [("class", "button is-link"), ("type", "button")]
-      --   (e, _) <-
-      --     Rx.element "button"
-      --                (def & Rx.elementConfig_initialAttributes .~ btnAttrs)
-      --       $ Rx.text "x"
-      --   pure $ const k <$> Rx.domEvent Rx.Click e
-  participantWidget p = Rx.elClass "li" "element" $ do
-    Rx.dynText $ fmap (("Participant: ") <>) p
-    let btnAttrs = [("class", "button is-link"), ("type", "button")]
-    (e, _) <-
-      Rx.element "button" (def & Rx.elementConfig_initialAttributes .~ btnAttrs)
-        $ Rx.text "x"
-    pure e
 
-  new :: a -> Map Int a -> Map Int a
-  new v m = case Map.maxViewWithKey m of
-    Nothing          -> [(0, v)]
-    Just ((k, _), _) -> Map.insert (succ k) v m
+data DeleteParticipant = DeleteParticipant Int
+
+participantWidget
+  :: (Rx.DomBuilder t m, Rx.PostBuild t m)
+  => Int
+  -> Rx.Dynamic t Participant
+  -> m (Rx.Event t DeleteParticipant)
+participantWidget k p = Rx.elClass "li" "element" $ do
+  Rx.dynText $ fmap (("Participant: ") <>) p
+  let btnAttrs = [("class", "button is-link"), ("type", "button")]
+  (input, _) <-
+    Rx.element "button" (def & Rx.elementConfig_initialAttributes .~ btnAttrs)
+      $ Rx.text "x"
+  pure $ const (DeleteParticipant k) <$> Rx.domEvent Rx.Click input
+
+
+
+
+-- newParticipantWidget
+--   :: (Rx.DomBuilder t m, MonadFix m) => m (Rx.Event t Participant)
+-- newParticipantWidget = Rx.elClass "div" "field is-horizontal" $ do
+--   Rx.elClass "label" "label field-label" $ Rx.text "Name"
+--   Rx.elClass "div" "field-body" $ do
+--     rec dName              <- nameWidget eSubmitParticipant
+--         dEmail             <- emailWidget eSubmitParticipant
+--         eSubmitParticipant <- submitParticipantWidget
+--     pure $ Rx.tag dName eSubmitParticipant
+--  where
+--   nameWidget e = do
+--     input <-
+--       Rx.elClass "div" "field"
+--       . Rx.elClass "p" "control"
+--       . Rx.inputElement
+--       $ def
+--       & (Rx.inputElementConfig_setValue .~ fmap (const "") e)
+--       & (  Rx.inputElementConfig_elementConfig
+--         .  Rx.elementConfig_initialAttributes
+--         .~ mconcat
+--              [ "placeholder" =: "Participant name"
+--              , "class" =: "input"
+--              , "type" =: "text"
+--              ]
+--         )
+--     pure . Rx.current . Rx._inputElement_value $ input
+--   emailWidget e = do
+--     input <-
+--       Rx.elClass "div" "field"
+--       . Rx.elClass "p" "control is-expanded"
+--       . Rx.inputElement
+--       $ def
+--       & (Rx.inputElementConfig_setValue .~ fmap (const "") e)
+--       & (  Rx.inputElementConfig_elementConfig
+--         .  Rx.elementConfig_initialAttributes
+--         .~ mconcat
+--              [ "placeholder" =: "me@you.com"
+--              , "class" =: "input"
+--              , "type" =: "email"
+--              ]
+--         )
+--     pure . Rx.current . Rx._inputElement_value $ input
+--   submitParticipantWidget =
+--     Rx.elClass "div" "field" . Rx.elClass "div" "control" $ do
+--       let btnAttrs = [("class", "button is-link"), ("type", "button")]
+--       (e, _) <-
+--         Rx.element "button"
+--                    (def & Rx.elementConfig_initialAttributes .~ btnAttrs)
+--           $ Rx.text "Add Participant"
+--       pure $ Rx.domEvent Rx.Click e
+
+-- participantsWidget
+--   :: forall t m
+--    . (Rx.DomBuilder t m, MonadFix m, Rx.MonadHold t m, Rx.PostBuild t m)
+--   => Rx.Event t Participant
+--   -> m ()
+-- participantsWidget eNewParticipant = Rx.el "div" $ do
+--   rec dCurrParticipants <- Rx.foldDyn ($) Map.empty
+--         $ Rx.mergeWith (.) [eNewParticipant', eDeleteParticipants dPDeleteMap]
+--       dPDeleteMap <- listParticipantsWidget dCurrParticipants
+--   pure ()
+
+--  where
+--   eNewParticipant' :: Rx.Event t (Map Int Participant -> Map Int Participant)
+--   eNewParticipant' = new <$> eNewParticipant
+--   eDeleteParticipants m =
+--     Rx.switch
+--       . Rx.current
+--       . Rx.ffor m
+--       $ Rx.mergeWith (.)
+--       . map (fmap Map.delete)
+--       . Map.elems
+--   listParticipantsWidget
+--     :: Rx.Dynamic t (Map Int Text)
+--     -> m (Rx.Dynamic t (Map Int (Rx.Event t Int)))
+--   listParticipantsWidget ps =
+--     Rx.elClass "ul" "list" $ Rx.listWithKey ps $ \k p -> do
+--       pw <- participantWidget p
+--       pure $ const k <$> Rx.domEvent Rx.Click pw
+--       -- Rx.elClass "li" "element" $ do
+--       --   Rx.dynText $ fmap (("Key: " <> show k <> " for name ") <>) p
+--       --   let btnAttrs = [("class", "button is-link"), ("type", "button")]
+--       --   (e, _) <-
+--       --     Rx.element "button"
+--       --                (def & Rx.elementConfig_initialAttributes .~ btnAttrs)
+--       --       $ Rx.text "x"
+--       --   pure $ const k <$> Rx.domEvent Rx.Click e
+--   participantWidget p = Rx.elClass "li" "element" $ do
+--     Rx.dynText $ fmap (("Participant: ") <>) p
+--     let btnAttrs = [("class", "button is-link"), ("type", "button")]
+--     (e, _) <-
+--       Rx.element "button" (def & Rx.elementConfig_initialAttributes .~ btnAttrs)
+--         $ Rx.text "x"
+--     pure e
+
+--   new :: a -> Map Int a -> Map Int a
+--   new v m = case Map.maxViewWithKey m of
+--     Nothing          -> [(0, v)]
+--     Just ((k, _), _) -> Map.insert (succ k) v m
 
 
 submitWidget :: Rx.DomBuilder t m => m (Rx.Event t Submit)
