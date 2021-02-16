@@ -107,7 +107,7 @@ newParticipantWidget = do
 
 type ParticipantMap = Map Int Participant
 initialParticipants :: ParticipantMap
-initialParticipants = [(0, "fred"), (1, "george")]
+initialParticipants = [(0, ""), (1, "")]
 addNewParticipant m = case Map.maxViewWithKey m of
   Nothing          -> [(0, "unknown")]
   Just ((k, _), _) -> Map.insert (succ k) "unknown" m
@@ -122,36 +122,55 @@ participantsWidget eAddNewParticipant = do
       Rx.foldDyn ($) initialParticipants
       . Rx.mergeWith (.)
       $ [ addNewParticipant <$ eAddNewParticipant
-        , deleteParticipants $ map snd <$> dParticipantsMap
+        , overParticipants (\(DeleteParticipant i) -> Map.delete i)
+        $   map fst
+        <$> dParticipantsMap
+        , overParticipants (\(UpdateParticipant i n) -> Map.adjust (const n) i)
+        $   map snd
+        <$> dParticipantsMap
         ]
-    dParticipantsMap :: Rx.Dynamic
-        t
-        (Map Int (Rx.Dynamic t Participant, Rx.Event t DeleteParticipant)) <-
-      Rx.listWithKey dCurrParticipants $ \k p -> participantWidget k p
-  pure . Rx.current . Rx.joinDynThroughMap $ map fst <$> dParticipantsMap
+    dParticipantsMap <- Rx.listWithKey dCurrParticipants
+      $ \k p -> participantWidget k p
+  pure . Rx.current $ dCurrParticipants
  where
-  deleteParticipants m =
+  overParticipants f m =
     Rx.switch
       . Rx.current
       . Rx.ffor m
       $ Rx.mergeWith (.)
-      . map (fmap $ \(DeleteParticipant i) -> Map.delete i)
+      . map (fmap f)
       . Map.elems
 
 data DeleteParticipant = DeleteParticipant Int
+data UpdateParticipant = UpdateParticipant Int Text
 
 participantWidget
   :: (Rx.DomBuilder t m, Rx.PostBuild t m)
   => Int
   -> Rx.Dynamic t Participant
-  -> m ((Rx.Dynamic t Participant, Rx.Event t DeleteParticipant))
+  -> m ((Rx.Event t DeleteParticipant, Rx.Event t UpdateParticipant))
 participantWidget k p = Rx.elClass "li" "element" $ do
-  Rx.dynText $ fmap (("Participant: ") <>) p
+  field <-
+    Rx.elClass "div" "field"
+    . Rx.elClass "p" "control"
+    . Rx.inputElement
+    $ def
+    & (  Rx.inputElementConfig_elementConfig
+      .  Rx.elementConfig_initialAttributes
+      .~ mconcat
+           [ "placeholder" =: "Participant name"
+           , "class" =: "input"
+           , "type" =: "text"
+           ]
+      )
   let btnAttrs = [("class", "button is-link"), ("type", "button")]
-  (input, _) <-
+  (btn, _) <-
     Rx.element "button" (def & Rx.elementConfig_initialAttributes .~ btnAttrs)
       $ Rx.text "x"
-  pure $ (p, const (DeleteParticipant k) <$> Rx.domEvent Rx.Click input)
+  pure
+    $ ( const (DeleteParticipant k) <$> Rx.domEvent Rx.Click btn
+      , Rx.updated $ UpdateParticipant k <$> Rx._inputElement_value field
+      )
 
 
 
