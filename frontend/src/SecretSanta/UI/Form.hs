@@ -41,15 +41,15 @@ formWidget = do
     pure . Rx.tag submit $ eSubmit
 
 descriptionWidget :: Rx.DomBuilder t m => m (Rx.Behavior t Text)
-descriptionWidget = Rx.elClass "div" "field" $ do
-  Rx.elClass "label" "label" $ Rx.text "Description"
+descriptionWidget = Rx.elClass "div" "field is-horizontal" $ do
+  Rx.elClass "label" "label field-label" $ Rx.text "Description"
   let inputAttrs = mconcat
         [ "placeholder" =: "Description of the event"
         , "class" =: "input"
         , "type" =: "text"
         ]
   input <-
-    Rx.elClass "div" "control"
+    Rx.elClass "div" "control field-body"
     . Rx.inputElement
     $ def
     & (  Rx.inputElementConfig_elementConfig
@@ -59,11 +59,11 @@ descriptionWidget = Rx.elClass "div" "field" $ do
   pure . Rx.current . Rx._inputElement_value $ input
 
 dateWidget :: Rx.DomBuilder t m => m (Rx.Behavior t Text)
-dateWidget = Rx.elClass "div" "field" $ do
-  Rx.elClass "label" "label" $ Rx.text "Date"
+dateWidget = Rx.elClass "div" "field is-horizontal" $ do
+  Rx.elClass "label" "label field-label" $ Rx.text "Date"
   let inputAttrs = mconcat ["class" =: "input", "type" =: "date"]
   input <-
-    Rx.elClass "div" "control"
+    Rx.elClass "div" "control field-body"
     . Rx.inputElement
     $ def
     & (  Rx.inputElementConfig_elementConfig
@@ -75,15 +75,15 @@ dateWidget = Rx.elClass "div" "field" $ do
   pure . fmap mkDate . Rx.current . Rx._inputElement_value $ input
 
 priceWidget :: Rx.DomBuilder t m => m (Rx.Behavior t Double)
-priceWidget = Rx.elClass "div" "field" $ do
-  Rx.elClass "label" "label" $ Rx.text "Price"
+priceWidget = Rx.elClass "div" "field is-horizontal" $ do
+  Rx.elClass "label" "label field-label" $ Rx.text "Price"
   let inputAttrs = mconcat
         [ "placeholder" =: "Price of the event"
         , "class" =: "input"
         , "type" =: "number"
         ]
   input <-
-    Rx.elClass "div" "control"
+    Rx.elClass "div" "control field-body"
     . Rx.inputElement
     $ def
     & (  Rx.inputElementConfig_elementConfig
@@ -96,15 +96,18 @@ priceWidget = Rx.elClass "div" "field" $ do
 
 newParticipantWidget
   :: (Rx.DomBuilder t m, MonadFix m) => m (Rx.Event t Participant)
-newParticipantWidget = Rx.el "div" $ do
-  Rx.elClass "label" "label" $ Rx.text "Name"
-  rec dName              <- nameWidget eSubmitParticipant
-      eSubmitParticipant <- submitParticipantWidget
-  pure $ Rx.tag dName eSubmitParticipant
+newParticipantWidget = Rx.elClass "div" "field is-horizontal" $ do
+  Rx.elClass "label" "label field-label" $ Rx.text "Name"
+  Rx.elClass "div" "field-body" $ do
+    rec dName              <- nameWidget eSubmitParticipant
+        dEmail             <- emailWidget eSubmitParticipant
+        eSubmitParticipant <- submitParticipantWidget
+    pure $ Rx.tag dName eSubmitParticipant
  where
   nameWidget e = do
     input <-
-      Rx.elClass "div" "control"
+      Rx.elClass "div" "field"
+      . Rx.elClass "p" "control"
       . Rx.inputElement
       $ def
       & (Rx.inputElementConfig_setValue .~ fmap (const "") e)
@@ -114,6 +117,22 @@ newParticipantWidget = Rx.el "div" $ do
              [ "placeholder" =: "Participant name"
              , "class" =: "input"
              , "type" =: "text"
+             ]
+        )
+    pure . Rx.current . Rx._inputElement_value $ input
+  emailWidget e = do
+    input <-
+      Rx.elClass "div" "field"
+      . Rx.elClass "p" "control is-expanded"
+      . Rx.inputElement
+      $ def
+      & (Rx.inputElementConfig_setValue .~ fmap (const "") e)
+      & (  Rx.inputElementConfig_elementConfig
+        .  Rx.elementConfig_initialAttributes
+        .~ mconcat
+             [ "placeholder" =: "me@you.com"
+             , "class" =: "input"
+             , "type" =: "email"
              ]
         )
     pure . Rx.current . Rx._inputElement_value $ input
@@ -151,15 +170,25 @@ participantsWidget eNewParticipant = Rx.el "div" $ do
     :: Rx.Dynamic t (Map Int Text)
     -> m (Rx.Dynamic t (Map Int (Rx.Event t Int)))
   listParticipantsWidget ps =
-    Rx.elClass "ul" "list" $ Rx.listWithKey ps $ \k p ->
-      Rx.elClass "li" "element" $ do
-        Rx.dynText $ fmap (("Key: " <> show k <> " for name ") <>) p
-        let btnAttrs = [("class", "button is-link"), ("type", "button")]
-        (e, _) <-
-          Rx.element "button"
-                     (def & Rx.elementConfig_initialAttributes .~ btnAttrs)
-            $ Rx.text "x"
-        pure $ const k <$> Rx.domEvent Rx.Click e
+    Rx.elClass "ul" "list" $ Rx.listWithKey ps $ \k p -> do
+      pw <- participantWidget p
+      pure $ const k <$> Rx.domEvent Rx.Click pw
+      -- Rx.elClass "li" "element" $ do
+      --   Rx.dynText $ fmap (("Key: " <> show k <> " for name ") <>) p
+      --   let btnAttrs = [("class", "button is-link"), ("type", "button")]
+      --   (e, _) <-
+      --     Rx.element "button"
+      --                (def & Rx.elementConfig_initialAttributes .~ btnAttrs)
+      --       $ Rx.text "x"
+      --   pure $ const k <$> Rx.domEvent Rx.Click e
+  participantWidget p = Rx.elClass "li" "element" $ do
+    Rx.dynText $ fmap (("Participant: ") <>) p
+    let btnAttrs = [("class", "button is-link"), ("type", "button")]
+    (e, _) <-
+      Rx.element "button" (def & Rx.elementConfig_initialAttributes .~ btnAttrs)
+        $ Rx.text "x"
+    pure e
+
   new :: a -> Map Int a -> Map Int a
   new v m = case Map.maxViewWithKey m of
     Nothing          -> [(0, v)]
