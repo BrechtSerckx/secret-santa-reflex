@@ -27,33 +27,35 @@ formWidget
   => m (Rx.Event t Form)
 formWidget = do
   Rx.el "form" $ do
-    title 3 $ Rx.text "General"
-    wName <- fieldHorizontal $ do
-      label "Event"
-      fieldBody . field . control $ nameWidget
-    (wDate, wTime) <- fieldHorizontal $ do
-      label "Date/Time"
-      fieldBody $ do
-        wDate' <- field . control $ dateWidget
-        wTime' <- field . control $ timeWidget
-        pure (wDate', wTime')
-    wLocation <- fieldHorizontal $ do
-      label "Location"
-      fieldBody . field . control $ locationWidget
-    wPrice <- fieldHorizontal $ do
-      label "Price"
-      fieldBody . field . control $ priceWidget
-    wDescription <- fieldHorizontal $ do
-      label "Description"
-      fieldBody . field . control $ descriptionWidget
-    title 3 $ Rx.text "Participants"
-    rec wParticipants <- participantsWidget eNewParticipant $ layoutParticipant
-        (eNewParticipant, eSubmit) <- do
-          label ""
-          fieldBody . field' "is-grouped" $ do
-            eNewParticipant' <- control $ newParticipantWidget
-            eSubmit'         <- control $ submitWidget
-            pure (eNewParticipant', eSubmit')
+    rec
+      title 3 $ Rx.text "General"
+      wName <- fieldHorizontal $ do
+        label "Event"
+        fieldBody . field . control $ nameWidget eSubmit
+      (wDate, wTime) <- fieldHorizontal $ do
+        label "Date/Time"
+        fieldBody $ do
+          wDate' <- field . control $ dateWidget
+          wTime' <- field . control $ timeWidget
+          pure (wDate', wTime')
+      wLocation <- fieldHorizontal $ do
+        label "Location"
+        fieldBody . field . control $ locationWidget
+      wPrice <- fieldHorizontal $ do
+        label "Price"
+        fieldBody . field . control $ priceWidget
+      wDescription <- fieldHorizontal $ do
+        label "Description"
+        fieldBody . field . control $ descriptionWidget
+      title 3 $ Rx.text "Participants"
+      rec wParticipants <-
+            participantsWidget eNewParticipant $ layoutParticipant
+          (eNewParticipant, eSubmit) <- do
+            label ""
+            fieldBody . field' "is-grouped" $ do
+              eNewParticipant' <- control $ newParticipantWidget
+              eSubmit'         <- control $ submitWidget
+              pure (eNewParticipant', eSubmit')
     let submit = do
           fName         <- wName
           fDate         <- wDate
@@ -73,19 +75,55 @@ formWidget = do
       wPDelete' <- control wPDelete
       pure (wPName', wPEmail', wPDelete')
 
-nameWidget :: Rx.DomBuilder t m => m (Rx.Behavior t Text)
-nameWidget =
-  fmap (Rx.current . Rx._inputElement_value)
-    . Rx.inputElement
-    $ def
-    & (  Rx.inputElementConfig_elementConfig
-      .  Rx.elementConfig_initialAttributes
-      .~ mconcat
-           [ "placeholder" =: "My Secret Santa"
-           , "class" =: "input"
-           , "type" =: "text"
-           ]
-      )
+nameWidget
+  :: (Rx.DomBuilder t m, MonadFix m, Rx.MonadHold t m)
+  => Rx.Event t Submit
+  -> m (Rx.Behavior t (Validated Text))
+nameWidget eSubmit = do
+  rec let (validationAttrs, validationMsg, validatedValue) =
+            mkValidation eSubmit input validate
+      input <-
+        Rx.inputElement
+        $ def
+        & (  Rx.inputElementConfig_elementConfig
+          .  Rx.elementConfig_initialAttributes
+          .~ mconcat
+               [ "placeholder" =: "My Secret Santa"
+               , "class" =: "input"
+               , "type" =: "text"
+               ]
+          )
+        & (  Rx.inputElementConfig_elementConfig
+          .  Rx.elementConfig_modifyAttributes
+          .~ validationAttrs
+          )
+      validationMsg
+  pure validatedValue
+ where
+  validate text =
+    if T.null text then Left "Name cannot be empty" else Right text
+
+type Validated a = Either Text a
+mkValidation
+  :: (Rx.DomBuilder t m, MonadFix m, Rx.MonadHold t m)
+  => Rx.Event t Submit
+  -> Rx.InputElement Rx.EventResult (Rx.DomBuilderSpace m) t
+  -> (Text -> Validated a)
+  -> ( Rx.Event t (Map Rx.AttributeName (Maybe Text))
+     , m ()
+     , Rx.Behavior t (Validated a)
+     )
+mkValidation eSubmit input validate =
+  let eDoneEditing = Rx.leftmost [void eSubmit, Rx.domEvent Rx.Blur input]
+      eModifyAttrs = Rx.ffor eValue $ \case
+        Left  _ -> [("class", Just "input is-danger")]
+        Right _ -> [("class", Just "input is-success")]
+      dValue  = fmap validate . Rx.current . Rx._inputElement_value $ input
+      eValue  = Rx.tag dValue eDoneEditing
+      wErrMsg = Rx.widgetHold_ Rx.blank . Rx.ffor eValue $ \case
+        Left  e -> Rx.elClass "p" "help is-danger" $ Rx.text e
+        Right e -> Rx.blank
+  in  (eModifyAttrs, wErrMsg, dValue)
 
 dateWidget :: Rx.DomBuilder t m => m (Rx.Behavior t Text)
 dateWidget =
