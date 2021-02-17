@@ -27,6 +27,7 @@ formWidget
   => m (Rx.Event t Form)
 formWidget = do
   Rx.el "form" $ do
+    title 3 $ Rx.text "General"
     wName <- fieldHorizontal $ do
       label "Event"
       fieldBody . field . control $ nameWidget
@@ -45,6 +46,7 @@ formWidget = do
     wDescription <- fieldHorizontal $ do
       label "Description"
       fieldBody . field . control $ descriptionWidget
+    title 3 $ Rx.text "Participants"
     rec wParticipants <- participantsWidget eNewParticipant $ layoutParticipant
         (eNewParticipant, eSubmit) <- do
           label ""
@@ -328,3 +330,7 @@ label = Rx.elClass "div" "field-label" . Rx.elClass "label" "label" . Rx.text
 
 fieldBody :: Rx.DomBuilder t m => m a -> m a
 fieldBody = Rx.elClass "div" "field-body"
+
+title :: Rx.DomBuilder t m => Int -> m a -> m a
+title (show -> i) = Rx.elClass ("h" <> i) ("title is-" <> i)
+

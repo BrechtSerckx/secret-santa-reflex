@@ -36,8 +36,8 @@ bodyWidget =
         (Proxy @())
         (Rx.constDyn $ SR.BaseFullUrl SR.Http "localhost" 8080 "/")
   in  Rx.elClass "section" "section" . Rx.elClass "div" "container" $ do
-                                                                        -- header
-        Rx.elClass "h1" "title" $ Rx.text "Secret Santa"
+                                                                            -- header
+        Rx.elClass "h1" "title is-1" $ Rx.text "Secret Santa"
         Rx.el "p" $ Rx.text "My first website with Bulma!"
 
         Rx.el "hr" $ pure ()
