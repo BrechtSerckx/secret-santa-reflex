@@ -14,7 +14,7 @@ data Participant = Participant
   }
   deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
-type Date = Text
+type Date = Day
 type Price = Double
 
 

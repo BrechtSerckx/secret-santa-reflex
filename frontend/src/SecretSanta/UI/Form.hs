@@ -6,6 +6,7 @@ module SecretSanta.UI.Form
 
 import           Control.Lens
 import           Control.Monad.Fix
+import           Data.Either.Validation
 import qualified Data.Map                      as Map
 import qualified Data.Text                     as T
 import qualified Data.Text.Lazy                as TL
@@ -21,10 +22,7 @@ import           SecretSanta.Data
 
 data Submit = Submit
 
-formWidget
-  :: forall t m
-   . (Rx.DomBuilder t m, MonadFix m, Rx.MonadHold t m, Rx.PostBuild t m)
-  => m (Rx.Event t Form)
+formWidget :: forall t m . Rx.MonadWidget t m => m (Rx.Event t (Maybe Form))
 formWidget = do
   Rx.el "form" $ do
     rec
@@ -35,18 +33,18 @@ formWidget = do
       (wDate, wTime) <- fieldHorizontal $ do
         label "Date/Time"
         fieldBody $ do
-          wDate' <- field . control $ dateWidget
-          wTime' <- field . control $ timeWidget
+          wDate' <- field . control $ dateWidget eSubmit
+          wTime' <- field . control $ timeWidget eSubmit
           pure (wDate', wTime')
       wLocation <- fieldHorizontal $ do
         label "Location"
-        fieldBody . field . control $ locationWidget
+        fieldBody . field . control $ locationWidget eSubmit
       wPrice <- fieldHorizontal $ do
         label "Price"
-        fieldBody . field . control $ priceWidget
+        fieldBody . field . control $ priceWidget eSubmit
       wDescription <- fieldHorizontal $ do
         label "Description"
-        fieldBody . field . control $ descriptionWidget
+        fieldBody . field . control $ descriptionWidget eSubmit
       title 3 $ Rx.text "Participants"
       rec wParticipants <-
             participantsWidget eNewParticipant $ layoutParticipant
@@ -56,16 +54,34 @@ formWidget = do
               eNewParticipant' <- control $ newParticipantWidget
               eSubmit'         <- control $ submitWidget
               pure (eNewParticipant', eSubmit')
-    let submit = do
-          fName         <- wName
-          fDate         <- wDate
-          fTime         <- wTime
-          fLocation     <- wLocation
-          fPrice        <- wPrice
-          fDescription  <- wDescription
-          fParticipants <- Map.elems <$> wParticipants
-          pure Form { .. }
-    pure . Rx.tag submit $ eSubmit
+      Rx.widgetHold_ Rx.blank . Rx.ffor eForm $ \case
+        Failure es -> forM_ es $ Rx.elClass "p" "help is-danger" . Rx.text
+        Success e  -> Rx.blank
+      let submit = do
+            eName         <- wName
+            eDate         <- wDate
+            eTime         <- wTime
+            eLocation     <- wLocation
+            ePrice        <- wPrice
+            eDescription  <- wDescription
+            fParticipants <- Map.elems <$> wParticipants
+            pure $ do
+              let withFieldLabel :: Text -> Validated a -> Validated a
+                  withFieldLabel t = first . fmap $ \e -> t <> ": " <> e
+              fName        <- withFieldLabel "Event" eName
+              fDate        <- withFieldLabel "Date" eDate
+              fTime        <- withFieldLabel "Time" eTime
+              fLocation    <- withFieldLabel "Location" eLocation
+              fPrice       <- withFieldLabel "Price" ePrice
+              fDescription <- withFieldLabel "Description" eDescription
+              pure Form { .. }
+          eForm = Rx.tag submit $ eSubmit
+    pure
+      $   (\case
+            Failure _ -> Nothing
+            Success f -> Just f
+          )
+      <$> eForm
  where
   layoutParticipant (wPName, wPEmail, wPDelete) = fieldHorizontal $ do
     label "Participant"
@@ -76,7 +92,7 @@ formWidget = do
       pure (wPName', wPEmail', wPDelete')
 
 nameWidget
-  :: (Rx.DomBuilder t m, MonadFix m, Rx.MonadHold t m)
+  :: Rx.MonadWidget t m
   => Rx.Event t Submit
   -> m (Rx.Behavior t (Validated Text))
 nameWidget eSubmit = do
@@ -100,12 +116,13 @@ nameWidget eSubmit = do
       validationMsg
   pure validatedValue
  where
-  validate text =
-    if T.null text then Left "Name cannot be empty" else Right text
+  validate text = if T.null text
+    then Failure . pure $ "Name cannot be empty"
+    else Success text
 
-type Validated a = Either Text a
+type Validated a = Validation [Text] a
 mkValidation
-  :: (Rx.DomBuilder t m, MonadFix m, Rx.MonadHold t m)
+  :: Rx.MonadWidget t m
   => Rx.Event t Submit
   -> Rx.InputElement Rx.EventResult (Rx.DomBuilderSpace m) t
   -> (Text -> Validated a)
@@ -116,84 +133,139 @@ mkValidation
 mkValidation eSubmit input validate =
   let eDoneEditing = Rx.leftmost [void eSubmit, Rx.domEvent Rx.Blur input]
       eModifyAttrs = Rx.ffor eValue $ \case
-        Left  _ -> [("class", Just "input is-danger")]
-        Right _ -> [("class", Just "input is-success")]
+        Failure _ -> [("class", Just "input is-danger")]
+        Success _ -> [("class", Just "input is-success")]
       dValue  = fmap validate . Rx.current . Rx._inputElement_value $ input
       eValue  = Rx.tag dValue eDoneEditing
       wErrMsg = Rx.widgetHold_ Rx.blank . Rx.ffor eValue $ \case
-        Left  e -> Rx.elClass "p" "help is-danger" $ Rx.text e
-        Right e -> Rx.blank
+        Failure es -> forM_ es $ Rx.elClass "p" "help is-danger" . Rx.text
+        Success _  -> Rx.blank
   in  (eModifyAttrs, wErrMsg, dValue)
 
-dateWidget :: Rx.DomBuilder t m => m (Rx.Behavior t Text)
-dateWidget =
-  fmap (fmap mkDate . Rx.current . Rx._inputElement_value)
-    . Rx.inputElement
-    $ def
-    & (  Rx.inputElementConfig_elementConfig
-      .  Rx.elementConfig_initialAttributes
-      .~ mconcat ["class" =: "input", "type" =: "date"]
-      )
-  where
-  -- TODO
-        mkDate = identity
+dateWidget
+  :: Rx.MonadWidget t m
+  => Rx.Event t Submit
+  -> m (Rx.Behavior t (Validated Time.Day))
+dateWidget eSubmit = do
+  rec let (validationAttrs, validationMsg, validatedValue) =
+            mkValidation eSubmit input validate
+      input <-
+        Rx.inputElement
+        $ def
+        & (  Rx.inputElementConfig_elementConfig
+          .  Rx.elementConfig_initialAttributes
+          .~ mconcat ["class" =: "input", "type" =: "date"]
+          )
+        & (  Rx.inputElementConfig_elementConfig
+          .  Rx.elementConfig_modifyAttributes
+          .~ validationAttrs
+          )
+      validationMsg
+  pure validatedValue
+ where
+  validate = eitherToValidation . first (pure . T.pack) . readEither . T.unpack
 
-timeWidget :: Rx.DomBuilder t m => m (Rx.Behavior t Text)
-timeWidget =
-  fmap (fmap mkDate . Rx.current . Rx._inputElement_value)
-    . Rx.inputElement
-    $ def
-    & (  Rx.inputElementConfig_elementConfig
-      .  Rx.elementConfig_initialAttributes
-      .~ mconcat ["class" =: "input", "type" =: "time"]
-      )
-  where
-    -- TODO
-        mkDate = identity
+timeWidget
+  :: Rx.MonadWidget t m
+  => Rx.Event t Submit
+  -> m (Rx.Behavior t (Validated Time.UTCTime))
+timeWidget eSubmit = do
+  rec let (validationAttrs, validationMsg, validatedValue) =
+            mkValidation eSubmit input validate
+      input <-
+        Rx.inputElement
+        $ def
+        & (  Rx.inputElementConfig_elementConfig
+          .  Rx.elementConfig_initialAttributes
+          .~ mconcat ["class" =: "input", "type" =: "time"]
+          )
+        & (  Rx.inputElementConfig_elementConfig
+          .  Rx.elementConfig_modifyAttributes
+          .~ validationAttrs
+          )
+      validationMsg
+  pure validatedValue
+ where
+  validate = eitherToValidation . first (pure . T.pack) . readEither . T.unpack
 
-locationWidget :: Rx.DomBuilder t m => m (Rx.Behavior t Text)
-locationWidget =
-  fmap (Rx.current . Rx._inputElement_value)
-    . Rx.inputElement
-    $ def
-    & (  Rx.inputElementConfig_elementConfig
-      .  Rx.elementConfig_initialAttributes
-      .~ mconcat
-           [ "placeholder" =: "Location of the event"
-           , "class" =: "input"
-           , "type" =: "text"
-           ]
-      )
+locationWidget
+  :: Rx.MonadWidget t m
+  => Rx.Event t Submit
+  -> m (Rx.Behavior t (Validated (Maybe Text)))
+locationWidget eSubmit = do
+  rec let (validationAttrs, validationMsg, validatedValue) =
+            mkValidation eSubmit input validate
+      input <-
+        Rx.inputElement
+        $ def
+        & (  Rx.inputElementConfig_elementConfig
+          .  Rx.elementConfig_initialAttributes
+          .~ mconcat
+               [ "placeholder" =: "Location of the event"
+               , "class" =: "input"
+               , "type" =: "text"
+               ]
+          )
+        & (  Rx.inputElementConfig_elementConfig
+          .  Rx.elementConfig_modifyAttributes
+          .~ validationAttrs
+          )
+      validationMsg
+  pure validatedValue
+  where validate = Success . Just
 
-priceWidget :: Rx.DomBuilder t m => m (Rx.Behavior t Double)
-priceWidget =
-  fmap (fmap mkPrice . Rx.current . Rx._inputElement_value)
-    . Rx.inputElement
-    $ def
-    & (  Rx.inputElementConfig_elementConfig
-      .  Rx.elementConfig_initialAttributes
-      .~ mconcat
-           [ "placeholder" =: "Price of the event"
-           , "class" =: "input"
-           , "type" =: "number"
-           ]
-      )
-        -- TODO
-  where mkPrice = fromMaybe 0 . readMaybe . T.unpack
+priceWidget
+  :: Rx.MonadWidget t m
+  => Rx.Event t Submit
+  -> m (Rx.Behavior t (Validated Double))
+priceWidget eSubmit = do
+  rec let (validationAttrs, validationMsg, validatedValue) =
+            mkValidation eSubmit input validate
+      input <-
+        Rx.inputElement
+        $ def
+        & (  Rx.inputElementConfig_elementConfig
+          .  Rx.elementConfig_initialAttributes
+          .~ mconcat
+               [ "placeholder" =: "Price of the event"
+               , "class" =: "input"
+               , "type" =: "number"
+               ]
+          )
+        & (  Rx.inputElementConfig_elementConfig
+          .  Rx.elementConfig_modifyAttributes
+          .~ validationAttrs
+          )
+      validationMsg
+  pure validatedValue
+ where
+  validate = eitherToValidation . first (pure . T.pack) . readEither . T.unpack
 
-descriptionWidget :: Rx.DomBuilder t m => m (Rx.Behavior t Text)
-descriptionWidget =
-  fmap (Rx.current . Rx._inputElement_value)
-    . Rx.inputElement
-    $ def
-    & (  Rx.inputElementConfig_elementConfig
-      .  Rx.elementConfig_initialAttributes
-      .~ mconcat
-           [ "placeholder" =: "Description of the event"
-           , "class" =: "input"
-           , "type" =: "text"
-           ]
-      )
+descriptionWidget
+  :: Rx.MonadWidget t m
+  => Rx.Event t Submit
+  -> m (Rx.Behavior t (Validated Text))
+descriptionWidget eSubmit = do
+  rec let (validationAttrs, validationMsg, validatedValue) =
+            mkValidation eSubmit input validate
+      input <-
+        Rx.inputElement
+        $ def
+        & (  Rx.inputElementConfig_elementConfig
+          .  Rx.elementConfig_initialAttributes
+          .~ mconcat
+               [ "placeholder" =: "Description of the event"
+               , "class" =: "input"
+               , "type" =: "text"
+               ]
+          )
+        & (  Rx.inputElementConfig_elementConfig
+          .  Rx.elementConfig_modifyAttributes
+          .~ validationAttrs
+          )
+      validationMsg
+  pure validatedValue
+  where validate = Success
 
 data AddParticipant = AddParticipant
 
@@ -330,7 +402,7 @@ submitWidget = fieldHorizontal . control $ do
 formDisplayWidget
   :: forall t m
    . (Rx.DomBuilder t m, Rx.MonadHold t m, Rx.PostBuild t m)
-  => Rx.Event t Form
+  => Rx.Event t (Maybe Form)
   -> (  Rx.Dynamic t (Either Text Form)
      -> Rx.Event t ()
      -> m (Rx.Event t (SR.ReqResult () Form))
@@ -339,7 +411,9 @@ formDisplayWidget
 formDisplayWidget eFormSubmitted echoForm = do
   -- dReqBody <- Rx.holdDyn (Left "") $ Right <$> eFormSubmitted
   -- eReqRes  <- echoForm dReqBody $ void eFormSubmitted
-  let mkForm f = Rx.text . TL.toStrict . Pretty.pShowNoColor $ f
+  let mkForm = \case
+        Just f  -> Rx.text . TL.toStrict . Pretty.pShowNoColor $ f
+        Nothing -> Rx.blank
       -- displayErr = Rx.text
       -- displayReqRes rr = case rr of
       --   SR.ResponseSuccess _ f _ -> mkForm f
