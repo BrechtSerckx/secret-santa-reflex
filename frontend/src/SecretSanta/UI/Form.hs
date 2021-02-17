@@ -26,14 +26,31 @@ formWidget
   => m (Rx.Event t Form)
 formWidget = do
   Rx.el "form" $ do
-    wName        <- nameWidget
-    wDate        <- dateWidget
-    wTime        <- timeWidget
-    wLocation    <- locationWidget
-    wPrice       <- priceWidget
-    wDescription <- descriptionWidget
+    wName <- fieldHorizontal $ do
+      label "Event"
+      fieldBody . field . control $ nameWidget
+    wDate <- fieldHorizontal $ do
+      label "Date"
+      fieldBody . field . control $ dateWidget
+    wTime <- fieldHorizontal $ do
+      label "Time"
+      fieldBody . field . control $ timeWidget
+    wLocation <- fieldHorizontal $ do
+      label "Location"
+      fieldBody . field . control $ locationWidget
+    wPrice <- fieldHorizontal $ do
+      label "Price"
+      fieldBody . field . control $ priceWidget
+    wDescription <- fieldHorizontal $ do
+      label "Description"
+      fieldBody . field . control $ descriptionWidget
     rec wParticipants              <- participantsWidget eNewParticipant
-        (eNewParticipant, eSubmit) <- buttonsWidget
+        (eNewParticipant, eSubmit) <- do
+          label ""
+          fieldBody . field' "is-grouped" $ do
+            eNewParticipant' <- control $ newParticipantWidget
+            eSubmit'         <- control $ submitWidget
+            pure (eNewParticipant', eSubmit')
     let submit = do
           fName         <- wName
           fDate         <- wDate
@@ -46,12 +63,8 @@ formWidget = do
     pure . Rx.tag submit $ eSubmit
 
 nameWidget :: Rx.DomBuilder t m => m (Rx.Behavior t Text)
-nameWidget = fieldHorizontal $ do
-  label "Event"
-  input <-
-    fieldBody
-    . field
-    . control
+nameWidget =
+  fmap (Rx.current . Rx._inputElement_value)
     . Rx.inputElement
     $ def
     & (  Rx.inputElementConfig_elementConfig
@@ -62,49 +75,36 @@ nameWidget = fieldHorizontal $ do
            , "type" =: "text"
            ]
       )
-  pure . Rx.current . Rx._inputElement_value $ input
 
 dateWidget :: Rx.DomBuilder t m => m (Rx.Behavior t Text)
-dateWidget = fieldHorizontal $ do
-  label "Date"
-  input <-
-    fieldBody
-    . field
-    . control
+dateWidget =
+  fmap (fmap mkDate . Rx.current . Rx._inputElement_value)
     . Rx.inputElement
     $ def
     & (  Rx.inputElementConfig_elementConfig
       .  Rx.elementConfig_initialAttributes
       .~ mconcat ["class" =: "input", "type" =: "date"]
       )
+  where
   -- TODO
-  let mkDate = identity
-  pure . fmap mkDate . Rx.current . Rx._inputElement_value $ input
+        mkDate = identity
 
 timeWidget :: Rx.DomBuilder t m => m (Rx.Behavior t Text)
-timeWidget = fieldHorizontal $ do
-  label "Time"
-  input <-
-    fieldBody
-    . field
-    . control
+timeWidget =
+  fmap (fmap mkDate . Rx.current . Rx._inputElement_value)
     . Rx.inputElement
     $ def
     & (  Rx.inputElementConfig_elementConfig
       .  Rx.elementConfig_initialAttributes
       .~ mconcat ["class" =: "input", "type" =: "time"]
       )
-  -- TODO
-  let mkDate = identity
-  pure . fmap mkDate . Rx.current . Rx._inputElement_value $ input
+  where
+    -- TODO
+        mkDate = identity
 
 locationWidget :: Rx.DomBuilder t m => m (Rx.Behavior t Text)
-locationWidget = fieldHorizontal $ do
-  label "Location"
-  input <-
-    fieldBody
-    . field
-    . control
+locationWidget =
+  fmap (Rx.current . Rx._inputElement_value)
     . Rx.inputElement
     $ def
     & (  Rx.inputElementConfig_elementConfig
@@ -115,15 +115,10 @@ locationWidget = fieldHorizontal $ do
            , "type" =: "text"
            ]
       )
-  pure . Rx.current . Rx._inputElement_value $ input
 
 priceWidget :: Rx.DomBuilder t m => m (Rx.Behavior t Double)
-priceWidget = fieldHorizontal $ do
-  label "Price"
-  input <-
-    fieldBody
-    . field
-    . control
+priceWidget =
+  fmap (fmap mkPrice . Rx.current . Rx._inputElement_value)
     . Rx.inputElement
     $ def
     & (  Rx.inputElementConfig_elementConfig
@@ -134,17 +129,12 @@ priceWidget = fieldHorizontal $ do
            , "type" =: "number"
            ]
       )
-  -- TODO
-  let mkPrice = fromMaybe 0 . readMaybe . T.unpack
-  pure . fmap mkPrice . Rx.current . Rx._inputElement_value $ input
+        -- TODO
+  where mkPrice = fromMaybe 0 . readMaybe . T.unpack
 
 descriptionWidget :: Rx.DomBuilder t m => m (Rx.Behavior t Text)
-descriptionWidget = fieldHorizontal $ do
-  label "Description"
-  input <-
-    fieldBody
-    . field
-    . control
+descriptionWidget =
+  fmap (Rx.current . Rx._inputElement_value)
     . Rx.inputElement
     $ def
     & (  Rx.inputElementConfig_elementConfig
@@ -155,7 +145,6 @@ descriptionWidget = fieldHorizontal $ do
            , "type" =: "text"
            ]
       )
-  pure . Rx.current . Rx._inputElement_value $ input
 
 data AddParticipant = AddParticipant
 
@@ -263,16 +252,6 @@ participantWidget k p = fieldHorizontal $ do
       $ ( const (DeleteParticipant k) <$> Rx.domEvent Rx.Click btn
         , Rx.updated $ UpdateParticipant k <$> dParticipant
         )
-
-buttonsWidget
-  :: (Rx.DomBuilder t m, MonadFix m)
-  => m (Rx.Event t AddParticipant, Rx.Event t Submit)
-buttonsWidget = fieldHorizontal $ do
-  label ""
-  fieldBody . field' "is-grouped" $ do
-    eNewParticipant <- control $ newParticipantWidget
-    eSubmit         <- control $ submitWidget
-    pure (eNewParticipant, eSubmit)
 
 submitWidget :: Rx.DomBuilder t m => m (Rx.Event t Submit)
 submitWidget = fieldHorizontal . control $ do
