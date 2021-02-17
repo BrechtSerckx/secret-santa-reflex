@@ -30,12 +30,12 @@ formWidget = do
     wName <- fieldHorizontal $ do
       label "Event"
       fieldBody . field . control $ nameWidget
-    wDate <- fieldHorizontal $ do
-      label "Date"
-      fieldBody . field . control $ dateWidget
-    wTime <- fieldHorizontal $ do
-      label "Time"
-      fieldBody . field . control $ timeWidget
+    (wDate, wTime) <- fieldHorizontal $ do
+      label "Date/Time"
+      fieldBody $ do
+        wDate' <- field . control $ dateWidget
+        wTime' <- field . control $ timeWidget
+        pure (wDate', wTime')
     wLocation <- fieldHorizontal $ do
       label "Location"
       fieldBody . field . control $ locationWidget
