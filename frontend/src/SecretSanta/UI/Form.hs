@@ -22,7 +22,8 @@ import           SecretSanta.Data
 data Submit = Submit
 
 formWidget
-  :: (Rx.DomBuilder t m, MonadFix m, Rx.MonadHold t m, Rx.PostBuild t m)
+  :: forall t m
+   . (Rx.DomBuilder t m, MonadFix m, Rx.MonadHold t m, Rx.PostBuild t m)
   => m (Rx.Event t Form)
 formWidget = do
   Rx.el "form" $ do
@@ -44,7 +45,7 @@ formWidget = do
     wDescription <- fieldHorizontal $ do
       label "Description"
       fieldBody . field . control $ descriptionWidget
-    rec wParticipants              <- participantsWidget eNewParticipant
+    rec wParticipants <- participantsWidget eNewParticipant $ layoutParticipant
         (eNewParticipant, eSubmit) <- do
           label ""
           fieldBody . field' "is-grouped" $ do
@@ -61,6 +62,14 @@ formWidget = do
           fParticipants <- Map.elems <$> wParticipants
           pure Form { .. }
     pure . Rx.tag submit $ eSubmit
+ where
+  layoutParticipant (wPName, wPEmail, wPDelete) = fieldHorizontal $ do
+    label "Participant"
+    fieldBody $ do
+      wPName'   <- field . control $ wPName
+      wPEmail'  <- field . control' "is-expanded" $ wPEmail
+      wPDelete' <- control wPDelete
+      pure (wPName', wPEmail', wPDelete')
 
 nameWidget :: Rx.DomBuilder t m => m (Rx.Behavior t Text)
 nameWidget =
@@ -173,8 +182,9 @@ addNewParticipant m = case Map.maxViewWithKey m of
 participantsWidget
   :: (Rx.DomBuilder t m, Rx.MonadHold t m, MonadFix m, Rx.PostBuild t m)
   => Rx.Event t AddParticipant
+  -> ParticipantLayout t m
   -> m (Rx.Behavior t ParticipantMap)
-participantsWidget eAddNewParticipant = do
+participantsWidget eAddNewParticipant layout = do
   rec
     dCurrParticipants <-
       Rx.foldDyn ($) initialParticipants
@@ -188,7 +198,7 @@ participantsWidget eAddNewParticipant = do
         <$> dParticipantsMap
         ]
     dParticipantsMap <- Rx.listWithKey dCurrParticipants
-      $ \k p -> participantWidget k p
+      $ \k p -> participantWidget k p layout
   pure . Rx.current $ dCurrParticipants
  where
   overParticipants f m =
@@ -202,18 +212,39 @@ participantsWidget eAddNewParticipant = do
 data DeleteParticipant = DeleteParticipant Int
 data UpdateParticipant = UpdateParticipant Int Participant
 
+type ParticipantLayout t m
+  =  ( m (Rx.InputElement Rx.EventResult (Rx.DomBuilderSpace m) t)
+    , m (Rx.InputElement Rx.EventResult (Rx.DomBuilderSpace m) t)
+    , m (Rx.Element Rx.EventResult (Rx.DomBuilderSpace m) t)
+    )
+  -> m
+       ( Rx.InputElement Rx.EventResult (Rx.DomBuilderSpace m) t
+       , Rx.InputElement Rx.EventResult (Rx.DomBuilderSpace m) t
+       , Rx.Element Rx.EventResult (Rx.DomBuilderSpace m) t
+       )
 participantWidget
   :: (Rx.DomBuilder t m, Rx.PostBuild t m)
   => Int
   -> Rx.Dynamic t Participant
-  -> m ((Rx.Event t DeleteParticipant, Rx.Event t UpdateParticipant))
-participantWidget k p = fieldHorizontal $ do
-  label "Participant"
-  fieldBody $ do
-    wName <-
-      field
-      . control
-      . Rx.inputElement
+  -> ParticipantLayout t m
+  -> m
+       ( ( Rx.Event t DeleteParticipant
+         , Rx.Event t UpdateParticipant
+         )
+       )
+participantWidget k p layout = do
+  (wName', wEmail', wDelete') <- layout (wName, wEmail, wDelete)
+  let dParticipant =
+        Participant
+          <$> Rx._inputElement_value wName'
+          <*> Rx._inputElement_value wEmail'
+  pure
+    $ ( const (DeleteParticipant k) <$> Rx.domEvent Rx.Click wDelete'
+      , Rx.updated $ UpdateParticipant k <$> dParticipant
+      )
+ where
+  wName =
+    Rx.inputElement
       $ def
       & (  Rx.inputElementConfig_elementConfig
         .  Rx.elementConfig_initialAttributes
@@ -223,10 +254,8 @@ participantWidget k p = fieldHorizontal $ do
              , "type" =: "text"
              ]
         )
-    wEmail <-
-      field
-      . control' "expanded"
-      . Rx.inputElement
+  wEmail =
+    Rx.inputElement
       $ def
       & (  Rx.inputElementConfig_elementConfig
         .  Rx.elementConfig_initialAttributes
@@ -236,22 +265,15 @@ participantWidget k p = fieldHorizontal $ do
              , "type" =: "email"
              ]
         )
-    (btn, _) <-
-      Rx.element
+  wDelete =
+    fmap fst
+      . Rx.element
           "button"
           (  def
           &  Rx.elementConfig_initialAttributes
           .~ [("class", "button is-danger"), ("type", "button")]
           )
-        $ Rx.text "x"
-    let dParticipant =
-          Participant
-            <$> Rx._inputElement_value wName
-            <*> Rx._inputElement_value wEmail
-    pure
-      $ ( const (DeleteParticipant k) <$> Rx.domEvent Rx.Click btn
-        , Rx.updated $ UpdateParticipant k <$> dParticipant
-        )
+      $ Rx.text "x"
 
 submitWidget :: Rx.DomBuilder t m => m (Rx.Event t Submit)
 submitWidget = fieldHorizontal . control $ do
