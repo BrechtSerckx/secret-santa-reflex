@@ -10,7 +10,10 @@ import           Data.Either.Validation
 import qualified Data.Map                      as Map
 import qualified Data.Text                     as T
 import qualified Data.Text.Lazy                as TL
-import qualified Data.Time                     as Time
+import           Data.Time                      ( Day
+                                                , TimeOfDay
+                                                , makeTimeOfDayValid
+                                                )
 import qualified Text.Pretty.Simple            as Pretty
 
 import qualified Reflex                        as Rx
@@ -145,7 +148,7 @@ mkValidation eSubmit input validate =
 dateWidget
   :: Rx.MonadWidget t m
   => Rx.Event t Submit
-  -> m (Rx.Behavior t (Validated Time.Day))
+  -> m (Rx.Behavior t (Validated (Maybe Day)))
 dateWidget eSubmit = do
   rec let (validationAttrs, validationMsg, validatedValue) =
             mkValidation eSubmit input validate
@@ -163,12 +166,21 @@ dateWidget eSubmit = do
       validationMsg
   pure validatedValue
  where
-  validate = eitherToValidation . first (pure . T.pack) . readEither . T.unpack
+  validate t
+    | T.null t
+    = pure Nothing
+    | otherwise
+    = fmap Just
+      . eitherToValidation
+      . first (pure . T.pack)
+      . readEither
+      . T.unpack
+      $ t
 
 timeWidget
   :: Rx.MonadWidget t m
   => Rx.Event t Submit
-  -> m (Rx.Behavior t (Validated Time.UTCTime))
+  -> m (Rx.Behavior t (Validated (Maybe TimeOfDay)))
 timeWidget eSubmit = do
   rec let (validationAttrs, validationMsg, validatedValue) =
             mkValidation eSubmit input validate
@@ -186,7 +198,19 @@ timeWidget eSubmit = do
       validationMsg
   pure validatedValue
  where
-  validate = eitherToValidation . first (pure . T.pack) . readEither . T.unpack
+  validate t
+    | T.null t = pure Nothing
+    | otherwise = case T.splitOn ":" t of
+      [h, m] ->
+        let mTime = do
+              h' <- readMaybe $ T.unpack h
+              m' <- readMaybe $ T.unpack m
+              makeTimeOfDayValid h' m' 0
+        in  case mTime of
+              Just r  -> pure $ Just r
+              Nothing -> invalidTime
+      _ -> invalidTime
+    where invalidTime = Failure . pure $ "Invalid time. Format: hh:mm"
 
 locationWidget
   :: Rx.MonadWidget t m
@@ -217,7 +241,7 @@ locationWidget eSubmit = do
 priceWidget
   :: Rx.MonadWidget t m
   => Rx.Event t Submit
-  -> m (Rx.Behavior t (Validated Double))
+  -> m (Rx.Behavior t (Validated (Maybe Double)))
 priceWidget eSubmit = do
   rec let (validationAttrs, validationMsg, validatedValue) =
             mkValidation eSubmit input validate
@@ -239,7 +263,11 @@ priceWidget eSubmit = do
       validationMsg
   pure validatedValue
  where
-  validate = eitherToValidation . first (pure . T.pack) . readEither . T.unpack
+  validate t
+    | T.null t = pure Nothing
+    | otherwise = case readMaybe . T.unpack $ t of
+      Nothing -> Failure . pure $ "Price must be a valid decimal number."
+      Just d  -> pure . Just $ d
 
 descriptionWidget
   :: Rx.MonadWidget t m
@@ -265,7 +293,9 @@ descriptionWidget eSubmit = do
           )
       validationMsg
   pure validatedValue
-  where validate = Success
+ where
+  validate t | T.null t  = Failure . pure $ "Description cannot be empty"
+             | otherwise = pure t
 
 data AddParticipant = AddParticipant
 

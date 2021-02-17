@@ -4,7 +4,9 @@ module SecretSanta.Data where
 import           Data.Aeson                     ( FromJSON
                                                 , ToJSON
                                                 )
-import           Data.Time                      ( Day )
+import           Data.Time                      ( Day
+                                                , TimeOfDay
+                                                )
 
 type Email = Text
 -- type Participant = (Text, Email)
@@ -19,9 +21,12 @@ type Price = Double
 
 
 data Form = Form
-  { fDescription  :: Text
-  , fDate         :: Date
-  , fPrice        :: Price
+  { fName         :: Text
+  , fDate         :: Maybe Date
+  , fTime         :: Maybe TimeOfDay
+  , fLocation     :: Maybe Text
+  , fPrice        :: Maybe Price
+  , fDescription  :: Text
   , fParticipants :: [Participant]
   }
   deriving (Show, Generic, ToJSON, FromJSON)
