@@ -29,9 +29,8 @@ formWidget = do
     wDescription <- descriptionWidget
     wDate        <- dateWidget
     wPrice       <- priceWidget
-    rec wParticipants   <- participantsWidget eNewParticipant
-        eNewParticipant <- newParticipantWidget
-    eSubmit <- submitWidget
+    rec wParticipants              <- participantsWidget eNewParticipant
+        (eNewParticipant, eSubmit) <- buttonsWidget
     let submit = do
           fDescription  <- wDescription
           fDate         <- wDate
@@ -41,15 +40,17 @@ formWidget = do
     pure . Rx.tag submit $ eSubmit
 
 descriptionWidget :: Rx.DomBuilder t m => m (Rx.Behavior t Text)
-descriptionWidget = Rx.elClass "div" "field is-horizontal" $ do
-  Rx.elClass "label" "label field-label" $ Rx.text "Description"
+descriptionWidget = fieldHorizontal $ do
+  label "Description"
   let inputAttrs = mconcat
         [ "placeholder" =: "Description of the event"
         , "class" =: "input"
         , "type" =: "text"
         ]
   input <-
-    Rx.elClass "div" "control field-body"
+    fieldBody
+    . field
+    . control
     . Rx.inputElement
     $ def
     & (  Rx.inputElementConfig_elementConfig
@@ -59,11 +60,13 @@ descriptionWidget = Rx.elClass "div" "field is-horizontal" $ do
   pure . Rx.current . Rx._inputElement_value $ input
 
 dateWidget :: Rx.DomBuilder t m => m (Rx.Behavior t Text)
-dateWidget = Rx.elClass "div" "field is-horizontal" $ do
-  Rx.elClass "label" "label field-label" $ Rx.text "Date"
+dateWidget = fieldHorizontal $ do
+  label "Date"
   let inputAttrs = mconcat ["class" =: "input", "type" =: "date"]
   input <-
-    Rx.elClass "div" "control field-body"
+    fieldBody
+    . field
+    . control
     . Rx.inputElement
     $ def
     & (  Rx.inputElementConfig_elementConfig
@@ -75,15 +78,17 @@ dateWidget = Rx.elClass "div" "field is-horizontal" $ do
   pure . fmap mkDate . Rx.current . Rx._inputElement_value $ input
 
 priceWidget :: Rx.DomBuilder t m => m (Rx.Behavior t Double)
-priceWidget = Rx.elClass "div" "field is-horizontal" $ do
-  Rx.elClass "label" "label field-label" $ Rx.text "Price"
+priceWidget = fieldHorizontal $ do
+  label "Price"
   let inputAttrs = mconcat
         [ "placeholder" =: "Price of the event"
         , "class" =: "input"
         , "type" =: "number"
         ]
   input <-
-    Rx.elClass "div" "control field-body"
+    fieldBody
+    . field
+    . control
     . Rx.inputElement
     $ def
     & (  Rx.inputElementConfig_elementConfig
@@ -98,13 +103,12 @@ data AddParticipant = AddParticipant
 
 newParticipantWidget
   :: (Rx.DomBuilder t m, MonadFix m) => m (Rx.Event t AddParticipant)
-newParticipantWidget = do
-  Rx.elClass "div" "field" . Rx.elClass "div" "control" $ do
-    let btnAttrs = [("class", "button is-link"), ("type", "button")]
-    (e, _) <-
-      Rx.element "button" (def & Rx.elementConfig_initialAttributes .~ btnAttrs)
-        $ Rx.text "Add Participant"
-    pure $ Rx.domEvent Rx.Click e $> AddParticipant
+newParticipantWidget = fieldHorizontal . control $ do
+  let btnAttrs = [("class", "button is-link"), ("type", "button")]
+  (e, _) <-
+    Rx.element "button" (def & Rx.elementConfig_initialAttributes .~ btnAttrs)
+      $ Rx.text "Add Participant"
+  pure $ Rx.domEvent Rx.Click e $> AddParticipant
 
 type ParticipantMap = Map Int Participant
 initialParticipants :: ParticipantMap
@@ -132,9 +136,8 @@ participantsWidget eAddNewParticipant = do
         $   map snd
         <$> dParticipantsMap
         ]
-    dParticipantsMap <-
-      Rx.elClass "div" "" $ Rx.listWithKey dCurrParticipants $ \k p ->
-        participantWidget k p
+    dParticipantsMap <- Rx.listWithKey dCurrParticipants
+      $ \k p -> participantWidget k p
   pure . Rx.current $ dCurrParticipants
  where
   overParticipants f m =
@@ -153,12 +156,12 @@ participantWidget
   => Int
   -> Rx.Dynamic t Participant
   -> m ((Rx.Event t DeleteParticipant, Rx.Event t UpdateParticipant))
-participantWidget k p = Rx.elClass "div" "field is-horizontal" $ do
-  Rx.elClass "label" "label field-label" $ Rx.text "Participant"
-  Rx.elClass "div" "field-body" $ do
+participantWidget k p = fieldHorizontal $ do
+  label "Participant"
+  fieldBody $ do
     wName <-
-      Rx.elClass "div" "field"
-      . Rx.elClass "p" "control"
+      field
+      . control
       . Rx.inputElement
       $ def
       & (  Rx.inputElementConfig_elementConfig
@@ -170,8 +173,8 @@ participantWidget k p = Rx.elClass "div" "field is-horizontal" $ do
              ]
         )
     wEmail <-
-      Rx.elClass "div" "field"
-      . Rx.elClass "p" "control is-expanded"
+      field
+      . control' "expanded"
       . Rx.inputElement
       $ def
       & (  Rx.inputElementConfig_elementConfig
@@ -195,9 +198,19 @@ participantWidget k p = Rx.elClass "div" "field is-horizontal" $ do
         , Rx.updated $ UpdateParticipant k <$> dParticipant
         )
 
+buttonsWidget
+  :: (Rx.DomBuilder t m, MonadFix m)
+  => m (Rx.Event t AddParticipant, Rx.Event t Submit)
+buttonsWidget = fieldHorizontal $ do
+  label ""
+  fieldBody . field' "is-grouped" $ do
+    eNewParticipant <- control $ newParticipantWidget
+    eSubmit         <- control $ submitWidget
+    pure (eNewParticipant, eSubmit)
+
 submitWidget :: Rx.DomBuilder t m => m (Rx.Event t Submit)
-submitWidget = Rx.elClass "div" "field" . Rx.elClass "div" "control" $ do
-  let btnAttrs = [("class", "button is-link"), ("type", "button")]
+submitWidget = fieldHorizontal . control $ do
+  let btnAttrs = [("class", "button is-primary"), ("type", "button")]
   (e, _) <-
     Rx.element "button" (def & Rx.elementConfig_initialAttributes .~ btnAttrs)
       $ Rx.text "Submit"
@@ -213,12 +226,34 @@ formDisplayWidget
      )
   -> m ()
 formDisplayWidget eFormSubmitted echoForm = do
-  dReqBody <- Rx.holdDyn (Left "") $ Right <$> eFormSubmitted
-  eReqRes  <- echoForm dReqBody $ void eFormSubmitted
-  let displayErr = Rx.text
-      mkForm f = Rx.text . TL.toStrict . Pretty.pShowNoColor $ f
-      displayReqRes rr = case rr of
-        SR.ResponseSuccess _ f _ -> mkForm f
-        SR.ResponseFailure _ t _ -> displayErr t
-        SR.RequestFailure _ t    -> displayErr t
-  Rx.widgetHold_ Rx.blank $ displayReqRes <$> eReqRes
+  -- dReqBody <- Rx.holdDyn (Left "") $ Right <$> eFormSubmitted
+  -- eReqRes  <- echoForm dReqBody $ void eFormSubmitted
+  let mkForm f = Rx.text . TL.toStrict . Pretty.pShowNoColor $ f
+      -- displayErr = Rx.text
+      -- displayReqRes rr = case rr of
+      --   SR.ResponseSuccess _ f _ -> mkForm f
+      --   SR.ResponseFailure _ t _ -> displayErr t
+      --   SR.RequestFailure _ t    -> displayErr t
+  -- Rx.widgetHold_ Rx.blank $ displayReqRes <$> eReqRes
+  Rx.widgetHold_ Rx.blank $ mkForm <$> eFormSubmitted
+
+field :: Rx.DomBuilder t m => m a -> m a
+field = field' ""
+
+fieldHorizontal :: Rx.DomBuilder t m => m a -> m a
+fieldHorizontal = field' "is-horizontal"
+
+field' :: Rx.DomBuilder t m => Text -> m a -> m a
+field' c = Rx.elClass "div" $ "field " <> c
+
+control :: Rx.DomBuilder t m => m a -> m a
+control = control' ""
+
+control' :: Rx.DomBuilder t m => Text -> m a -> m a
+control' c = Rx.elClass "p" $ "control " <> c
+
+label :: Rx.DomBuilder t m => Text -> m ()
+label = Rx.elClass "div" "field-label" . Rx.elClass "label" "label" . Rx.text
+
+fieldBody :: Rx.DomBuilder t m => m a -> m a
+fieldBody = Rx.elClass "div" "field-body"
