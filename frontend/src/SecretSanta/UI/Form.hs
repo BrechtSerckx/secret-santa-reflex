@@ -26,27 +26,28 @@ formWidget
   => m (Rx.Event t Form)
 formWidget = do
   Rx.el "form" $ do
-    wDescription <- descriptionWidget
+    wName        <- nameWidget
     wDate        <- dateWidget
+    wTime        <- timeWidget
+    wLocation    <- locationWidget
     wPrice       <- priceWidget
+    wDescription <- descriptionWidget
     rec wParticipants              <- participantsWidget eNewParticipant
         (eNewParticipant, eSubmit) <- buttonsWidget
     let submit = do
-          fDescription  <- wDescription
+          fName         <- wName
           fDate         <- wDate
+          fTime         <- wTime
+          fLocation     <- wLocation
           fPrice        <- wPrice
+          fDescription  <- wDescription
           fParticipants <- Map.elems <$> wParticipants
           pure Form { .. }
     pure . Rx.tag submit $ eSubmit
 
-descriptionWidget :: Rx.DomBuilder t m => m (Rx.Behavior t Text)
-descriptionWidget = fieldHorizontal $ do
-  label "Description"
-  let inputAttrs = mconcat
-        [ "placeholder" =: "Description of the event"
-        , "class" =: "input"
-        , "type" =: "text"
-        ]
+nameWidget :: Rx.DomBuilder t m => m (Rx.Behavior t Text)
+nameWidget = fieldHorizontal $ do
+  label "Event"
   input <-
     fieldBody
     . field
@@ -55,14 +56,17 @@ descriptionWidget = fieldHorizontal $ do
     $ def
     & (  Rx.inputElementConfig_elementConfig
       .  Rx.elementConfig_initialAttributes
-      .~ inputAttrs
+      .~ mconcat
+           [ "placeholder" =: "My Secret Santa"
+           , "class" =: "input"
+           , "type" =: "text"
+           ]
       )
   pure . Rx.current . Rx._inputElement_value $ input
 
 dateWidget :: Rx.DomBuilder t m => m (Rx.Behavior t Text)
 dateWidget = fieldHorizontal $ do
   label "Date"
-  let inputAttrs = mconcat ["class" =: "input", "type" =: "date"]
   input <-
     fieldBody
     . field
@@ -71,20 +75,15 @@ dateWidget = fieldHorizontal $ do
     $ def
     & (  Rx.inputElementConfig_elementConfig
       .  Rx.elementConfig_initialAttributes
-      .~ inputAttrs
+      .~ mconcat ["class" =: "input", "type" =: "date"]
       )
   -- TODO
   let mkDate = identity
   pure . fmap mkDate . Rx.current . Rx._inputElement_value $ input
 
-priceWidget :: Rx.DomBuilder t m => m (Rx.Behavior t Double)
-priceWidget = fieldHorizontal $ do
-  label "Price"
-  let inputAttrs = mconcat
-        [ "placeholder" =: "Price of the event"
-        , "class" =: "input"
-        , "type" =: "number"
-        ]
+timeWidget :: Rx.DomBuilder t m => m (Rx.Behavior t Text)
+timeWidget = fieldHorizontal $ do
+  label "Time"
   input <-
     fieldBody
     . field
@@ -93,26 +92,89 @@ priceWidget = fieldHorizontal $ do
     $ def
     & (  Rx.inputElementConfig_elementConfig
       .  Rx.elementConfig_initialAttributes
-      .~ inputAttrs
+      .~ mconcat ["class" =: "input", "type" =: "time"]
+      )
+  -- TODO
+  let mkDate = identity
+  pure . fmap mkDate . Rx.current . Rx._inputElement_value $ input
+
+locationWidget :: Rx.DomBuilder t m => m (Rx.Behavior t Text)
+locationWidget = fieldHorizontal $ do
+  label "Location"
+  input <-
+    fieldBody
+    . field
+    . control
+    . Rx.inputElement
+    $ def
+    & (  Rx.inputElementConfig_elementConfig
+      .  Rx.elementConfig_initialAttributes
+      .~ mconcat
+           [ "placeholder" =: "Location of the event"
+           , "class" =: "input"
+           , "type" =: "text"
+           ]
+      )
+  pure . Rx.current . Rx._inputElement_value $ input
+
+priceWidget :: Rx.DomBuilder t m => m (Rx.Behavior t Double)
+priceWidget = fieldHorizontal $ do
+  label "Price"
+  input <-
+    fieldBody
+    . field
+    . control
+    . Rx.inputElement
+    $ def
+    & (  Rx.inputElementConfig_elementConfig
+      .  Rx.elementConfig_initialAttributes
+      .~ mconcat
+           [ "placeholder" =: "Price of the event"
+           , "class" =: "input"
+           , "type" =: "number"
+           ]
       )
   -- TODO
   let mkPrice = fromMaybe 0 . readMaybe . T.unpack
   pure . fmap mkPrice . Rx.current . Rx._inputElement_value $ input
+
+descriptionWidget :: Rx.DomBuilder t m => m (Rx.Behavior t Text)
+descriptionWidget = fieldHorizontal $ do
+  label "Description"
+  input <-
+    fieldBody
+    . field
+    . control
+    . Rx.inputElement
+    $ def
+    & (  Rx.inputElementConfig_elementConfig
+      .  Rx.elementConfig_initialAttributes
+      .~ mconcat
+           [ "placeholder" =: "Description of the event"
+           , "class" =: "input"
+           , "type" =: "text"
+           ]
+      )
+  pure . Rx.current . Rx._inputElement_value $ input
 
 data AddParticipant = AddParticipant
 
 newParticipantWidget
   :: (Rx.DomBuilder t m, MonadFix m) => m (Rx.Event t AddParticipant)
 newParticipantWidget = fieldHorizontal . control $ do
-  let btnAttrs = [("class", "button is-link"), ("type", "button")]
   (e, _) <-
-    Rx.element "button" (def & Rx.elementConfig_initialAttributes .~ btnAttrs)
+    Rx.element
+        "button"
+        (  def
+        &  Rx.elementConfig_initialAttributes
+        .~ [("class", "button is-info"), ("type", "button")]
+        )
       $ Rx.text "Add Participant"
   pure $ Rx.domEvent Rx.Click e $> AddParticipant
 
 type ParticipantMap = Map Int Participant
 initialParticipants :: ParticipantMap
-initialParticipants = [(0, emptyParticipant), (1, emptyParticipant)]
+initialParticipants = Map.fromList [ (i, emptyParticipant) | i <- [0 .. 2] ]
 emptyParticipant :: Participant
 emptyParticipant = Participant "" ""
 addNewParticipant m = case Map.maxViewWithKey m of
@@ -185,9 +247,13 @@ participantWidget k p = fieldHorizontal $ do
              , "type" =: "email"
              ]
         )
-    let btnAttrs = [("class", "button is-link"), ("type", "button")]
     (btn, _) <-
-      Rx.element "button" (def & Rx.elementConfig_initialAttributes .~ btnAttrs)
+      Rx.element
+          "button"
+          (  def
+          &  Rx.elementConfig_initialAttributes
+          .~ [("class", "button is-danger"), ("type", "button")]
+          )
         $ Rx.text "x"
     let dParticipant =
           Participant
@@ -210,9 +276,13 @@ buttonsWidget = fieldHorizontal $ do
 
 submitWidget :: Rx.DomBuilder t m => m (Rx.Event t Submit)
 submitWidget = fieldHorizontal . control $ do
-  let btnAttrs = [("class", "button is-primary"), ("type", "button")]
   (e, _) <-
-    Rx.element "button" (def & Rx.elementConfig_initialAttributes .~ btnAttrs)
+    Rx.element
+        "button"
+        (  def
+        &  Rx.elementConfig_initialAttributes
+        .~ [("class", "button is-success"), ("type", "button")]
+        )
       $ Rx.text "Submit"
   pure $ Rx.domEvent Rx.Click e $> Submit
 
