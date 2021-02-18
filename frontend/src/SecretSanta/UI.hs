@@ -46,32 +46,23 @@ bodyWidget =
         Rx.el "hr" $ pure ()
 
         -- form
-        eFormSubmitted <- Rx.elClass "div" "block" formWidget
-        formDisplayWidget eFormSubmitted cCreateSecretSanta
-
-
-
-formDisplayWidget
-  :: forall t m
-   . Rx.MonadWidget t m
-  => Rx.Event t Form
-  -> (  Rx.Dynamic t (Either Text Form)
-     -> Rx.Event t ()
-     -> m (Rx.Event t (SR.ReqResult () ()))
-     )
-  -> m ()
-formDisplayWidget eFormSubmitted createSecretSanta = do
-  dReqBody <- Rx.holdDyn (Left "") $ Right <$> eFormSubmitted
-  eReqRes  <- createSecretSanta dReqBody (void eFormSubmitted)
-  Rx.widgetHold_ Rx.blank $ eReqRes <&> \case
-    SR.ResponseSuccess _ () _ -> Rx.blank
-    SR.ResponseFailure _ t  _ -> displayErr t
-    SR.RequestFailure _ t     -> displayErr t
-  Rx.widgetHold_ Rx.blank
-    $   Rx.elClass "div" "notification is-success"
-    .   Rx.text
-    .   TL.toStrict
-    .   Pretty.pShowNoColor
-    <$> eFormSubmitted
+        rec eFormSubmitted <-
+              Rx.switch
+              .   Rx.current
+              <$> Rx.widgetHold (Rx.elClass "div" "block" formWidget) eHideForm
+            let eHideForm = (Rx.blank $> Rx.never) <$ eSuccess
+            dReqBody <- Rx.holdDyn (Left "") $ Right <$> eFormSubmitted
+            eReqRes  <- cCreateSecretSanta dReqBody (void eFormSubmitted)
+            let eSuccess = Rx.fmapMaybe SR.reqSuccess eReqRes
+        Rx.widgetHold_ Rx.blank $ eReqRes <&> \case
+          SR.ResponseSuccess _ () _ -> Rx.blank
+          SR.ResponseFailure _ t  _ -> displayErr t
+          SR.RequestFailure _ t     -> displayErr t
+        Rx.widgetHold_ Rx.blank
+          $   Rx.elClass "div" "notification is-success"
+          .   Rx.text
+          .   TL.toStrict
+          .   Pretty.pShowNoColor
+          <$> Rx.tagPromptlyDyn dReqBody eSuccess
   where displayErr = Rx.elClass "el" "notification is-danger" . Rx.text
 
