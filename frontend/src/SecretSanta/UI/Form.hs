@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds #-}
 module SecretSanta.UI.Form
   ( formWidget
   , formDisplayWidget
@@ -224,17 +225,18 @@ descriptionWidget
   -> m (Rx.Behavior t (Validated Description))
 descriptionWidget eSubmit = do
   rec let wUnvalidatedInput =
-            Rx.inputElement
+            Rx.textAreaElement
               $ def
-              & (  Rx.inputElementConfig_elementConfig
+              & (  Rx.textAreaElementConfig_elementConfig
                 .  Rx.elementConfig_initialAttributes
                 .~ mconcat
                      [ "placeholder" =: "Description of the event"
-                     , "class" =: "input"
+                     , "class" =: "textarea"
                      , "type" =: "text"
+                     , "rows" =: "5"
                      ]
                 )
-              & (  Rx.inputElementConfig_elementConfig
+              & (  Rx.textAreaElementConfig_elementConfig
                 .  Rx.elementConfig_modifyAttributes
                 .~ validationAttrs
                 )
@@ -452,10 +454,16 @@ title (show -> i) = Rx.elClass ("h" <> i) ("title is-" <> i)
 
 
 mkValidation
-  :: Rx.MonadWidget t m
+  :: forall t m a elem val
+   . ( Rx.MonadWidget t m
+     , Rx.Value elem ~ Rx.Dynamic t val
+     , Rx.DomEventType elem 'Rx.BlurTag ~ ()
+     , Rx.HasDomEvent t elem 'Rx.BlurTag
+     , Rx.HasValue elem
+     )
   => Rx.Event t Submit
-  -> m (Rx.InputElement Rx.EventResult (Rx.DomBuilderSpace m) t)
-  -> (Text -> Validated a)
+  -> m elem
+  -> (val -> Validated a)
   -> m
        ( Rx.Event t (Map Rx.AttributeName (Maybe Text))
        , Rx.Dynamic t (Validated a)
@@ -463,8 +471,8 @@ mkValidation
 mkValidation eSubmit wInput validate = do
   input <- wInput
   let eDoneEditing = Rx.leftmost [void eSubmit, Rx.domEvent Rx.Blur input]
-      bValue       = fmap validate . Rx.current . Rx._inputElement_value $ input
-      dValue       = fmap validate . Rx._inputElement_value $ input
+      dValue       = fmap validate . Rx.value $ input
+      bValue       = Rx.current dValue
       eValue       = Rx.tag bValue eDoneEditing
   Rx.widgetHold_ Rx.blank . Rx.ffor eValue $ \case
     Failure es -> forM_ es $ Rx.elClass "p" "help is-danger" . Rx.text
