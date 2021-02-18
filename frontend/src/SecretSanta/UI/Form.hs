@@ -105,24 +105,25 @@ nameWidget
   => Rx.Event t Submit
   -> m (Rx.Behavior t (Validated Name))
 nameWidget eSubmit = do
+  let defaultAttrs = mconcat
+        [ "placeholder" =: "My Secret Santa"
+        , "class" =: "input"
+        , "type" =: "text"
+        ]
   rec let wUnvalidatedInput =
             Rx.inputElement
               $ def
               & (  Rx.inputElementConfig_elementConfig
                 .  Rx.elementConfig_initialAttributes
-                .~ mconcat
-                     [ "placeholder" =: "My Secret Santa"
-                     , "class" =: "input"
-                     , "type" =: "text"
-                     ]
+                .~ defaultAttrs
                 )
               & (  Rx.inputElementConfig_elementConfig
                 .  Rx.elementConfig_modifyAttributes
-                .~ validationAttrs
+                .~ setValidationAttrs defaultAttrs
                 )
-      (validationAttrs, dValidatedInput) <- mkValidation eSubmit
-                                                         wUnvalidatedInput
-                                                         validateName
+      (setValidationAttrs, dValidatedInput) <- mkValidation eSubmit
+                                                            wUnvalidatedInput
+                                                            validateName
   pure . Rx.current $ dValidatedInput
  where
 
@@ -131,20 +132,21 @@ dateWidget
   => Rx.Event t Submit
   -> m (Rx.Behavior t (Validated (Maybe Day)))
 dateWidget eSubmit = do
+  let defaultAttrs = mconcat ["class" =: "input", "type" =: "date"]
   rec let wUnvalidatedInput =
             Rx.inputElement
               $ def
               & (  Rx.inputElementConfig_elementConfig
                 .  Rx.elementConfig_initialAttributes
-                .~ mconcat ["class" =: "input", "type" =: "date"]
+                .~ defaultAttrs
                 )
               & (  Rx.inputElementConfig_elementConfig
                 .  Rx.elementConfig_modifyAttributes
-                .~ validationAttrs
+                .~ setValidationAttrs defaultAttrs
                 )
-      (validationAttrs, dValidatedInput) <- mkValidation eSubmit
-                                                         wUnvalidatedInput
-                                                         validateDate
+      (setValidationAttrs, dValidatedInput) <- mkValidation eSubmit
+                                                            wUnvalidatedInput
+                                                            validateDate
   pure . Rx.current $ dValidatedInput
  where
 
@@ -153,20 +155,21 @@ timeWidget
   => Rx.Event t Submit
   -> m (Rx.Behavior t (Validated (Maybe TimeOfDay)))
 timeWidget eSubmit = do
+  let defaultAttrs = mconcat ["class" =: "input", "type" =: "time"]
   rec let wUnvalidatedInput =
             Rx.inputElement
               $ def
               & (  Rx.inputElementConfig_elementConfig
                 .  Rx.elementConfig_initialAttributes
-                .~ mconcat ["class" =: "input", "type" =: "time"]
+                .~ defaultAttrs
                 )
               & (  Rx.inputElementConfig_elementConfig
                 .  Rx.elementConfig_modifyAttributes
-                .~ validationAttrs
+                .~ setValidationAttrs defaultAttrs
                 )
-      (validationAttrs, dValidatedInput) <- mkValidation eSubmit
-                                                         wUnvalidatedInput
-                                                         validateTime
+      (setValidationAttrs, dValidatedInput) <- mkValidation eSubmit
+                                                            wUnvalidatedInput
+                                                            validateTime
   pure . Rx.current $ dValidatedInput
 
 locationWidget
@@ -174,24 +177,25 @@ locationWidget
   => Rx.Event t Submit
   -> m (Rx.Behavior t (Validated (Maybe Location)))
 locationWidget eSubmit = do
+  let defaultAttrs = mconcat
+        [ "placeholder" =: "Location of the event"
+        , "class" =: "input"
+        , "type" =: "text"
+        ]
   rec let wUnvalidatedInput =
             Rx.inputElement
               $ def
               & (  Rx.inputElementConfig_elementConfig
                 .  Rx.elementConfig_initialAttributes
-                .~ mconcat
-                     [ "placeholder" =: "Location of the event"
-                     , "class" =: "input"
-                     , "type" =: "text"
-                     ]
+                .~ defaultAttrs
                 )
               & (  Rx.inputElementConfig_elementConfig
                 .  Rx.elementConfig_modifyAttributes
-                .~ validationAttrs
+                .~ setValidationAttrs defaultAttrs
                 )
-      (validationAttrs, dValidatedInput) <- mkValidation eSubmit
-                                                         wUnvalidatedInput
-                                                         validateLocation
+      (setValidationAttrs, dValidatedInput) <- mkValidation eSubmit
+                                                            wUnvalidatedInput
+                                                            validateLocation
   pure . Rx.current $ dValidatedInput
 
 priceWidget
@@ -199,24 +203,25 @@ priceWidget
   => Rx.Event t Submit
   -> m (Rx.Behavior t (Validated (Maybe Price)))
 priceWidget eSubmit = do
+  let defaultAttrs = mconcat
+        [ "placeholder" =: "Price of the event"
+        , "class" =: "input"
+        , "type" =: "number"
+        ]
   rec let wUnvalidatedInput =
             Rx.inputElement
               $ def
               & (  Rx.inputElementConfig_elementConfig
                 .  Rx.elementConfig_initialAttributes
-                .~ mconcat
-                     [ "placeholder" =: "Price of the event"
-                     , "class" =: "input"
-                     , "type" =: "number"
-                     ]
+                .~ defaultAttrs
                 )
               & (  Rx.inputElementConfig_elementConfig
                 .  Rx.elementConfig_modifyAttributes
-                .~ validationAttrs
+                .~ setValidationAttrs defaultAttrs
                 )
-      (validationAttrs, dValidatedInput) <- mkValidation eSubmit
-                                                         wUnvalidatedInput
-                                                         validatePrice
+      (setValidationAttrs, dValidatedInput) <- mkValidation eSubmit
+                                                            wUnvalidatedInput
+                                                            validatePrice
   pure . Rx.current $ dValidatedInput
 
 descriptionWidget
@@ -224,25 +229,27 @@ descriptionWidget
   => Rx.Event t Submit
   -> m (Rx.Behavior t (Validated Description))
 descriptionWidget eSubmit = do
+  let defaultAttrs = mconcat
+        [ "placeholder" =: "Description of the event"
+        , "class" =: "textarea"
+        , "type" =: "text"
+        , "rows" =: "5"
+        ]
   rec let wUnvalidatedInput =
             Rx.textAreaElement
               $ def
               & (  Rx.textAreaElementConfig_elementConfig
                 .  Rx.elementConfig_initialAttributes
-                .~ mconcat
-                     [ "placeholder" =: "Description of the event"
-                     , "class" =: "textarea"
-                     , "type" =: "text"
-                     , "rows" =: "5"
-                     ]
+                .~ defaultAttrs
                 )
               & (  Rx.textAreaElementConfig_elementConfig
                 .  Rx.elementConfig_modifyAttributes
-                .~ validationAttrs
+                .~ setValidationAttrs defaultAttrs
                 )
-      (validationAttrs, dValidatedInput) <- mkValidation eSubmit
-                                                         wUnvalidatedInput
-                                                         validateDescription
+      (setValidationAttrs, dValidatedInput) <- mkValidation
+        eSubmit
+        wUnvalidatedInput
+        validateDescription
   pure . Rx.current $ dValidatedInput
 
 data AddParticipant = AddParticipant
@@ -342,45 +349,49 @@ participantWidget k p layout eSubmit = do
  where
   wName :: m (Rx.Dynamic t (Validated PName))
   wName = do
+    let defaultAttrs = mconcat
+          [ "placeholder" =: "Participant name"
+          , "class" =: "input"
+          , "type" =: "text"
+          ]
     rec let wUnvalidatedInput =
               Rx.inputElement
                 $ def
                 & (  Rx.inputElementConfig_elementConfig
                   .  Rx.elementConfig_initialAttributes
-                  .~ mconcat
-                       [ "placeholder" =: "Participant name"
-                       , "class" =: "input"
-                       , "type" =: "text"
-                       ]
+                  .~ defaultAttrs
                   )
                 & (  Rx.inputElementConfig_elementConfig
                   .  Rx.elementConfig_modifyAttributes
-                  .~ validationAttrs
+                  .~ setValidationAttrs defaultAttrs
                   )
-        (validationAttrs, dValidatedInput) <- mkValidation eSubmit
-                                                           wUnvalidatedInput
-                                                           validatePName
+        (setValidationAttrs, dValidatedInput) <- mkValidation
+          eSubmit
+          wUnvalidatedInput
+          validatePName
     pure dValidatedInput
   wEmail :: m (Rx.Dynamic t (Validated PEmail))
   wEmail = do
+    let defaultAttrs = mconcat
+          [ "placeholder" =: "john.doe@email.com"
+          , "class" =: "input"
+          , "type" =: "email"
+          ]
     rec let wUnvalidatedInput =
               Rx.inputElement
                 $ def
                 & (  Rx.inputElementConfig_elementConfig
                   .  Rx.elementConfig_initialAttributes
-                  .~ mconcat
-                       [ "placeholder" =: "john.doe@email.com"
-                       , "class" =: "input"
-                       , "type" =: "email"
-                       ]
+                  .~ defaultAttrs
                   )
                 & (  Rx.inputElementConfig_elementConfig
                   .  Rx.elementConfig_modifyAttributes
-                  .~ validationAttrs
+                  .~ setValidationAttrs defaultAttrs
                   )
-        (validationAttrs, dValidatedInput) <- mkValidation eSubmit
-                                                           wUnvalidatedInput
-                                                           validatePEmail
+        (setValidationAttrs, dValidatedInput) <- mkValidation
+          eSubmit
+          wUnvalidatedInput
+          validatePEmail
     pure dValidatedInput
   wDelete =
     fmap (fmap (const (DeleteParticipant k)) . Rx.domEvent Rx.Click)
@@ -465,8 +476,9 @@ mkValidation
   -> m elem
   -> (val -> Validated a)
   -> m
-       ( Rx.Event t (Map Rx.AttributeName (Maybe Text))
-       , Rx.Dynamic t (Validated a)
+       (  Map Rx.AttributeName Text
+       -> Rx.Event t (Map Rx.AttributeName (Maybe Text))
+       ,  Rx.Dynamic t (Validated a)
        )
 mkValidation eSubmit wInput validate = do
   input <- wInput
@@ -477,7 +489,15 @@ mkValidation eSubmit wInput validate = do
   Rx.widgetHold_ Rx.blank . Rx.ffor eValue $ \case
     Failure es -> forM_ es $ Rx.elClass "p" "help is-danger" . Rx.text
     Success _  -> Rx.blank
-  let eModifyAttrs = Rx.ffor eValue $ \case
-        Failure _ -> [("class", Just "input is-danger")]
-        Success _ -> [("class", Just "input is-success")]
+  let eModifyAttrs defAttrs = Rx.ffor eValue $ \case
+        Failure _ -> modifyClass defAttrs "is-danger"
+        Success _ -> modifyClass defAttrs "is-success"
   pure (eModifyAttrs, dValue)
+ where
+  modifyClass
+    :: Map Rx.AttributeName Text -> Text -> Map Rx.AttributeName (Maybe Text)
+  modifyClass defAttrs style =
+    let newClass = Just $ case Map.lookup "class" defAttrs of
+          Nothing -> style
+          Just c  -> c <> " " <> style
+    in  [("class", newClass)]
