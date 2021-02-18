@@ -12,3 +12,4 @@ import           GHC.Generics                  as Export
 
 
 import           Protolude                     as Export
+                                         hiding ( Location )

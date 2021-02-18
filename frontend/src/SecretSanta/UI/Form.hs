@@ -102,7 +102,7 @@ nameWidget
   :: forall t m
    . Rx.MonadWidget t m
   => Rx.Event t Submit
-  -> m (Rx.Behavior t (Validated Text))
+  -> m (Rx.Behavior t (Validated Name))
 nameWidget eSubmit = do
   rec let wUnvalidatedInput =
             Rx.inputElement
@@ -121,12 +121,9 @@ nameWidget eSubmit = do
                 )
       (validationAttrs, dValidatedInput) <- mkValidation eSubmit
                                                          wUnvalidatedInput
-                                                         validate
+                                                         validateName
   pure . Rx.current $ dValidatedInput
  where
-  validate text = if T.null text
-    then Failure . pure $ "Name cannot be empty"
-    else Success text
 
 dateWidget
   :: Rx.MonadWidget t m
@@ -146,19 +143,9 @@ dateWidget eSubmit = do
                 )
       (validationAttrs, dValidatedInput) <- mkValidation eSubmit
                                                          wUnvalidatedInput
-                                                         validate
+                                                         validateDate
   pure . Rx.current $ dValidatedInput
  where
-  validate t
-    | T.null t
-    = pure Nothing
-    | otherwise
-    = fmap Just
-      . eitherToValidation
-      . first (pure . T.pack)
-      . readEither
-      . T.unpack
-      $ t
 
 timeWidget
   :: Rx.MonadWidget t m
@@ -178,27 +165,13 @@ timeWidget eSubmit = do
                 )
       (validationAttrs, dValidatedInput) <- mkValidation eSubmit
                                                          wUnvalidatedInput
-                                                         validate
+                                                         validateTime
   pure . Rx.current $ dValidatedInput
- where
-  validate t
-    | T.null t = pure Nothing
-    | otherwise = case T.splitOn ":" t of
-      [h, m] ->
-        let mTime = do
-              h' <- readMaybe $ T.unpack h
-              m' <- readMaybe $ T.unpack m
-              makeTimeOfDayValid h' m' 0
-        in  case mTime of
-              Just r  -> pure $ Just r
-              Nothing -> invalidTime
-      _ -> invalidTime
-    where invalidTime = Failure . pure $ "Invalid time. Format: hh:mm"
 
 locationWidget
   :: Rx.MonadWidget t m
   => Rx.Event t Submit
-  -> m (Rx.Behavior t (Validated (Maybe Text)))
+  -> m (Rx.Behavior t (Validated (Maybe Location)))
 locationWidget eSubmit = do
   rec let wUnvalidatedInput =
             Rx.inputElement
@@ -217,14 +190,13 @@ locationWidget eSubmit = do
                 )
       (validationAttrs, dValidatedInput) <- mkValidation eSubmit
                                                          wUnvalidatedInput
-                                                         validate
+                                                         validateLocation
   pure . Rx.current $ dValidatedInput
-  where validate = Success . Just
 
 priceWidget
   :: Rx.MonadWidget t m
   => Rx.Event t Submit
-  -> m (Rx.Behavior t (Validated (Maybe Double)))
+  -> m (Rx.Behavior t (Validated (Maybe Price)))
 priceWidget eSubmit = do
   rec let wUnvalidatedInput =
             Rx.inputElement
@@ -243,19 +215,13 @@ priceWidget eSubmit = do
                 )
       (validationAttrs, dValidatedInput) <- mkValidation eSubmit
                                                          wUnvalidatedInput
-                                                         validate
+                                                         validatePrice
   pure . Rx.current $ dValidatedInput
- where
-  validate t
-    | T.null t = pure Nothing
-    | otherwise = case readMaybe . T.unpack $ t of
-      Nothing -> Failure . pure $ "Price must be a valid decimal number."
-      Just d  -> pure . Just $ d
 
 descriptionWidget
   :: Rx.MonadWidget t m
   => Rx.Event t Submit
-  -> m (Rx.Behavior t (Validated Text))
+  -> m (Rx.Behavior t (Validated Description))
 descriptionWidget eSubmit = do
   rec let wUnvalidatedInput =
             Rx.inputElement
@@ -274,11 +240,8 @@ descriptionWidget eSubmit = do
                 )
       (validationAttrs, dValidatedInput) <- mkValidation eSubmit
                                                          wUnvalidatedInput
-                                                         validate
+                                                         validateDescription
   pure . Rx.current $ dValidatedInput
- where
-  validate t | T.null t  = Failure . pure $ "Description cannot be empty"
-             | otherwise = pure t
 
 data AddParticipant = AddParticipant
 
@@ -306,19 +269,20 @@ addNewParticipant m = case Map.maxViewWithKey m of
   Nothing          -> [(0, emptyParticipant)]
   Just ((k, _), _) -> Map.insert (succ k) emptyParticipant m
 
+type ParticipantLayout t m
+  =  ( m (Rx.Dynamic t (Validated PName))
+    , m (Rx.Dynamic t (Validated PEmail))
+    , m (Rx.Event t DeleteParticipant)
+    )
+  -> m
+       ( (Rx.Dynamic t (Validated PName))
+       , (Rx.Dynamic t (Validated PEmail))
+       , (Rx.Event t DeleteParticipant)
+       )
 participantsWidget
   :: Rx.MonadWidget t m
   => Rx.Event t AddParticipant
-  -> (  ( m (Rx.Dynamic t (Validated Text))
-       , m (Rx.Dynamic t (Validated Text))
-       , m (Rx.Event t DeleteParticipant)
-       )
-     -> m
-          ( (Rx.Dynamic t (Validated Text))
-          , (Rx.Dynamic t (Validated Text))
-          , (Rx.Event t DeleteParticipant)
-          )
-     )
+  -> ParticipantLayout t m
   -> Rx.Event t Submit
   -> m (Rx.Behavior t ParticipantMap)
 participantsWidget eAddNewParticipant layout eSubmit = do
@@ -354,16 +318,7 @@ participantWidget
    . Rx.MonadWidget t m
   => Int
   -> Rx.Dynamic t (Validated Participant)
-  -> (  ( m (Rx.Dynamic t (Validated Text))
-       , m (Rx.Dynamic t (Validated Text))
-       , m (Rx.Event t DeleteParticipant)
-       )
-     -> m
-          ( (Rx.Dynamic t (Validated Text))
-          , (Rx.Dynamic t (Validated Text))
-          , (Rx.Event t DeleteParticipant)
-          )
-     )
+  -> ParticipantLayout t m
   -> Rx.Event t Submit
   -> m
        ( ( Rx.Event t DeleteParticipant
@@ -383,7 +338,7 @@ participantWidget k p layout eSubmit = do
       eUpdated = UpdateParticipant k <$> Rx.updated dParticipant
   pure $ (eDeleted, eUpdated)
  where
-  wName :: m (Rx.Dynamic t (Validated Text))
+  wName :: m (Rx.Dynamic t (Validated PName))
   wName = do
     rec let wUnvalidatedInput =
               Rx.inputElement
@@ -402,13 +357,9 @@ participantWidget k p layout eSubmit = do
                   )
         (validationAttrs, dValidatedInput) <- mkValidation eSubmit
                                                            wUnvalidatedInput
-                                                           validate
+                                                           validatePName
     pure dValidatedInput
-   where
-    validate :: Text -> Validated Text
-    validate t | T.null t  = Failure . pure $ "Name cannot be empty"
-               | otherwise = pure t
-  wEmail :: m (Rx.Dynamic t (Validated Text))
+  wEmail :: m (Rx.Dynamic t (Validated PEmail))
   wEmail = do
     rec let wUnvalidatedInput =
               Rx.inputElement
@@ -427,12 +378,8 @@ participantWidget k p layout eSubmit = do
                   )
         (validationAttrs, dValidatedInput) <- mkValidation eSubmit
                                                            wUnvalidatedInput
-                                                           validate
+                                                           validatePEmail
     pure dValidatedInput
-   where
-    validate :: Text -> Validated Text
-    validate t | T.null t  = Failure . pure $ "Email cannot be empty"
-               | otherwise = pure t
   wDelete =
     fmap (fmap (const (DeleteParticipant k)) . Rx.domEvent Rx.Click)
       . fmap fst
@@ -503,8 +450,6 @@ fieldBody = Rx.elClass "div" "field-body"
 title :: Rx.DomBuilder t m => Int -> m a -> m a
 title (show -> i) = Rx.elClass ("h" <> i) ("title is-" <> i)
 
-
-type Validated a = Validation [Text] a
 
 mkValidation
   :: Rx.MonadWidget t m
