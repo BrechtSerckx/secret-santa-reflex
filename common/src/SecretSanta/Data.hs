@@ -1,15 +1,16 @@
 {-# LANGUAGE DeriveAnyClass #-}
 module SecretSanta.Data where
 
-import           Data.Aeson                     ( FromJSON
-                                                , ToJSON
-                                                )
+import           Control.Monad.Fail             ( fail )
+import qualified Data.Aeson                    as Aeson
 import           Data.Either.Validation
 import qualified Data.Text                     as T
+import qualified Data.Text.Encoding            as T
 import           Data.Time                      ( Day
                                                 , TimeOfDay
                                                 , makeTimeOfDayValid
                                                 )
+import qualified Text.Email.Validate           as Email
 
 -- * Secret Santa form
 
@@ -23,13 +24,13 @@ data Form = Form
   , fParticipants :: [Participant]
   }
   deriving stock (Show, Generic)
-  deriving anyclass (ToJSON, FromJSON)
+  deriving anyclass (Aeson.ToJSON, Aeson.FromJSON)
 
 -- ** Event Name
 
 newtype Name = Name Text
   deriving stock (Show, Generic)
-  deriving anyclass (ToJSON, FromJSON)
+  deriving anyclass (Aeson.ToJSON, Aeson.FromJSON)
 
 validateName :: Text -> Validated Name
 validateName text | T.null text = Failure . pure $ "Name cannot be empty"
@@ -70,7 +71,7 @@ validateTime t
 
 newtype Location = Location Text
   deriving stock (Show, Generic)
-  deriving anyclass (ToJSON, FromJSON)
+  deriving anyclass (Aeson.ToJSON, Aeson.FromJSON)
 
 validateLocation :: Text -> Validated (Maybe Location)
 validateLocation = Success . Just . Location
@@ -79,7 +80,7 @@ validateLocation = Success . Just . Location
 
 newtype Price = Price Double
   deriving stock (Show, Read, Generic)
-  deriving anyclass (ToJSON, FromJSON)
+  deriving anyclass (Aeson.ToJSON, Aeson.FromJSON)
 
 validatePrice :: Text -> Validated (Maybe Price)
 validatePrice t
@@ -92,7 +93,7 @@ validatePrice t
 
 newtype Description = Description Text
   deriving stock (Show, Generic)
-  deriving anyclass (ToJSON, FromJSON)
+  deriving anyclass (Aeson.ToJSON, Aeson.FromJSON)
 
 validateDescription :: Text -> Validated Description
 validateDescription t
@@ -106,13 +107,13 @@ data Participant = Participant
   , pEmail :: PEmail
   }
   deriving stock (Show, Generic)
-  deriving anyclass (ToJSON, FromJSON)
+  deriving anyclass (Aeson.ToJSON, Aeson.FromJSON)
 
 -- *** Participant name
 
 newtype PName = PName Text
   deriving stock (Show, Generic)
-  deriving anyclass (ToJSON, FromJSON)
+  deriving anyclass (Aeson.ToJSON, Aeson.FromJSON)
 
 validatePName :: Text -> Validated PName
 validatePName t | T.null t  = Failure . pure $ "Name cannot be empty"
@@ -120,13 +121,23 @@ validatePName t | T.null t  = Failure . pure $ "Name cannot be empty"
 
 -- *** Participant Email
 
-newtype PEmail = PEmail Text
+newtype PEmail = PEmail Email.EmailAddress
   deriving stock (Show, Generic)
-  deriving anyclass (ToJSON, FromJSON)
+instance Aeson.ToJSON PEmail where
+  toJSON (PEmail email) = Aeson.toJSON @Text . show $ email
+instance Aeson.FromJSON PEmail where
+  parseJSON = Aeson.withText "Email" $ \t -> validatePEmail t & \case
+    Success email -> pure email
+    Failure es    -> fail . show $ es
 
 validatePEmail :: Text -> Validated PEmail
 validatePEmail t | T.null t  = Failure . pure $ "Email cannot be empty"
-                 | otherwise = Success . PEmail $ t
+                 | otherwise = PEmail <$> validate t
+ where
+  validate t = case Email.validate . T.encodeUtf8 $ t of
+    Left _ ->
+      Failure . pure $ "Invalid email. Format: my-email-adress@my-provider"
+    Right email -> Success email
 
 -- * Utils
 
