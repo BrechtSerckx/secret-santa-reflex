@@ -1,7 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 module SecretSanta.UI.Form
   ( formWidget
-  , formDisplayWidget
   , participantsWidget
   ) where
 
@@ -11,12 +10,10 @@ import           Data.Either.Validation
 import           Data.Functor.Compose
 import qualified Data.Map                      as Map
 import qualified Data.Text                     as T
-import qualified Data.Text.Lazy                as TL
 import           Data.Time                      ( Day
                                                 , TimeOfDay
                                                 , makeTimeOfDayValid
                                                 )
-import qualified Text.Pretty.Simple            as Pretty
 
 import qualified Reflex                        as Rx
 import qualified Reflex.Dom                    as Rx
@@ -27,7 +24,7 @@ import           SecretSanta.Data
 
 data Submit = Submit
 
-formWidget :: forall t m . Rx.MonadWidget t m => m (Rx.Event t (Maybe Form))
+formWidget :: forall t m . Rx.MonadWidget t m => m (Rx.Event t Form)
 formWidget = do
   Rx.el "form" $ do
     rec
@@ -80,12 +77,9 @@ formWidget = do
             <$> wParticipants
           pure Form { .. }
         eForm = Rx.tag submit $ eSubmit
-    pure
-      $   (\case
-            Failure _ -> Nothing
-            Success f -> Just f
-          )
-      <$> eForm
+    pure . Rx.fforMaybe eForm $ \case
+      Failure _ -> Nothing
+      Success f -> Just f
  where
   withFieldLabel :: Text -> Validated a -> Validated a
   withFieldLabel t = first . fmap $ \e -> t <> ": " <> e
@@ -410,29 +404,6 @@ submitWidget = fieldHorizontal . control $ do
         )
       $ Rx.text "Submit"
   pure $ Rx.domEvent Rx.Click e $> Submit
-
-formDisplayWidget
-  :: forall t m
-   . (Rx.DomBuilder t m, Rx.MonadHold t m, Rx.PostBuild t m)
-  => Rx.Event t (Maybe Form)
-  -> (  Rx.Dynamic t (Either Text Form)
-     -> Rx.Event t ()
-     -> m (Rx.Event t (SR.ReqResult () Form))
-     )
-  -> m ()
-formDisplayWidget eFormSubmitted echoForm = do
-  -- dReqBody <- Rx.holdDyn (Left "") $ Right <$> eFormSubmitted
-  -- eReqRes  <- echoForm dReqBody $ void eFormSubmitted
-  let mkForm = \case
-        Just f  -> Rx.text . TL.toStrict . Pretty.pShowNoColor $ f
-        Nothing -> Rx.blank
-      -- displayErr = Rx.text
-      -- displayReqRes rr = case rr of
-      --   SR.ResponseSuccess _ f _ -> mkForm f
-      --   SR.ResponseFailure _ t _ -> displayErr t
-      --   SR.RequestFailure _ t    -> displayErr t
-  -- Rx.widgetHold_ Rx.blank $ displayReqRes <$> eReqRes
-  Rx.widgetHold_ Rx.blank $ mkForm <$> eFormSubmitted
 
 field :: Rx.DomBuilder t m => m a -> m a
 field = field' ""

@@ -24,7 +24,9 @@ secretSantaServer =
     CORS.simpleCorsResourcePolicy { CORS.corsRequestHeaders = ["content-type"] }
 
 apiServer :: SS.Server API
-apiServer = echoFormHandler
+apiServer = createSecretSantaHandler
 
-echoFormHandler :: SS.Server EchoFormEP
-echoFormHandler = pure
+createSecretSantaHandler :: SS.Server CreateSecretSantaEP
+createSecretSantaHandler f = do
+  liftIO $ print f
+  pure ()

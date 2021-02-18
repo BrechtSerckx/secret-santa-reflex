@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module SecretSanta.Data where
 
 import           Control.Monad.Fail             ( fail )
@@ -10,7 +11,7 @@ import           Data.Time                      ( Day
                                                 , TimeOfDay
                                                 , makeTimeOfDayValid
                                                 )
-import qualified Text.Email.Validate           as Email
+import           Text.EmailAddress
 
 -- * Secret Santa form
 
@@ -29,7 +30,8 @@ data Form = Form
 -- ** Event Name
 
 newtype Name = Name Text
-  deriving stock (Show, Generic)
+  deriving stock Generic
+  deriving newtype (Show, Read)
   deriving anyclass (Aeson.ToJSON, Aeson.FromJSON)
 
 validateName :: Text -> Validated Name
@@ -70,7 +72,8 @@ validateTime t
 -- ** Event location
 
 newtype Location = Location Text
-  deriving stock (Show, Generic)
+  deriving stock Generic
+  deriving newtype (Show, Read)
   deriving anyclass (Aeson.ToJSON, Aeson.FromJSON)
 
 validateLocation :: Text -> Validated (Maybe Location)
@@ -79,20 +82,22 @@ validateLocation = Success . Just . Location
 -- ** Gift price
 
 newtype Price = Price Double
-  deriving stock (Show, Read, Generic)
+  deriving stock Generic
+  deriving newtype (Show, Read)
   deriving anyclass (Aeson.ToJSON, Aeson.FromJSON)
 
 validatePrice :: Text -> Validated (Maybe Price)
 validatePrice t
   | T.null t = pure Nothing
-  | otherwise = case readMaybe . T.unpack $ t of
+  | otherwise = case readMaybe @Price . T.unpack $ t of
     Nothing -> Failure . pure $ "Price must be a valid decimal number."
     Just d  -> pure . Just $ d
 
 -- ** Event description
 
 newtype Description = Description Text
-  deriving stock (Show, Generic)
+  deriving stock Generic
+  deriving newtype (Show, Read)
   deriving anyclass (Aeson.ToJSON, Aeson.FromJSON)
 
 validateDescription :: Text -> Validated Description
@@ -112,7 +117,8 @@ data Participant = Participant
 -- *** Participant name
 
 newtype PName = PName Text
-  deriving stock (Show, Generic)
+  deriving stock Generic
+  deriving newtype (Show, Read)
   deriving anyclass (Aeson.ToJSON, Aeson.FromJSON)
 
 validatePName :: Text -> Validated PName
@@ -121,23 +127,18 @@ validatePName t | T.null t  = Failure . pure $ "Name cannot be empty"
 
 -- *** Participant Email
 
-newtype PEmail = PEmail Email.EmailAddress
-  deriving stock (Show, Generic)
-instance Aeson.ToJSON PEmail where
-  toJSON (PEmail email) = Aeson.toJSON @Text . show $ email
-instance Aeson.FromJSON PEmail where
-  parseJSON = Aeson.withText "Email" $ \t -> validatePEmail t & \case
-    Success email -> pure email
-    Failure es    -> fail . show $ es
+newtype PEmail = PEmail EmailAddress
+  deriving stock Generic
+  deriving newtype (Show, Read)
+  deriving anyclass (Aeson.ToJSON, Aeson.FromJSON)
 
 validatePEmail :: Text -> Validated PEmail
-validatePEmail t | T.null t  = Failure . pure $ "Email cannot be empty"
-                 | otherwise = PEmail <$> validate t
+validatePEmail t
+  | T.null t  = Failure . pure $ "Email cannot be empty"
+  | otherwise = maybe invalidEmail (Success . PEmail) . emailAddressFromText $ t
  where
-  validate t = case Email.validate . T.encodeUtf8 $ t of
-    Left _ ->
-      Failure . pure $ "Invalid email. Format: my-email-adress@my-provider"
-    Right email -> Success email
+  invalidEmail =
+    Failure . pure $ "Invalid email. Format: my-email-adress@my-provider"
 
 -- * Utils
 

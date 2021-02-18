@@ -2,14 +2,14 @@
 {-# LANGUAGE TypeOperators #-}
 module SecretSanta.API
   ( API
-  , EchoFormEP
+  , CreateSecretSantaEP
   ) where
 
 import           Servant.API
 
 import           SecretSanta.Data
 
-type API = EchoFormEP
+type API = CreateSecretSantaEP
 
-type EchoFormEP
-  = "api" :> "echo-form" :> ReqBody '[JSON] Form :> Post '[JSON] Form
+type CreateSecretSantaEP
+  = "api" :> "secret-santa" :> ReqBody '[JSON] Form :> Post '[JSON] ()

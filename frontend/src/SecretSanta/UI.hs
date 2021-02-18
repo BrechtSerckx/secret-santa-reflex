@@ -1,12 +1,16 @@
 module SecretSanta.UI where
 
 
+import qualified Data.Text.Lazy                as TL
+import qualified Text.Pretty.Simple            as Pretty
+
 import qualified Reflex                        as Rx
 import qualified Reflex.Dom                    as Rx
 import           Reflex.Dom                     ( (=:) )
 import qualified Servant.Reflex                as SR
 
 import           SecretSanta.API
+import           SecretSanta.Data
 import           SecretSanta.UI.Form
 
 
@@ -30,19 +34,44 @@ headWidget = do
 
 bodyWidget :: forall t m . Rx.MonadWidget t m => m ()
 bodyWidget =
-  let echoForm = SR.client
+  let cCreateSecretSanta = SR.client
         (Proxy @API)
         (Proxy @m)
         (Proxy @())
         (Rx.constDyn $ SR.BaseFullUrl SR.Http "localhost" 8080 "/")
   in  Rx.elClass "section" "section" . Rx.elClass "div" "container" $ do
-                                                                            -- header
         Rx.elClass "h1" "title is-1" $ Rx.text "Secret Santa"
         Rx.el "p" $ Rx.text "My first website with Bulma!"
 
         Rx.el "hr" $ pure ()
 
         -- form
-        eFormSubmitted <- Rx.traceEvent "form" <$> formWidget
-        formDisplayWidget eFormSubmitted echoForm
+        eFormSubmitted <- Rx.elClass "div" "block" formWidget
+        formDisplayWidget eFormSubmitted cCreateSecretSanta
+
+
+
+formDisplayWidget
+  :: forall t m
+   . Rx.MonadWidget t m
+  => Rx.Event t Form
+  -> (  Rx.Dynamic t (Either Text Form)
+     -> Rx.Event t ()
+     -> m (Rx.Event t (SR.ReqResult () ()))
+     )
+  -> m ()
+formDisplayWidget eFormSubmitted createSecretSanta = do
+  dReqBody <- Rx.holdDyn (Left "") $ Right <$> eFormSubmitted
+  eReqRes  <- createSecretSanta dReqBody (void eFormSubmitted)
+  Rx.widgetHold_ Rx.blank $ eReqRes <&> \case
+    SR.ResponseSuccess _ () _ -> Rx.blank
+    SR.ResponseFailure _ t  _ -> displayErr t
+    SR.RequestFailure _ t     -> displayErr t
+  Rx.widgetHold_ Rx.blank
+    $   Rx.elClass "div" "notification is-success"
+    .   Rx.text
+    .   TL.toStrict
+    .   Pretty.pShowNoColor
+    <$> eFormSubmitted
+  where displayErr = Rx.elClass "el" "notification is-danger" . Rx.text
 
