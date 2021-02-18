@@ -8,6 +8,7 @@ module SecretSanta.UI.Form
 import           Control.Lens
 import           Control.Monad.Fix
 import           Data.Either.Validation
+import           Data.Functor.Compose
 import qualified Data.Map                      as Map
 import qualified Data.Text                     as T
 import qualified Data.Text.Lazy                as TL
@@ -63,26 +64,21 @@ formWidget = do
         Failure es -> forM_ es $ Rx.elClass "p" "help is-danger" . Rx.text
         Success e  -> Rx.blank
       let
-        submit = do
-          eName         <- wName
-          eDate         <- wDate
-          eTime         <- wTime
-          eLocation     <- wLocation
-          ePrice        <- wPrice
-          eDescription  <- wDescription
-          eParticipants <- Map.elems <$> wParticipants
-          pure $ do
-            let withFieldLabel :: Text -> Validated a -> Validated a
-                withFieldLabel t = first . fmap $ \e -> t <> ": " <> e
-            fName         <- withFieldLabel "Event" eName
-            fDate         <- withFieldLabel "Date" eDate
-            fTime         <- withFieldLabel "Time" eTime
-            fLocation     <- withFieldLabel "Location" eLocation
-            fPrice        <- withFieldLabel "Price" ePrice
-            fDescription  <- withFieldLabel "Description" eDescription
-            fParticipants <-
-              withFieldLabel "Participants" . sequenceA $ eParticipants
-            pure Form { .. }
+        submit = getCompose $ do
+          fName        <- Compose $ withFieldLabel "Event" <$> wName
+          fDate        <- Compose $ withFieldLabel "Date" <$> wDate
+          fTime        <- Compose $ withFieldLabel "Time" <$> wTime
+          fLocation    <- Compose $ withFieldLabel "Location" <$> wLocation
+          fPrice       <- Compose $ withFieldLabel "Price" <$> wPrice
+          fDescription <-
+            Compose $ withFieldLabel "Description" <$> wDescription
+          fParticipants <-
+            Compose
+            $   withFieldLabel "Participants"
+            .   sequenceA
+            .   Map.elems
+            <$> wParticipants
+          pure Form { .. }
         eForm = Rx.tag submit $ eSubmit
     pure
       $   (\case
@@ -91,6 +87,8 @@ formWidget = do
           )
       <$> eForm
  where
+  withFieldLabel :: Text -> Validated a -> Validated a
+  withFieldLabel t = first . fmap $ \e -> t <> ": " <> e
   layoutParticipant (wPName, wPEmail, wPDelete) = fieldHorizontal $ do
     label "Participant"
     fieldBody $ do
@@ -337,13 +335,10 @@ participantWidget
 participantWidget k p layout eSubmit = do
   (bName, bEmail, eDeleted) <- layout (wName, wEmail, wDelete)
   let dParticipant :: Rx.Dynamic t (Validated Participant)
-      dParticipant = do
-        eName  <- bName
-        eEmail <- bEmail
-        pure $ do
-          pName  <- eName
-          pEmail <- eEmail
-          pure Participant { .. }
+      dParticipant = getCompose $ do
+        pName  <- Compose bName
+        pEmail <- Compose bEmail
+        pure Participant { .. }
       eUpdated = UpdateParticipant k <$> Rx.updated dParticipant
   pure $ (eDeleted, eUpdated)
  where
