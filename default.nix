@@ -18,5 +18,6 @@
   overrides = self: super: {
     servant-reflex = self.callCabal2nix "servant-reflex" sources.servant-reflex { };
     polysemy-plugin = hlib.dontCheck (hlib.markUnbroken super.polysemy-plugin);
+    smtp-mail = self.callCabal2nix "smtp-mail" sources.smtp-mail {};
   };
 })

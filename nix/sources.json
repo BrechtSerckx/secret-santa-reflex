@@ -34,5 +34,12 @@
         "type": "tarball",
         "url": "https://github.com/asheshambasta/servant-reflex/archive/a1edb7565451c2e4cf442c38a2f50e49c0b5707f.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "smtp-mail": {
+        "ref": "master",
+        "repo": "https://github.com/jhickner/smtp-mail.git",
+        "rev": "907bbbd4d9c7f293b19595b761e73536578e0c1c",
+        "tag": "refs/tags/0.3.0.0",
+        "type": "git"
     }
 }

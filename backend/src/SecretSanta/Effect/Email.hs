@@ -2,9 +2,9 @@ module SecretSanta.Effect.Email
   ( Email
   , sendEmail
   , runEmailPrint
-  , SESSettings
+  , SESSettings(..)
   , runEmailSES
-  , GmailSettings
+  , GmailSettings(..)
   , runEmailGmail
   ) where
 
@@ -54,11 +54,12 @@ data GmailSettings = GmailSettings
 runEmailGmail :: GmailSettings -> Sem (Email ': r) a -> Sem (Embed IO ': r) a
 runEmailGmail GmailSettings {..} = reinterpret $ \case
   SendEmail mail ->
-    let host     = "smtp.google.com"
+    let host     = "smtp.gmail.com"
         port_tls = 587
         -- port_ssl = 465
         port     = port_tls
         username = T.unpack gmailUsername
         password = T.unpack gmailPassword
-    in  embed @IO $ SMTP.sendMailWithLogin' host port username password mail
+    in  embed @IO
+          $ SMTP.sendMailWithLoginSTARTTLS' host port username password mail
 
