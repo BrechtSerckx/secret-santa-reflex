@@ -2,6 +2,8 @@ module SecretSanta.Server
   ( secretSantaServer
   ) where
 
+import           Polysemy
+
 import           Data.Proxy
 import qualified Network.Wai.Handler.Warp      as Warp
 import qualified Network.Wai.Middleware.Cors   as CORS
@@ -16,17 +18,21 @@ secretSantaServer :: IO ()
 secretSantaServer =
   Warp.run 8080
     . CORS.cors (const $ Just corsPolicy)
-    . SO.provideOptions (Proxy @API)
-    . SS.serve (Proxy @API)
+    . SO.provideOptions api
+    . SS.serve api
+    . SS.hoistServer api runInHandler
     $ apiServer
  where
   corsPolicy =
     CORS.simpleCorsResourcePolicy { CORS.corsRequestHeaders = ["content-type"] }
 
-apiServer :: SS.Server API
+runInHandler :: r ~ '[Embed IO] => Sem r a -> SS.Handler a
+runInHandler act = liftIO $ act & runM
+
+apiServer :: Member (Embed IO) r => SS.ServerT API (Sem r)
 apiServer = createSecretSantaHandler
 
-createSecretSantaHandler :: SS.Server CreateSecretSantaEP
+createSecretSantaHandler :: Member (Embed IO) r => Form -> Sem r ()
 createSecretSantaHandler f = do
   liftIO $ print f
   pure ()

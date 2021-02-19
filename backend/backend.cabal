@@ -24,6 +24,10 @@ executable backend
     Main
     SecretSanta.Server
   -- other-extensions:
+  ghc-options:
+    -O2
+    -flate-specialise
+    -fspecialise-aggressively
   build-depends:
       base-noprelude >=4.12 && <4.13
     , common
@@ -33,9 +37,13 @@ executable backend
     , wai
     , wai-cors
     , servant-options
+    , polysemy
+    -- , polysemy-plugin
+    -- , servant-polysemy
   default-language:    Haskell2010
   default-extensions:
     ApplicativeDo
+    DataKinds
     DeriveGeneric
     DerivingVia
     GADTs
@@ -49,10 +57,14 @@ executable backend
     OverloadedStrings
     PackageImports
     PatternSynonyms
+    PolyKinds
+    RankNTypes
     RecordWildCards
     RecursiveDo
     ScopedTypeVariables
     StrictData
     TupleSections
     TypeApplications
+    TypeOperators
+    TypeFamilies
     ViewPatterns

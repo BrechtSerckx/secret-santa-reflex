@@ -35,7 +35,7 @@ headWidget = do
 bodyWidget :: forall t m . Rx.MonadWidget t m => m ()
 bodyWidget =
   let cCreateSecretSanta = SR.client
-        (Proxy @API)
+        api
         (Proxy @m)
         (Proxy @())
         (Rx.constDyn $ SR.BaseFullUrl SR.Http "localhost" 8080 "/")
