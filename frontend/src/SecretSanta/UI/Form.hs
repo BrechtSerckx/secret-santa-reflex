@@ -28,40 +28,66 @@ formWidget :: forall t m . Rx.MonadWidget t m => m (Rx.Event t Form)
 formWidget = do
   Rx.el "form" $ do
     rec
+      -- General section
       title 3 $ Rx.text "General"
+
+      -- Event name
       wName <- fieldHorizontal $ do
         label "Event"
         fieldBody . field . control $ nameWidget eSubmit
+
+      -- Event date and time
       (wDate, wTime) <- fieldHorizontal $ do
         label "Date/Time"
         fieldBody $ do
           wDate' <- field . control $ dateWidget eSubmit
           wTime' <- field . control $ timeWidget eSubmit
           pure (wDate', wTime')
+
+      -- Location
       wLocation <- fieldHorizontal $ do
         label "Location"
         fieldBody . field . control $ locationWidget eSubmit
+
+      -- Price
       wPrice <- fieldHorizontal $ do
         label "Price"
         fieldBody . field . control $ priceWidget eSubmit
+
+      -- Description
       wDescription <- fieldHorizontal $ do
         label "Description"
         fieldBody . field . control $ descriptionWidget eSubmit
+
+      -- Participant section
       title 3 $ Rx.text "Participants"
-      rec wParticipants <- participantsWidget eNewParticipant
-                                              layoutParticipant
-                                              eSubmit
-          (eNewParticipant, eSubmit) <- do
-            label ""
-            fieldBody . field' "is-grouped" $ do
-              eNewParticipant' <- control $ newParticipantWidget
-              eSubmit'         <- control $ submitWidget
-              pure (eNewParticipant', eSubmit')
+      wParticipants <- participantsWidget eNewParticipant
+                                          layoutParticipant
+                                          eSubmit
+
+      -- Add participant and submit button
+      (eNewParticipant, eSubmit) <- do
+        label ""
+        fieldBody . field' "is-grouped" $ do
+          eNewParticipant' <- control $ newParticipantWidget
+          eSubmit'         <- control $ submitWidget
+          pure (eNewParticipant', eSubmit')
+
+      -- Errors
       Rx.widgetHold_ Rx.blank . Rx.ffor eForm $ \case
         Failure es -> forM_ es $ Rx.elClass "p" "help is-danger" . Rx.text
         Success e  -> Rx.blank
+
       let
-        submit = getCompose $ do
+        -- TODO: ideally we would provide better feedback here.
+        -- Currently, when there are non-unique participants or less than 3, we
+        -- get an error message below the submit button, but the conflicting
+        -- fields are still marked as valid.
+        -- Ideally, we would throw the validation in a feedback loop where the
+        -- conflicting fields are marked as invalid.
+        -- We also would like to update the validation of all participants when
+        -- one is updated?
+        bForm = fmap eValidateForm . getCompose $ do
           fName        <- Compose $ withFieldLabel "Event" <$> wName
           fDate        <- Compose $ withFieldLabel "Date" <$> wDate
           fTime        <- Compose $ withFieldLabel "Time" <$> wTime
@@ -70,17 +96,17 @@ formWidget = do
           fDescription <-
             Compose $ withFieldLabel "Description" <$> wDescription
           fParticipants <-
-            Compose
-            $   withFieldLabel "Participants"
-            .   sequenceA
-            .   Map.elems
-            <$> wParticipants
+            Compose $ withFieldLabel "Participants" <$> wParticipants
           pure Form { .. }
-        eForm = Rx.tag submit $ eSubmit
+        eForm = Rx.tag bForm eSubmit
     pure . Rx.fforMaybe eForm $ \case
       Failure _ -> Nothing
       Success f -> Just f
  where
+  eValidateForm :: Validated Form -> Validated Form
+  eValidateForm = \case
+    Success f  -> validateForm f
+    Failure es -> Failure es
   withFieldLabel :: Text -> Validated a -> Validated a
   withFieldLabel t = first . fmap $ \e -> t <> ": " <> e
   layoutParticipant (wPName, wPEmail, wPDelete) = fieldHorizontal $ do
@@ -285,7 +311,7 @@ participantsWidget
   => Rx.Event t AddParticipant
   -> ParticipantLayout t m
   -> Rx.Event t Submit
-  -> m (Rx.Behavior t ParticipantMap)
+  -> m (Rx.Behavior t (Validated [Participant]))
 participantsWidget eAddNewParticipant layout eSubmit = do
   rec
     dCurrParticipants <-
@@ -301,7 +327,7 @@ participantsWidget eAddNewParticipant layout eSubmit = do
         ]
     dParticipantsMap <- Rx.listWithKey dCurrParticipants
       $ \k p -> participantWidget k p layout eSubmit
-  pure . Rx.current $ dCurrParticipants
+  pure . Rx.current $ sequenceA . Map.elems <$> dCurrParticipants
  where
   overParticipants f m =
     Rx.switch

@@ -5,6 +5,7 @@ module SecretSanta.Data where
 import           Control.Monad.Fail             ( fail )
 import qualified Data.Aeson                    as Aeson
 import           Data.Either.Validation
+import qualified Data.List                     as L
 import qualified Data.Text                     as T
 import qualified Data.Text.Encoding            as T
 import           Data.Time                      ( Day
@@ -26,6 +27,24 @@ data Form = Form
   }
   deriving stock (Show, Generic)
   deriving anyclass (Aeson.ToJSON, Aeson.FromJSON)
+
+validateForm :: Form -> Validated Form
+validateForm f@Form {..} = do
+  if unique $ pName <$> fParticipants
+    then pure ()
+    else Failure . pure $ "Participant names must be unique."
+  if unique $ pEmail <$> fParticipants
+    then pure ()
+    else Failure . pure $ "Participant emails must be unique."
+  if length fParticipants >= 3
+    then pure ()
+    else
+      Failure
+      . pure
+      $ "There must be at least 3 participants to ensure random matches."
+  pure f
+  where unique l = length l == length (L.nub l)
+
 
 -- ** Event Name
 
@@ -118,18 +137,24 @@ data Participant = Participant
 
 newtype PName = PName Text
   deriving stock Generic
-  deriving newtype (Show, Read)
+  deriving newtype (Show, Read, Eq)
   deriving anyclass (Aeson.ToJSON, Aeson.FromJSON)
 
 validatePName :: Text -> Validated PName
 validatePName t | T.null t  = Failure . pure $ "Name cannot be empty"
                 | otherwise = Success . PName $ t
 
+validatePNameUnique :: PName -> [Validated PName] -> Validated PName
+validatePNameUnique name names =
+  if (length . filter (== Success name) $ names) == 1
+    then pure name
+    else Failure . pure $ "Name must be unique"
+
 -- *** Participant Email
 
 newtype PEmail = PEmail EmailAddress
   deriving stock Generic
-  deriving newtype (Show, Read)
+  deriving newtype (Show, Read, Eq)
   deriving anyclass (Aeson.ToJSON, Aeson.FromJSON)
 
 validatePEmail :: Text -> Validated PEmail
