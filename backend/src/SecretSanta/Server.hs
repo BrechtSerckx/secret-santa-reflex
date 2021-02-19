@@ -7,6 +7,8 @@ import           Polysemy.Error
 
 import qualified Network.Wai.Handler.Warp      as Warp
 import qualified Network.Wai.Middleware.Cors   as CORS
+import qualified Network.Wai.Middleware.RequestLogger
+                                               as RL
 import qualified Network.Wai.Middleware.Servant.Options
                                                as SO
 import qualified Servant.Server                as SS
@@ -19,9 +21,11 @@ import           SecretSanta.Effect.SecretSanta
 
 
 secretSantaServer :: IO ()
-secretSantaServer =
+secretSantaServer = do
+  requestLogger <- RL.mkRequestLogger def
   Warp.run 8080
     . CORS.cors (const $ Just corsPolicy)
+    . requestLogger
     . SO.provideOptions api
     . SS.serve api
     . SS.hoistServer api runInHandler

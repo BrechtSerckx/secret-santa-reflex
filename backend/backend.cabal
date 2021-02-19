@@ -36,6 +36,7 @@ executable backend
     , common
       -- server
     , wai
+    , wai-extra
     , wai-cors
     , warp
     , servant-options
