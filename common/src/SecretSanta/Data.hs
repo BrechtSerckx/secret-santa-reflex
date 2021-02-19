@@ -33,6 +33,8 @@ import qualified Data.Text.Encoding            as T
 import qualified Data.Time                     as Time
 import           Text.EmailAddress
 import           Text.NonEmpty
+import qualified Text.Read                     as Read
+import qualified Text.Show                     as Show
 
 import           Data.Refine
 import           Data.Validate
@@ -95,24 +97,27 @@ validateDateMaybe :: Text -> Validated (Maybe Date)
 validateDateMaybe = readValidationMaybe
 
 newtype Time = Time { unTime :: Time.TimeOfDay }
-  deriving newtype (Eq, Show, Read)
+  deriving newtype Eq
+
+instance Show.Show Time where
+  show (Time (Time.TimeOfDay h m _s)) = show h <> ":" <> show m
+
+instance Read.Read Time where
+  readsPrec _ = \case
+    (h1 : h2 : ':' : m1 : m2 : rest) -> maybe [] pure $ do
+      h' <- readMaybe [h1, h2]
+      m' <- readMaybe [m1, m2]
+      (, rest) . Time <$> Time.makeTimeOfDayValid h' m' 0
+    _ -> []
 
 instance Aeson.FromJSON Time where
-  parseJSON = Aeson.withText "Time" $ \t -> case T.splitOn ":" t of
-    [h, m] ->
-      let mTime = do
-            h' <- readMaybe $ T.unpack h
-            m' <- readMaybe $ T.unpack m
-            Time <$> Time.makeTimeOfDayValid h' m' 0
-      in  case mTime of
-            Just r  -> pure r
-            Nothing -> invalidTime
-    _ -> invalidTime
+  parseJSON = Aeson.withText "Time" $ \t -> case readMaybe . T.unpack $ t of
+    Just r  -> pure r
+    Nothing -> invalidTime
     where invalidTime = fail "Invalid time. Format: hh:mm"
 
 instance Aeson.ToJSON Time where
-  toJSON (Time (Time.TimeOfDay h m _s)) =
-    Aeson.String $ show h <> ":" <> show m
+  toJSON = Aeson.String . show
 
 validateTimeMaybe :: Text -> Validated (Maybe Time)
 validateTimeMaybe = readValidationMaybe
