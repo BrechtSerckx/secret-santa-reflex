@@ -15,6 +15,10 @@ import           Text.EmailAddress              ( EmailAddress
                                                 , emailAddressFromText
                                                 )
 
+import           Data.Typeable                  ( typeOf )
+import           Refined
+import           Refined.Orphan
+
 -- * Secret Santa form
 
 data Form = Form
@@ -49,28 +53,20 @@ validateForm f@Form {..} = do
 
 -- ** Event Name
 
-newtype Name = Name Text
-  deriving stock Generic
-  deriving newtype (Show, Read)
-  deriving anyclass (Aeson.ToJSON, Aeson.FromJSON)
-
+type Name = Refined NotEmpty Text
+data NotEmpty
+instance Predicate NotEmpty Text where
+  validate p text =
+    when (T.null text) . throwRefineOtherException (typeOf p) $ pretty @Text
+      "name cannot be empty"
 validateName :: Text -> Validated Name
-validateName text | T.null text = Failure . pure $ "Name cannot be empty"
-                  | otherwise   = Success . Name $ text
+validateName = validateRefined
 
 -- ** Event date
 
 validateDate :: Text -> Validated (Maybe Day)
-validateDate t
-  | T.null t
-  = pure Nothing
-  | otherwise
-  = fmap Just
-    . eitherToValidation
-    . first (pure . T.pack)
-    . readEither
-    . T.unpack
-    $ t
+validateDate t | T.null t  = pure Nothing
+               | otherwise = Just <$> readValidation "Invalid date." t
 
 -- ** Event time
 
@@ -91,13 +87,11 @@ validateTime t
 
 -- ** Event location
 
-newtype Location = Location Text
-  deriving stock Generic
-  deriving newtype (Show, Read)
-  deriving anyclass (Aeson.ToJSON, Aeson.FromJSON)
+type Location = Refined NotEmpty Text
 
 validateLocation :: Text -> Validated (Maybe Location)
-validateLocation = Success . Just . Location
+validateLocation t | T.null t  = pure Nothing
+                   | otherwise = Just <$> validateRefined t
 
 -- ** Gift price
 
@@ -108,22 +102,17 @@ newtype Price = Price Double
 
 validatePrice :: Text -> Validated (Maybe Price)
 validatePrice t
-  | T.null t = pure Nothing
-  | otherwise = case readMaybe @Price . T.unpack $ t of
-    Nothing -> Failure . pure $ "Price must be a valid decimal number."
-    Just d  -> pure . Just $ d
+  | T.null t
+  = pure Nothing
+  | otherwise
+  = Just <$> readValidation "Price must be a valid decimal number." t
 
 -- ** Event description
 
-newtype Description = Description Text
-  deriving stock Generic
-  deriving newtype (Show, Read)
-  deriving anyclass (Aeson.ToJSON, Aeson.FromJSON)
+type Description = Refined NotEmpty Text
 
 validateDescription :: Text -> Validated Description
-validateDescription t
-  | T.null t  = Failure . pure $ "Description cannot be empty"
-  | otherwise = pure . Description $ t
+validateDescription = validateRefined
 
 -- ** Participants
 
@@ -136,14 +125,10 @@ data Participant = Participant
 
 -- *** Participant name
 
-newtype PName = PName Text
-  deriving stock Generic
-  deriving newtype (Show, Read, Eq)
-  deriving anyclass (Aeson.ToJSON, Aeson.FromJSON)
+type PName = Refined NotEmpty Text
 
 validatePName :: Text -> Validated PName
-validatePName t | T.null t  = Failure . pure $ "Name cannot be empty"
-                | otherwise = Success . PName $ t
+validatePName = validateRefined
 
 validatePNameUnique :: PName -> [Validated PName] -> Validated PName
 validatePNameUnique name names =
@@ -169,3 +154,13 @@ validatePEmail t
 -- * Utils
 
 type Validated a = Validation [Text] a
+
+
+validateRefined :: Predicate p input => input -> Validated (Refined p input)
+validateRefined =
+  eitherToValidation . first (pure . T.pack . displayException) . refine
+
+readValidation :: Read a => Text -> Text -> Validated a
+readValidation errMsg t = case readMaybe . T.unpack $ t of
+  Nothing -> Failure . pure $ errMsg
+  Just a  -> pure a
