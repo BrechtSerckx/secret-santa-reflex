@@ -3,6 +3,7 @@ module SecretSanta.Server
   ) where
 
 import           Polysemy
+import           Polysemy.Error
 
 import qualified Network.Wai.Handler.Warp      as Warp
 import qualified Network.Wai.Middleware.Cors   as CORS
@@ -29,9 +30,15 @@ secretSantaServer =
   corsPolicy =
     CORS.simpleCorsResourcePolicy { CORS.corsRequestHeaders = ["content-type"] }
 
-runInHandler :: r ~ '[SecretSanta] => Sem r a -> SS.Handler a
+runInHandler :: forall r a . r ~ '[SecretSanta] => Sem r a -> SS.Handler a
 runInHandler act =
-  liftIO . runM . runEmailPrint . runMatchDet . runSecretSanta $ act
+  let act' :: r' ~ '[Error InternalError, Match, Email] => Sem r' a
+      act' = runSecretSanta act
+  in  do
+        eRes :: Either InternalError a <-
+          liftIO . runM . runEmailPrint . runMatchDet . runError $ act'
+        case eRes of
+          Right res -> pure res
 
 apiServer :: Member SecretSanta r => SS.ServerT API (Sem r)
 apiServer = createSecretSantaHandler

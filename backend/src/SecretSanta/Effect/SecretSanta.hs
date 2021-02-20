@@ -3,9 +3,11 @@ module SecretSanta.Effect.SecretSanta
   , createSecretSanta
   , runSecretSantaPrint
   , runSecretSanta
+  , InternalError(..)
   ) where
 
 import           Polysemy
+import           Polysemy.Error
 
 import           Refined
 
@@ -17,6 +19,9 @@ data SecretSanta m a where
   -- | Create a new secret santa
   CreateSecretSanta ::Form -> SecretSanta m ()
 
+data InternalError
+  = NoMatchesFound [Participant] -- ^ No matches are found, so preconditions weren't met
+
 makeSem ''SecretSanta
 
 runSecretSantaPrint
@@ -24,12 +29,12 @@ runSecretSantaPrint
 runSecretSantaPrint = reinterpret $ \case
   CreateSecretSanta f -> embed $ print @IO f
 
-runSecretSanta :: forall r a . Sem (SecretSanta ': r) a -> Sem (Match ': Email ': r) a
-runSecretSanta = reinterpret2 $ \case
+runSecretSanta :: forall r a . Sem (SecretSanta ': r) a -> Sem (Error InternalError ': Match ': Email ': r) a
+runSecretSanta = reinterpret3 $ \case
   CreateSecretSanta Form {..} -> do
     mMatches <- makeMatch fParticipants
     case mMatches of
-      Nothing      -> undefined
+      Nothing      -> throw $ NoMatchesFound fParticipants
       Just matches -> forM_ matches \(gifter, receiver) -> 
         let Participant { pName = gifterName, pEmail = gifterEmail } = gifter
             Participant { pName = receiverName } = receiver
