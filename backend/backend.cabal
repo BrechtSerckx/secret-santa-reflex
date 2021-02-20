@@ -22,6 +22,8 @@ executable backend
     src
   other-modules:
     Main
+    Polysemy.Email
+    SecretSanta.Effect.SecretSanta
     SecretSanta.Server
   -- other-extensions:
   ghc-options:
