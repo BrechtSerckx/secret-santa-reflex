@@ -11,7 +11,9 @@ import           Data.Time                      ( Day
                                                 , TimeOfDay
                                                 , makeTimeOfDayValid
                                                 )
-import           Text.EmailAddress
+import           Text.EmailAddress              ( EmailAddress
+                                                , emailAddressFromText
+                                                )
 
 -- * Secret Santa form
 

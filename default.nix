@@ -17,6 +17,6 @@
   useWarp = true;
   overrides = self: super: {
     servant-reflex = self.callCabal2nix "servant-reflex" sources.servant-reflex { };
-    # polysemy-plugin = hlib.markUnbroken super.polysemy-plugin;
+    polysemy-plugin = hlib.dontCheck (hlib.markUnbroken super.polysemy-plugin);
   };
 })

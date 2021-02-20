@@ -36,9 +36,12 @@ library
   default-language:    Haskell2010
   default-extensions:
     ApplicativeDo
+    DataKinds
+    DeriveAnyClass
     DeriveGeneric
     DerivingVia
     GADTs
+    GeneralizedNewtypeDeriving
     FlexibleContexts
     FlexibleInstances
     InstanceSigs

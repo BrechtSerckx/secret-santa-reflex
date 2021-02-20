@@ -25,11 +25,11 @@ executable backend
     Polysemy.Email
     SecretSanta.Effect.SecretSanta
     SecretSanta.Server
-  -- other-extensions:
   ghc-options:
     -O2
     -flate-specialise
     -fspecialise-aggressively
+    -fplugin=Polysemy.Plugin
   build-depends:
       base-noprelude >=4.12 && <4.13
     , common
@@ -40,8 +40,7 @@ executable backend
     , wai-cors
     , servant-options
     , polysemy
-    -- , polysemy-plugin
-    -- , servant-polysemy
+    , polysemy-plugin
   default-language:    Haskell2010
   default-extensions:
     ApplicativeDo
