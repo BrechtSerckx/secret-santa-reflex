@@ -22,8 +22,9 @@ executable backend
     src
   other-modules:
     Main
-    Polysemy.Email
     SecretSanta.Effect.SecretSanta
+    SecretSanta.Effect.Email
+    SecretSanta.Effect.Match
     SecretSanta.Server
   ghc-options:
     -O2
@@ -41,6 +42,9 @@ executable backend
     , servant-options
     , polysemy
     , polysemy-plugin
+    , random-shuffle
+    , emailaddress
+    , refined
   default-language:    Haskell2010
   default-extensions:
     ApplicativeDo

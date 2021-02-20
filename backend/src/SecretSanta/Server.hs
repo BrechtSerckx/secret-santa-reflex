@@ -12,6 +12,8 @@ import qualified Servant.Server                as SS
 
 import           SecretSanta.API
 import           SecretSanta.Data
+import           SecretSanta.Effect.Email
+import           SecretSanta.Effect.Match
 import           SecretSanta.Effect.SecretSanta
 
 
@@ -28,7 +30,8 @@ secretSantaServer =
     CORS.simpleCorsResourcePolicy { CORS.corsRequestHeaders = ["content-type"] }
 
 runInHandler :: r ~ '[SecretSanta] => Sem r a -> SS.Handler a
-runInHandler act = liftIO . runM . runSecretSantaPrint $ act
+runInHandler act =
+  liftIO . runM . runEmailPrint . runMatchDet . runSecretSanta $ act
 
 apiServer :: Member SecretSanta r => SS.ServerT API (Sem r)
 apiServer = createSecretSantaHandler

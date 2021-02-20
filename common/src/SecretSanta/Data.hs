@@ -120,7 +120,7 @@ data Participant = Participant
   { pName  :: PName
   , pEmail :: PEmail
   }
-  deriving stock (Show, Generic)
+  deriving stock (Show, Generic, Eq)
   deriving anyclass (Aeson.ToJSON, Aeson.FromJSON)
 
 -- *** Participant name
@@ -138,15 +138,12 @@ validatePNameUnique name names =
 
 -- *** Participant Email
 
-newtype PEmail = PEmail EmailAddress
-  deriving stock Generic
-  deriving newtype (Show, Read, Eq)
-  deriving anyclass (Aeson.ToJSON, Aeson.FromJSON)
+type PEmail = EmailAddress
 
 validatePEmail :: Text -> Validated PEmail
 validatePEmail t
   | T.null t  = Failure . pure $ "Email cannot be empty"
-  | otherwise = maybe invalidEmail (Success . PEmail) . emailAddressFromText $ t
+  | otherwise = maybe invalidEmail Success . emailAddressFromText $ t
  where
   invalidEmail =
     Failure . pure $ "Invalid email. Format: my-email-adress@my-provider"
