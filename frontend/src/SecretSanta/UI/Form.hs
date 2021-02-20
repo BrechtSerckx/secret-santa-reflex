@@ -36,6 +36,14 @@ formWidget = do
         label "Event"
         fieldBody . field . control $ nameWidget eSubmit
 
+      -- Host name and email
+      (wHostName, wHostEmail) <- fieldHorizontal $ do
+        label "Organizer"
+        fieldBody $ do
+          wHostName'  <- field . control $ hostNameWidget eSubmit
+          wHostEmail' <- field . control $ hostEmailWidget eSubmit
+          pure (wHostName', wHostEmail')
+
       -- Event date and time
       (wDate, wTime) <- fieldHorizontal $ do
         label "Date/Time"
@@ -89,6 +97,8 @@ formWidget = do
         -- one is updated?
         bForm = fmap eValidateForm . getCompose $ do
           fName        <- Compose $ withFieldLabel "Event" <$> wName
+          fHostName    <- Compose $ withFieldLabel "Your name" <$> wHostName
+          fHostEmail   <- Compose $ withFieldLabel "Your email" <$> wHostEmail
           fDate        <- Compose $ withFieldLabel "Date" <$> wDate
           fTime        <- Compose $ withFieldLabel "Time" <$> wTime
           fLocation    <- Compose $ withFieldLabel "Location" <$> wLocation
@@ -143,7 +153,54 @@ nameWidget eSubmit = do
                                                             wUnvalidatedInput
                                                             validateName
   pure . Rx.current $ dValidatedInput
- where
+
+hostNameWidget
+  :: forall t m
+   . Rx.MonadWidget t m
+  => Rx.Event t Submit
+  -> m (Rx.Behavior t (Validated PName))
+hostNameWidget eSubmit = do
+  let defaultAttrs = mconcat
+        ["placeholder" =: "Your name", "class" =: "input", "type" =: "text"]
+  rec let wUnvalidatedInput =
+            Rx.inputElement
+              $ def
+              & (  Rx.inputElementConfig_elementConfig
+                .  Rx.elementConfig_initialAttributes
+                .~ defaultAttrs
+                )
+              & (  Rx.inputElementConfig_elementConfig
+                .  Rx.elementConfig_modifyAttributes
+                .~ setValidationAttrs defaultAttrs
+                )
+      (setValidationAttrs, dValidatedInput) <- mkValidation eSubmit
+                                                            wUnvalidatedInput
+                                                            validatePName
+  pure . Rx.current $ dValidatedInput
+
+hostEmailWidget
+  :: forall t m
+   . Rx.MonadWidget t m
+  => Rx.Event t Submit
+  -> m (Rx.Behavior t (Validated PEmail))
+hostEmailWidget eSubmit = do
+  let defaultAttrs = mconcat
+        ["placeholder" =: "Your email", "class" =: "input", "type" =: "email"]
+  rec let wUnvalidatedInput =
+            Rx.inputElement
+              $ def
+              & (  Rx.inputElementConfig_elementConfig
+                .  Rx.elementConfig_initialAttributes
+                .~ defaultAttrs
+                )
+              & (  Rx.inputElementConfig_elementConfig
+                .  Rx.elementConfig_modifyAttributes
+                .~ setValidationAttrs defaultAttrs
+                )
+      (setValidationAttrs, dValidatedInput) <- mkValidation eSubmit
+                                                            wUnvalidatedInput
+                                                            validatePEmail
+  pure . Rx.current $ dValidatedInput
 
 dateWidget
   :: Rx.MonadWidget t m

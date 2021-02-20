@@ -23,6 +23,8 @@ import           Refined.Orphan
 
 data Form = Form
   { fName         :: Name
+  , fHostName     :: PName
+  , fHostEmail    :: PEmail
   , fDate         :: Maybe Day
   , fTime         :: Maybe TimeOfDay
   , fLocation     :: Maybe Location
@@ -59,6 +61,7 @@ instance Predicate NotEmpty Text where
   validate p text =
     when (T.null text) . throwRefineOtherException (typeOf p) $ pretty @Text
       "name cannot be empty"
+
 validateName :: Text -> Validated Name
 validateName = validateRefined
 
