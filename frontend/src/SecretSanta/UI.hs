@@ -41,7 +41,7 @@ bodyWidget =
         (Rx.constDyn $ SR.BaseFullUrl SR.Http "localhost" 8080 "/")
   in  Rx.elClass "section" "section" . Rx.elClass "div" "container" $ do
         Rx.elClass "h1" "title is-1" $ Rx.text "Secret Santa"
-        Rx.el "p" $ Rx.text "My first website with Bulma!"
+        Rx.elClass "h3" "subtitle is-3" $ Rx.text "Match up with your friends!"
 
         Rx.el "hr" $ pure ()
 
