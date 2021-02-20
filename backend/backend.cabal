@@ -43,6 +43,7 @@ executable backend
   default-language:    Haskell2010
   default-extensions:
     ApplicativeDo
+    BlockArguments
     DataKinds
     DeriveGeneric
     DerivingVia
@@ -63,6 +64,7 @@ executable backend
     RecursiveDo
     ScopedTypeVariables
     StrictData
+    TemplateHaskell
     TupleSections
     TypeApplications
     TypeOperators

@@ -3,6 +3,7 @@ module SecretSanta.Server
   ) where
 
 import           Polysemy
+import           Polysemy.IO
 
 import           Data.Proxy
 import qualified Network.Wai.Handler.Warp      as Warp
@@ -13,6 +14,18 @@ import qualified Servant.Server                as SS
 
 import           SecretSanta.API
 import           SecretSanta.Data
+
+data SecretSanta m a where
+  -- | Create a new secret santa
+  CreateSecretSanta ::Form -> SecretSanta m ()
+
+makeSem ''SecretSanta
+
+runSecretSantaPrint
+  :: forall r a. Sem (SecretSanta ': r) a -> Sem (Embed IO ': r) a
+runSecretSantaPrint =
+  reinterpret \case
+    CreateSecretSanta f -> embed $ print @IO f
 
 secretSantaServer :: IO ()
 secretSantaServer =
@@ -26,13 +39,11 @@ secretSantaServer =
   corsPolicy =
     CORS.simpleCorsResourcePolicy { CORS.corsRequestHeaders = ["content-type"] }
 
-runInHandler :: r ~ '[Embed IO] => Sem r a -> SS.Handler a
-runInHandler act = liftIO $ act & runM
+runInHandler :: r ~ '[SecretSanta] => Sem r a -> SS.Handler a
+runInHandler act = liftIO . runM . runSecretSantaPrint $ act
 
-apiServer :: Member (Embed IO) r => SS.ServerT API (Sem r)
+apiServer :: Member SecretSanta r => SS.ServerT API (Sem r)
 apiServer = createSecretSantaHandler
 
-createSecretSantaHandler :: Member (Embed IO) r => Form -> Sem r ()
-createSecretSantaHandler f = do
-  liftIO $ print f
-  pure ()
+createSecretSantaHandler :: Member SecretSanta r => Form -> Sem r ()
+createSecretSantaHandler f = createSecretSanta f
