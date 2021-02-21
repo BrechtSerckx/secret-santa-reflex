@@ -34,19 +34,29 @@ executable backend
   build-depends:
       base-noprelude >=4.12 && <4.13
     , common
-    , reflex-dom
-    , servant-server
-    , warp
+      -- server
     , wai
     , wai-cors
+    , warp
     , servant-options
+    , servant-server
+
+      -- polysemy
     , polysemy
     , polysemy-plugin
-    , random-shuffle
+
+      -- emails
     , mime-mail
     , shakespeare
     , blaze-markup
     , blaze-html
+    , mime-mail-ses
+    , smtp-mail
+
+      -- misc
+    , random-shuffle
+
+      -- data
     , pretty-simple
     , text
   default-language:    Haskell2010
@@ -63,6 +73,7 @@ executable backend
     LambdaCase
     MultiParamTypeClasses
     MultiWayIf
+    NamedFieldPuns
     OverloadedLists
     OverloadedStrings
     PackageImports
