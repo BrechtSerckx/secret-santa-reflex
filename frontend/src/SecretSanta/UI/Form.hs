@@ -32,9 +32,9 @@ formWidget = do
       title 3 $ Rx.text "General"
 
       -- Event name
-      wName <- fieldHorizontal $ do
+      wEventName <- fieldHorizontal $ do
         label "Event"
-        fieldBody . field . control $ nameWidget eSubmit
+        fieldBody . field . control $ eventNameWidget eSubmit
 
       -- Host name and email
       (wHostName, wHostEmail) <- fieldHorizontal $ do
@@ -95,8 +95,8 @@ formWidget = do
         -- conflicting fields are marked as invalid.
         -- We also would like to update the validation of all participants when
         -- one is updated?
-        bForm = fmap eValidateForm . getCompose $ do
-          fName        <- Compose $ withFieldLabel "Event" <$> wName
+        bForm = fmap (`bindValidation` refine) . getCompose $ do
+          fEventName   <- Compose $ withFieldLabel "EventName" <$> wEventName
           fHostName    <- Compose $ withFieldLabel "Your name" <$> wHostName
           fHostEmail   <- Compose $ withFieldLabel "Your email" <$> wHostEmail
           fDate        <- Compose $ withFieldLabel "Date" <$> wDate
@@ -107,16 +107,12 @@ formWidget = do
             Compose $ withFieldLabel "Description" <$> wDescription
           fParticipants <-
             Compose $ withFieldLabel "Participants" <$> wParticipants
-          pure Form { .. }
+          pure UnsafeForm { .. }
         eForm = Rx.tag bForm eSubmit
     pure . Rx.fforMaybe eForm $ \case
       Failure _ -> Nothing
       Success f -> Just f
  where
-  eValidateForm :: Validated Form -> Validated Form
-  eValidateForm = \case
-    Success f  -> validateForm f
-    Failure es -> Failure es
   withFieldLabel :: Text -> Validated a -> Validated a
   withFieldLabel t = first . fmap $ \e -> t <> ": " <> e
   layoutParticipant (wPName, wPEmail, wPDelete) = fieldHorizontal $ do
@@ -127,12 +123,12 @@ formWidget = do
       wPDelete' <- control wPDelete
       pure (wPName', wPEmail', wPDelete')
 
-nameWidget
+eventNameWidget
   :: forall t m
    . Rx.MonadWidget t m
   => Rx.Event t Submit
-  -> m (Rx.Behavior t (Validated Name))
-nameWidget eSubmit = do
+  -> m (Rx.Behavior t (Validated EventName))
+eventNameWidget eSubmit = do
   let defaultAttrs = mconcat
         [ "placeholder" =: "My Secret Santa"
         , "class" =: "input"
@@ -151,7 +147,7 @@ nameWidget eSubmit = do
                 )
       (setValidationAttrs, dValidatedInput) <- mkValidation eSubmit
                                                             wUnvalidatedInput
-                                                            validateName
+                                                            validateHostName
   pure . Rx.current $ dValidatedInput
 
 hostNameWidget
@@ -175,7 +171,7 @@ hostNameWidget eSubmit = do
                 )
       (setValidationAttrs, dValidatedInput) <- mkValidation eSubmit
                                                             wUnvalidatedInput
-                                                            validatePName
+                                                            validateHostName
   pure . Rx.current $ dValidatedInput
 
 hostEmailWidget
@@ -199,13 +195,13 @@ hostEmailWidget eSubmit = do
                 )
       (setValidationAttrs, dValidatedInput) <- mkValidation eSubmit
                                                             wUnvalidatedInput
-                                                            validatePEmail
+                                                            validateHostEmail
   pure . Rx.current $ dValidatedInput
 
 dateWidget
   :: Rx.MonadWidget t m
   => Rx.Event t Submit
-  -> m (Rx.Behavior t (Validated (Maybe Day)))
+  -> m (Rx.Behavior t (Validated (Maybe Date)))
 dateWidget eSubmit = do
   let defaultAttrs = mconcat ["class" =: "input", "type" =: "date"]
   rec let wUnvalidatedInput =
@@ -221,14 +217,14 @@ dateWidget eSubmit = do
                 )
       (setValidationAttrs, dValidatedInput) <- mkValidation eSubmit
                                                             wUnvalidatedInput
-                                                            validateDate
+                                                            validateDateMaybe
   pure . Rx.current $ dValidatedInput
  where
 
 timeWidget
   :: Rx.MonadWidget t m
   => Rx.Event t Submit
-  -> m (Rx.Behavior t (Validated (Maybe TimeOfDay)))
+  -> m (Rx.Behavior t (Validated (Maybe Time)))
 timeWidget eSubmit = do
   let defaultAttrs = mconcat ["class" =: "input", "type" =: "time"]
   rec let wUnvalidatedInput =
@@ -244,7 +240,7 @@ timeWidget eSubmit = do
                 )
       (setValidationAttrs, dValidatedInput) <- mkValidation eSubmit
                                                             wUnvalidatedInput
-                                                            validateTime
+                                                            validateTimeMaybe
   pure . Rx.current $ dValidatedInput
 
 locationWidget
@@ -268,9 +264,10 @@ locationWidget eSubmit = do
                 .  Rx.elementConfig_modifyAttributes
                 .~ setValidationAttrs defaultAttrs
                 )
-      (setValidationAttrs, dValidatedInput) <- mkValidation eSubmit
-                                                            wUnvalidatedInput
-                                                            validateLocation
+      (setValidationAttrs, dValidatedInput) <- mkValidation
+        eSubmit
+        wUnvalidatedInput
+        validateLocationMaybe
   pure . Rx.current $ dValidatedInput
 
 priceWidget
@@ -296,7 +293,7 @@ priceWidget eSubmit = do
                 )
       (setValidationAttrs, dValidatedInput) <- mkValidation eSubmit
                                                             wUnvalidatedInput
-                                                            validatePrice
+                                                            validatePriceMaybe
   pure . Rx.current $ dValidatedInput
 
 descriptionWidget

@@ -1,121 +1,131 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
 module SecretSanta.Data where
 
+import           Control.Monad.Fail             ( fail )
 import qualified Data.Aeson                    as Aeson
 import           Data.Either.Validation
 import qualified Data.List                     as L
 import qualified Data.Text                     as T
 import qualified Data.Text.Encoding            as T
-import           Data.Time                      ( Day
-                                                , TimeOfDay
-                                                , makeTimeOfDayValid
-                                                )
+import qualified Data.Time                     as Time
 import           Text.EmailAddress              ( EmailAddress
                                                 , emailAddressFromText
                                                 )
 
 import           Data.Typeable                  ( typeOf )
-import           Refined
-import           Refined.Orphan
+
+import           Data.Coerce                    ( Coercible
+                                                , coerce
+                                                )
+import qualified Text.Read                     as Read
+import qualified Text.Show                     as Show
 
 -- * Secret Santa form
 
-data Form = Form
-  { fName         :: Name
-  , fHostName     :: PName
-  , fHostEmail    :: PEmail
-  , fDate         :: Maybe Day
-  , fTime         :: Maybe TimeOfDay
+data UnsafeForm = UnsafeForm
+  { fEventName    :: EventName
+  , fHostName     :: HostName
+  , fHostEmail    :: HostEmail
+  , fDate         :: Maybe Date
+  , fTime         :: Maybe Time
   , fLocation     :: Maybe Location
   , fPrice        :: Maybe Price
   , fDescription  :: Description
   , fParticipants :: [Participant]
   }
-  deriving stock (Show, Generic)
+  deriving stock (Show, Eq, Generic)
   deriving anyclass (Aeson.ToJSON, Aeson.FromJSON)
 
-validateForm :: Form -> Validated Form
-validateForm f@Form {..} = do
-  if unique $ pName <$> fParticipants
-    then pure ()
-    else Failure . pure $ "Participant names must be unique."
-  if unique $ pEmail <$> fParticipants
-    then pure ()
-    else Failure . pure $ "Participant emails must be unique."
-  if length fParticipants >= 3
-    then pure ()
-    else
-      Failure
-      . pure
-      $ "There must be at least 3 participants to ensure random matches."
-  pure f
-  where unique l = length l == length (L.nub l)
+newtype Form = Form UnsafeForm
+  deriving newtype (Show, Eq)
+  deriving  (Aeson.ToJSON, Aeson.FromJSON) via (Refined UnsafeForm Form)
 
+instance Refine UnsafeForm Form where
+  rguard f@UnsafeForm {..} = mconcat
+    [ not (unique $ pName <$> fParticipants)
+      |> "Participant names must be unique."
+    , not (unique $ pEmail <$> fParticipants)
+      |> "Participant emails must be unique."
+    , length fParticipants
+    <  3
+    |> "There must be at least 3 participants to ensure random matches."
+    ]
+    where unique l = length l == length (L.nub l)
 
--- ** Event Name
+validateForm :: UnsafeForm -> Validated Form
+validateForm = refine
 
-type Name = Refined NotEmpty Text
-data NotEmpty
-instance Predicate NotEmpty Text where
-  validate p text =
-    when (T.null text) . throwRefineOtherException (typeOf p) $ pretty @Text
-      "name cannot be empty"
+-- ** Basic information
 
-validateName :: Text -> Validated Name
-validateName = validateRefined
+type EventName = NonEmptyText
 
--- ** Event date
+validateEventName :: Text -> Validated EventName
+validateEventName = refine
 
-validateDate :: Text -> Validated (Maybe Day)
-validateDate t | T.null t  = pure Nothing
-               | otherwise = Just <$> readValidation "Invalid date." t
+type HostName = NonEmptyText
 
--- ** Event time
+validateHostName :: Text -> Validated HostName
+validateHostName = refine
 
-validateTime :: Text -> Validated (Maybe TimeOfDay)
-validateTime t
-  | T.null t = pure Nothing
-  | otherwise = case T.splitOn ":" t of
+type HostEmail = EmailAddress
+
+validateHostEmail :: Text -> Validated HostEmail
+validateHostEmail = validateEmailAddress
+
+newtype Date = Date { unDate :: Time.Day }
+  deriving newtype (Show, Read, Eq, Aeson.ToJSON, Aeson.FromJSON)
+validateDateMaybe :: Text -> Validated (Maybe Date)
+validateDateMaybe = readValidationMaybe
+
+newtype Time = Time { unTime :: Time.TimeOfDay }
+  deriving newtype (Eq, Show, Read)
+
+instance Aeson.FromJSON Time where
+  parseJSON = Aeson.withText "Time" $ \t -> case T.splitOn ":" t of
     [h, m] ->
       let mTime = do
             h' <- readMaybe $ T.unpack h
             m' <- readMaybe $ T.unpack m
-            makeTimeOfDayValid h' m' 0
+            Time <$> Time.makeTimeOfDayValid h' m' 0
       in  case mTime of
-            Just r  -> pure $ Just r
+            Just r  -> pure r
             Nothing -> invalidTime
     _ -> invalidTime
-  where invalidTime = Failure . pure $ "Invalid time. Format: hh:mm"
+    where invalidTime = fail "Invalid time. Format: hh:mm"
 
--- ** Event location
+instance Aeson.ToJSON Time where
+  toJSON (Time (Time.TimeOfDay h m _s)) =
+    Aeson.String $ show h <> ":" <> show m
 
-type Location = Refined NotEmpty Text
+validateTimeMaybe :: Text -> Validated (Maybe Time)
+validateTimeMaybe = readValidationMaybe
 
-validateLocation :: Text -> Validated (Maybe Location)
-validateLocation t | T.null t  = pure Nothing
-                   | otherwise = Just <$> validateRefined t
+type Location = NonEmptyText
 
--- ** Gift price
+validateLocationMaybe :: Text -> Validated (Maybe Location)
+validateLocationMaybe = refineTextMaybe
 
 newtype Price = Price Double
-  deriving stock Generic
-  deriving newtype (Show, Read)
-  deriving anyclass (Aeson.ToJSON, Aeson.FromJSON)
+  deriving newtype (Show, Eq)
+  deriving (Aeson.ToJSON, Aeson.FromJSON) via Refined Double Price
 
-validatePrice :: Text -> Validated (Maybe Price)
-validatePrice t
-  | T.null t
-  = pure Nothing
-  | otherwise
-  = Just <$> readValidation "Price must be a valid decimal number." t
+instance Refine Double Price where
+  rguard g = g < 0 |> "Price can not be negative."
 
--- ** Event description
+validatePriceMaybe :: Text -> Validated (Maybe Price)
+validatePriceMaybe = refineTextReadMaybe
 
-type Description = Refined NotEmpty Text
+
+type Description = NonEmptyText
 
 validateDescription :: Text -> Validated Description
-validateDescription = validateRefined
+validateDescription = refine
 
 -- ** Participants
 
@@ -126,12 +136,10 @@ data Participant = Participant
   deriving stock (Show, Generic, Eq)
   deriving anyclass (Aeson.ToJSON, Aeson.FromJSON)
 
--- *** Participant name
-
-type PName = Refined NotEmpty Text
+type PName = NonEmptyText
 
 validatePName :: Text -> Validated PName
-validatePName = validateRefined
+validatePName = refine
 
 validatePNameUnique :: PName -> [Validated PName] -> Validated PName
 validatePNameUnique name names =
@@ -139,28 +147,81 @@ validatePNameUnique name names =
     then pure name
     else Failure . pure $ "Name must be unique"
 
--- *** Participant Email
-
 type PEmail = EmailAddress
 
 validatePEmail :: Text -> Validated PEmail
-validatePEmail t
+validatePEmail = validateEmailAddress
+
+-- * Utils
+
+validateEmailAddress :: Text -> Validated EmailAddress
+validateEmailAddress t
   | T.null t  = Failure . pure $ "Email cannot be empty"
   | otherwise = maybe invalidEmail Success . emailAddressFromText $ t
  where
   invalidEmail =
     Failure . pure $ "Invalid email. Format: my-email-adress@my-provider"
 
--- * Utils
-
 type Validated a = Validation [Text] a
 
 
-validateRefined :: Predicate p input => input -> Validated (Refined p input)
-validateRefined =
-  eitherToValidation . first (pure . T.pack . displayException) . refine
-
-readValidation :: Read a => Text -> Text -> Validated a
-readValidation errMsg t = case readMaybe . T.unpack $ t of
-  Nothing -> Failure . pure $ errMsg
+readValidation :: Read a => Text -> Validated a
+readValidation t = case readMaybe . T.unpack $ t of
+  Nothing -> Failure . pure $ "Cannot read value."
   Just a  -> pure a
+
+readValidationMaybe :: Read a => Text -> Validated (Maybe a)
+readValidationMaybe t
+  | T.null t = pure Nothing
+  | otherwise = fmap Just $ case readMaybe . T.unpack $ t of
+    Nothing -> Failure . pure $ "Cannot read value."
+    Just a  -> pure a
+
+
+newtype Refined from to = UnsafeRefined { unrefine :: to }
+  deriving newtype (Eq, Show, Aeson.ToJSON)
+
+instance (Aeson.FromJSON from, Refine from to) => Aeson.FromJSON (Refined from to) where
+  parseJSON v = Aeson.parseJSON v >>= \a -> case refine @from @to a of
+    Failure es -> fail . show $ es
+    Success a' -> pure . UnsafeRefined $ a'
+
+class Refine from to | to -> from where
+
+  rguard :: from -> [Text]
+
+  construct :: from -> to
+  default construct :: Coercible from to => from -> to
+  construct = coerce @from @to
+
+refine :: forall from to . Refine from to => from -> Validated to
+refine fa = case rguard @from @to fa of
+  [] -> Success . construct $ fa
+  es -> Failure es
+
+refineTextMaybe :: Refine Text to => Text -> Validated (Maybe to)
+refineTextMaybe t | T.null t  = Success Nothing
+                  | otherwise = Just <$> refine t
+
+refineTextReadMaybe
+  :: (Read from, Refine from to) => Text -> Validated (Maybe to)
+refineTextReadMaybe t
+  | T.null t  = Success Nothing
+  | otherwise = fmap Just $ readValidation t `bindValidation` refine
+
+bindValidation :: Validated a -> (a -> Validated b) -> Validated b
+bindValidation a f = case a of
+  Failure es -> Failure es
+  Success a  -> f a
+
+(|>) :: Bool -> Text -> [Text]
+cond |> err = if cond then [err] else []
+infixl 0 |>
+
+
+newtype NonEmptyText = NonEmptyText { unNonEmptyText :: Text}
+  deriving newtype (Show, Eq)
+  deriving (Aeson.ToJSON, Aeson.FromJSON) via (Refined Text NonEmptyText)
+
+instance Refine Text NonEmptyText where
+  rguard text = T.null text |> "Cannot be empty."

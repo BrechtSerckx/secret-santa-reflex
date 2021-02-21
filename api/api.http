@@ -1,0 +1,25 @@
+:backend = http://localhost:8080
+
+# Create secret santa
+POST :backend/api/secret-santa
+Content-Type: application/json
+{ "fEventName"    : "My Secret Santa"
+, "fHostName"     : "Foo"
+, "fHostEmail"    : "foo@bar"
+, "fDate"         : null
+, "fTime"         : null
+, "fLocation"     : null
+, "fPrice"        : null
+, "fDescription"  : "Some description"
+, "fParticipants" :
+  [ { "pName" : "Brecht"
+    , "pEmail" : "brecht@host"
+    }
+  , { "pName" : "Liesse"
+    , "pEmail" : "liesse@host"
+    }
+  , { "pName" : "Lina"
+    , "pEmail" : "lina@host"
+    }
+  ]
+}

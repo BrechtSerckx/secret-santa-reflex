@@ -44,7 +44,6 @@ executable backend
     , polysemy-plugin
     , random-shuffle
     , emailaddress
-    , refined
   default-language:    Haskell2010
   default-extensions:
     ApplicativeDo

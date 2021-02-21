@@ -9,8 +9,6 @@ module SecretSanta.Effect.SecretSanta
 import           Polysemy
 import           Polysemy.Error
 
-import           Refined
-
 import           SecretSanta.Data
 import           SecretSanta.Effect.Email
 import           SecretSanta.Effect.Match
@@ -31,7 +29,7 @@ runSecretSantaPrint = reinterpret $ \case
 
 runSecretSanta :: forall r a . Sem (SecretSanta ': r) a -> Sem (Error InternalError ': Match ': Email ': r) a
 runSecretSanta = reinterpret3 $ \case
-  CreateSecretSanta Form {..} -> do
+  CreateSecretSanta (Form UnsafeForm {..}) -> do
     mMatches <- makeMatch fParticipants
     case mMatches of
       Nothing      -> throw $ NoMatchesFound fParticipants
@@ -40,6 +38,6 @@ runSecretSanta = reinterpret3 $ \case
             Participant { pName = receiverName } = receiver
         in sendEmail gifterEmail
           $  "Dear "
-          <> unrefine gifterName
+          <> unNonEmptyText gifterName
           <> ", you are Secret Santa for "
-          <> unrefine receiverName
+          <> unNonEmptyText receiverName
