@@ -9,6 +9,8 @@ module SecretSanta.Effect.SecretSanta
 import           Polysemy
 import           Polysemy.Error
 
+import Text.NonEmpty
+
 import           SecretSanta.Data
 import           SecretSanta.Effect.Email
 import           SecretSanta.Effect.Match

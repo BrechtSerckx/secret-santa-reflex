@@ -1,30 +1,41 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE DefaultSignatures #-}
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE UndecidableInstances #-}
-module SecretSanta.Data where
+module SecretSanta.Data
+  ( Form(..)
+  , validateForm
+  , UnsafeForm(..)
+  , EventName
+  , validateEventName
+  , HostName
+  , validateHostName
+  , HostEmail
+  , validateHostEmail
+  , Date
+  , validateDateMaybe
+  , Time
+  , validateTimeMaybe
+  , Location
+  , validateLocationMaybe
+  , Price
+  , validatePriceMaybe
+  , Description
+  , validateDescription
+  , Participant(..)
+  , PName
+  , validatePName
+  , PEmail
+  , validatePEmail
+  ) where
 
 import           Control.Monad.Fail             ( fail )
 import qualified Data.Aeson                    as Aeson
-import           Data.Either.Validation
 import qualified Data.List                     as L
 import qualified Data.Text                     as T
 import qualified Data.Text.Encoding            as T
 import qualified Data.Time                     as Time
-import           Text.EmailAddress              ( EmailAddress
-                                                , emailAddressFromText
-                                                )
+import           Text.EmailAddress
+import           Text.NonEmpty
 
-import           Data.Typeable                  ( typeOf )
-
-import           Data.Coerce                    ( Coercible
-                                                , coerce
-                                                )
-import qualified Text.Read                     as Read
-import qualified Text.Show                     as Show
+import           Data.Refine
+import           Data.Validate
 
 -- * Secret Santa form
 
@@ -151,77 +162,3 @@ type PEmail = EmailAddress
 
 validatePEmail :: Text -> Validated PEmail
 validatePEmail = validateEmailAddress
-
--- * Utils
-
-validateEmailAddress :: Text -> Validated EmailAddress
-validateEmailAddress t
-  | T.null t  = Failure . pure $ "Email cannot be empty"
-  | otherwise = maybe invalidEmail Success . emailAddressFromText $ t
- where
-  invalidEmail =
-    Failure . pure $ "Invalid email. Format: my-email-adress@my-provider"
-
-type Validated a = Validation [Text] a
-
-
-readValidation :: Read a => Text -> Validated a
-readValidation t = case readMaybe . T.unpack $ t of
-  Nothing -> Failure . pure $ "Cannot read value."
-  Just a  -> pure a
-
-readValidationMaybe :: Read a => Text -> Validated (Maybe a)
-readValidationMaybe t
-  | T.null t = pure Nothing
-  | otherwise = fmap Just $ case readMaybe . T.unpack $ t of
-    Nothing -> Failure . pure $ "Cannot read value."
-    Just a  -> pure a
-
-
-newtype Refined from to = UnsafeRefined { unrefine :: to }
-  deriving newtype (Eq, Show, Aeson.ToJSON)
-
-instance (Aeson.FromJSON from, Refine from to) => Aeson.FromJSON (Refined from to) where
-  parseJSON v = Aeson.parseJSON v >>= \a -> case refine @from @to a of
-    Failure es -> fail . show $ es
-    Success a' -> pure . UnsafeRefined $ a'
-
-class Refine from to | to -> from where
-
-  rguard :: from -> [Text]
-
-  construct :: from -> to
-  default construct :: Coercible from to => from -> to
-  construct = coerce @from @to
-
-refine :: forall from to . Refine from to => from -> Validated to
-refine fa = case rguard @from @to fa of
-  [] -> Success . construct $ fa
-  es -> Failure es
-
-refineTextMaybe :: Refine Text to => Text -> Validated (Maybe to)
-refineTextMaybe t | T.null t  = Success Nothing
-                  | otherwise = Just <$> refine t
-
-refineTextReadMaybe
-  :: (Read from, Refine from to) => Text -> Validated (Maybe to)
-refineTextReadMaybe t
-  | T.null t  = Success Nothing
-  | otherwise = fmap Just $ readValidation t `bindValidation` refine
-
-bindValidation :: Validated a -> (a -> Validated b) -> Validated b
-bindValidation a f = case a of
-  Failure es -> Failure es
-  Success a  -> f a
-
-(|>) :: Bool -> Text -> [Text]
-cond |> err = if cond then [err] else []
-infixl 0 |>
-
-
-newtype NonEmptyText = NonEmptyText { unNonEmptyText :: Text}
-  deriving newtype (Show, Eq)
-  deriving (Aeson.ToJSON, Aeson.FromJSON) via (Refined Text NonEmptyText)
-
-instance Refine Text NonEmptyText where
-  rguard text = T.null text |> "Cannot be empty."

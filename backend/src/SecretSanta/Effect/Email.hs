@@ -19,4 +19,9 @@ makeSem ''Email
 runEmailPrint :: Sem (Email ': r) a -> Sem (Embed IO ': r) a
 runEmailPrint = reinterpret $ \case
   SendEmail dest contents ->
-    embed . print @IO $ "Sending to " <> toText dest <> ": " <> contents
+    embed
+      .  print @IO
+      $  "Sending to "
+      <> emailAddressToText dest
+      <> ": "
+      <> contents

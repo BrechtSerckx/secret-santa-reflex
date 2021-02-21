@@ -6,14 +6,9 @@ module SecretSanta.UI.Form
 
 import           Control.Lens
 import           Control.Monad.Fix
-import           Data.Either.Validation
 import           Data.Functor.Compose
 import qualified Data.Map                      as Map
-import qualified Data.Text                     as T
-import           Data.Time                      ( Day
-                                                , TimeOfDay
-                                                , makeTimeOfDayValid
-                                                )
+import           Data.Validate
 
 import qualified Reflex                        as Rx
 import qualified Reflex.Dom                    as Rx
@@ -95,7 +90,7 @@ formWidget = do
         -- conflicting fields are marked as invalid.
         -- We also would like to update the validation of all participants when
         -- one is updated?
-        bForm = fmap (`bindValidation` refine) . getCompose $ do
+        bForm = fmap (`bindValidation` validateForm) . getCompose $ do
           fEventName   <- Compose $ withFieldLabel "EventName" <$> wEventName
           fHostName    <- Compose $ withFieldLabel "Your name" <$> wHostName
           fHostEmail   <- Compose $ withFieldLabel "Your email" <$> wHostEmail
@@ -147,7 +142,7 @@ eventNameWidget eSubmit = do
                 )
       (setValidationAttrs, dValidatedInput) <- mkValidation eSubmit
                                                             wUnvalidatedInput
-                                                            validateHostName
+                                                            validateEventName
   pure . Rx.current $ dValidatedInput
 
 hostNameWidget

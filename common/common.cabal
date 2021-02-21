@@ -19,6 +19,10 @@ build-type:          Simple
 library
   exposed-modules:
     Prelude
+    Data.Validate
+    Data.Refine
+    Text.EmailAddress
+    Text.NonEmpty
     SecretSanta.Data
     SecretSanta.API
   -- other-extensions:
