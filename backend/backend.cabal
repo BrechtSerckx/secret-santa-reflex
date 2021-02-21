@@ -43,6 +43,12 @@ executable backend
     , polysemy
     , polysemy-plugin
     , random-shuffle
+    , mime-mail
+    , shakespeare
+    , blaze-markup
+    , blaze-html
+    , pretty-simple
+    , text
   default-language:    Haskell2010
   default-extensions:
     ApplicativeDo
