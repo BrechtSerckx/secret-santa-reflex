@@ -32,13 +32,14 @@ secretSantaServer =
 
 runInHandler :: forall r a . r ~ '[SecretSanta] => Sem r a -> SS.Handler a
 runInHandler act =
-  let act' :: r' ~ '[Error InternalError, Match, Email] => Sem r' a
-      act' = runSecretSanta act
+  let runEmail = runEmailPrint
+      runMatch = runMatchDet
   in  do
-        eRes :: Either InternalError a <-
-          liftIO . runM . runEmailPrint . runMatchDet . runError $ act'
+        eRes <-
+          liftIO . runM . runEmail . runMatch . runError . runSecretSanta $ act
         case eRes of
           Right res -> pure res
+          Left  e   -> throwError SS.err500 { SS.errBody = show e }
 
 apiServer :: Member SecretSanta r => SS.ServerT API (Sem r)
 apiServer = createSecretSantaHandler

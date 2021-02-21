@@ -28,6 +28,7 @@ data SecretSanta m a where
   CreateSecretSanta ::Form -> SecretSanta m ()
 
 data InternalError = NoMatchesFound [Participant] -- ^ No matches are found, so preconditions weren't met
+  deriving Show
 
 makeSem ''SecretSanta
 
