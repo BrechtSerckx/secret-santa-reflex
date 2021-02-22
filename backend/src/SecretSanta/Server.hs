@@ -2,6 +2,8 @@ module SecretSanta.Server
   ( secretSantaServer
   ) where
 
+import           Data.String
+
 import           Polysemy
 import           Polysemy.Error
 
@@ -11,6 +13,7 @@ import qualified Network.Wai.Middleware.RequestLogger
                                                as RL
 import qualified Network.Wai.Middleware.Servant.Options
                                                as SO
+import           Servant.API                    ( (:<|>)(..) )
 import qualified Servant.Server                as SS
 
 import           SecretSanta.API
@@ -34,19 +37,32 @@ secretSantaServer = do
   corsPolicy =
     CORS.simpleCorsResourcePolicy { CORS.corsRequestHeaders = ["content-type"] }
 
-runInHandler :: forall r a . r ~ '[SecretSanta] => Sem r a -> SS.Handler a
+runInHandler
+  :: forall r a
+   . r ~ '[SecretSanta, Error InternalError, Embed IO]
+  => Sem r a
+  -> SS.Handler a
 runInHandler act =
-  let runEmail = runEmailPrint
-      runMatch = runMatchDet
+  let runMatch = runMatchDet
+      runEmail = runEmailPrint
   in  do
         eRes <-
-          liftIO . runM . runEmail . runMatch . runError . runSecretSanta $ act
+          liftIO . runM . runError . runEmail . runMatch . runSecretSanta $ act
         case eRes of
           Right res -> pure res
           Left  e   -> throwError SS.err500 { SS.errBody = show e }
 
-apiServer :: Member SecretSanta r => SS.ServerT API (Sem r)
-apiServer = createSecretSantaHandler
 
-createSecretSantaHandler :: Member SecretSanta r => Form -> Sem r ()
-createSecretSantaHandler = createSecretSanta
+apiServer :: Members '[SecretSanta , Embed IO] r => SS.ServerT API (Sem r)
+apiServer = pingHandler :<|> createSecretSantaHandler
+
+pingHandler :: () -> Sem r ()
+pingHandler () = pure ()
+
+createSecretSantaHandler
+  :: Members '[SecretSanta , Embed IO] r => Form -> Sem r ()
+createSecretSantaHandler f = do
+  liftIO $ putStrLn @Text @IO "start"
+  liftIO $ print f
+  createSecretSanta f
+  liftIO $ putStrLn @Text "done"

@@ -25,8 +25,8 @@ data Email m a where
 
 makeSem ''Email
 
-runEmailPrint :: Sem (Email ': r) a -> Sem (Embed IO ': r) a
-runEmailPrint = reinterpret $ \case
+runEmailPrint :: Member (Embed IO) r => Sem (Email ': r) a -> Sem r a
+runEmailPrint = interpret $ \case
   SendEmail mail -> embed @IO $ do
     putStrLn @Text @IO $ "Sending email:"
     pPrint mail
@@ -37,8 +37,9 @@ data SESSettings = SESSettings
   , sesSessionToken :: Maybe ByteString
   , sesRegion       :: Text
   }
-runEmailSES :: SESSettings -> Sem (Email ': r) a -> Sem (Embed IO ': r) a
-runEmailSES SESSettings {..} = reinterpret $ \case
+runEmailSES
+  :: Member (Embed IO) r => SESSettings -> Sem (Email ': r) a -> Sem r a
+runEmailSES SESSettings {..} = interpret $ \case
   SendEmail mail@Mail { mailFrom, mailTo } ->
     let ses = SES.SES { sesFrom = encodeUtf8 . addressEmail $ mailFrom
                       , sesTo   = encodeUtf8 . addressEmail <$> mailTo
@@ -51,8 +52,9 @@ data GmailSettings = GmailSettings
   { gmailUsername :: Text
   , gmailPassword :: Text
   }
-runEmailGmail :: GmailSettings -> Sem (Email ': r) a -> Sem (Embed IO ': r) a
-runEmailGmail GmailSettings {..} = reinterpret $ \case
+runEmailGmail
+  :: Member (Embed IO) r => GmailSettings -> Sem (Email ': r) a -> Sem r a
+runEmailGmail GmailSettings {..} = interpret $ \case
   SendEmail mail ->
     let host     = "smtp.gmail.com"
         port_tls = 587

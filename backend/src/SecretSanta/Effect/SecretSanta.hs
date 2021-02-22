@@ -39,9 +39,10 @@ runSecretSantaPrint = reinterpret $ \case
 
 runSecretSanta
   :: forall r a
-   . Sem (SecretSanta ': r) a
-  -> Sem (Error InternalError ': Match ': Email ': r) a
-runSecretSanta = reinterpret3 $ \case
+   . Members '[Error InternalError] r
+  => Sem (SecretSanta ': r) a
+  -> Sem (Match ': Email ': r) a
+runSecretSanta = reinterpret2 $ \case
   CreateSecretSanta f@(Form UnsafeForm {..}) -> do
     mMatches <- makeMatch fParticipants
     case mMatches of

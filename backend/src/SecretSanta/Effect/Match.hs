@@ -15,8 +15,8 @@ data Match m a where
   MakeMatch ::Eq a => [a] -> Match m (Maybe [(a,a)])
 makeSem ''Match
 
-runMatchRandom :: Sem (Match ': r) a -> Sem (Embed IO ': r) a
-runMatchRandom = reinterpret $ \case
+runMatchRandom :: Member (Embed IO) r => Sem (Match ': r) a -> Sem r a
+runMatchRandom = interpret $ \case
   MakeMatch xs -> embed $ match <$> Random.shuffleM xs
 
 runMatchDet :: Sem (Match ': r) a -> Sem r a
