@@ -22,28 +22,33 @@ class Refine from to | to -> from where
 
   rguard :: from -> [Text]
 
-  construct :: from -> to
-  default construct :: Coercible from to => from -> to
-  construct = coerce @from @to
+  rconstruct :: from -> to
+  default rconstruct :: Coercible from to => from -> to
+  rconstruct = coerce @from @to
+
+  rdeconstruct :: to -> from
+  default rdeconstruct :: Coercible to from => to -> from
+  rdeconstruct = coerce @to @from
+
+refine :: forall from to . Refine from to => from -> Validated to
+refine fa = case rguard @from @to fa of
+  [] -> Success . rconstruct $ fa
+  es -> Failure es
 
 (|>) :: Bool -> Text -> [Text]
 cond |> err = if cond then [err] else []
 infixl 0 |>
 
-refine :: forall from to . Refine from to => from -> Validated to
-refine fa = case rguard @from @to fa of
-  [] -> Success . construct $ fa
-  es -> Failure es
-
-
 newtype Refined from to = UnsafeRefined { unrefine :: to }
-  deriving newtype (Eq, Show, Aeson.ToJSON)
+  deriving newtype (Eq, Show)
+
+instance (Aeson.ToJSON from, Refine from to) => Aeson.ToJSON (Refined from to) where
+  toJSON = Aeson.toJSON . rdeconstruct @from @to . unrefine
 
 instance (Aeson.FromJSON from, Refine from to) => Aeson.FromJSON (Refined from to) where
   parseJSON v = Aeson.parseJSON v >>= \a -> case refine @from @to a of
     Failure es -> fail . show $ es
     Success a' -> pure . UnsafeRefined $ a'
-
 
 refineTextMaybe :: Refine Text to => Text -> Validated (Maybe to)
 refineTextMaybe t | T.null t  = Success Nothing
