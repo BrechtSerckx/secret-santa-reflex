@@ -5,3 +5,4 @@
 cabal.project.local
 /ghc-frontend-result
 /result
+/.env

@@ -1,4 +1,18 @@
 {
+    "haskell-libraries": {
+        "ref": "trunk",
+        "repo": "https://github.com/NoRedInk/haskell-libraries.git",
+        "rev": "83e535df7f46ee72a53ee30db5e293ae81b908f4",
+        "tag": "refs/tags/nri-env-parser-0.1.0.4",
+        "type": "git"
+    },
+    "junit-xml": {
+        "ref": "trunk",
+        "repo": "https://github.com/jwoudenberg/junit-xml.git",
+        "rev": "18e466473da749673572417c97dba5df46747024",
+        "tag": "refs/tags/0.1.0.2",
+        "type": "git"
+    },
     "niv": {
         "branch": "master",
         "description": "Easy dependency management for Nix projects",
@@ -23,6 +37,12 @@
         "url": "https://github.com/NixOS/nixpkgs-channels/archive/75f4ba05c63be3f147bcc2f7bd4ba1f029cedcb1.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
+    "pretty-diff": {
+        "ref": "master",
+        "repo": "https://github.com/stoeffel/pretty-diff.git",
+        "rev": "4d7ecac49f8d9dde8a006126900843cc1ba63ca6",
+        "type": "git"
+    },
     "servant-reflex": {
         "branch": "master",
         "description": "Generate reflex client functions for querying a servant API",
@@ -40,6 +60,12 @@
         "repo": "https://github.com/jhickner/smtp-mail.git",
         "rev": "907bbbd4d9c7f293b19595b761e73536578e0c1c",
         "tag": "refs/tags/0.3.0.0",
+        "type": "git"
+    },
+    "tasty-test-reporter": {
+        "ref": "master",
+        "repo": "https://github.com/stoeffel/tasty-test-reporter.git",
+        "rev": "d38dc1fcbe1d63a3634f50e57648aeefe9b960ea",
         "type": "git"
     }
 }

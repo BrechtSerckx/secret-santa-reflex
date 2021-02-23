@@ -6,6 +6,8 @@ import           Data.String
 
 import           Polysemy
 import           Polysemy.Error
+import           Polysemy.Input
+import           Polysemy.Input.Env
 
 import qualified Network.Wai.Handler.Warp      as Warp
 import qualified Network.Wai.Middleware.Cors   as CORS
@@ -21,17 +23,19 @@ import           SecretSanta.Data
 import           SecretSanta.Effect.Email
 import           SecretSanta.Effect.Match
 import           SecretSanta.Effect.SecretSanta
+import           SecretSanta.Opts
 
 
 secretSantaServer :: IO ()
 secretSantaServer = do
+  opts          <- parseOpts
   requestLogger <- RL.mkRequestLogger def
   Warp.run 8080
     . CORS.cors (const $ Just corsPolicy)
     . requestLogger
     . SO.provideOptions api
     . SS.serve api
-    . SS.hoistServer api runInHandler
+    . SS.hoistServer api (runInHandler opts)
     $ apiServer
  where
   corsPolicy =
@@ -40,11 +44,15 @@ secretSantaServer = do
 runInHandler
   :: forall r a
    . r ~ '[SecretSanta, Error InternalError, Embed IO]
-  => Sem r a
+  => Opts
+  -> Sem r a
   -> SS.Handler a
-runInHandler act =
+runInHandler Opts {..} act =
   let runMatch = runMatchDet
-      runEmail = runEmailPrint
+      runEmail = case oEmailBackend of
+        None  -> runEmailPrint
+        GMail -> runInputEnv gmailSettingsDecoder . runEmailGmail
+        SES   -> runInputEnv sesSettingsDecoder . runEmailSES
   in  do
         eRes <-
           liftIO . runM . runError . runEmail . runMatch . runSecretSanta $ act

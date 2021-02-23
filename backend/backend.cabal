@@ -22,9 +22,11 @@ executable backend
     src
   other-modules:
     Main
+    Polysemy.Input.Env
     SecretSanta.Effect.SecretSanta
     SecretSanta.Effect.Email
     SecretSanta.Effect.Match
+    SecretSanta.Opts
     SecretSanta.Server
   ghc-options:
     -O2
@@ -57,6 +59,8 @@ executable backend
 
       -- misc
     , random-shuffle
+    , optparse-applicative
+    , nri-env-parser
 
       -- data
     , pretty-simple
@@ -76,7 +80,6 @@ executable backend
     MultiParamTypeClasses
     MultiWayIf
     NamedFieldPuns
-    OverloadedLists
     OverloadedStrings
     PackageImports
     PatternSynonyms
