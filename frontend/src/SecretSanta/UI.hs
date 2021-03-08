@@ -15,6 +15,8 @@ import           SecretSanta.API
 import           SecretSanta.Data
 import           SecretSanta.UI.Form
 
+enablePing :: Bool
+enablePing = False
 
 
 ui :: IO ()
@@ -65,9 +67,10 @@ bodyWidget = Rx.elClass "section" "section" . Rx.elClass "div" "container" $ do
     $   mkSuccessWidget
     <$> Rx.tagPromptlyDyn dReqBody eSuccess
 
-  let dPing = Rx.traceDyn "ping" . Rx.constDyn $ Right ()
-  ePong <- cPing dPing $ void eFormSubmitted
-  Rx.widgetHold_ (Rx.text "ping") $ const (Rx.text "pong") <$> ePong
+  when enablePing $ do
+    let dPing = Rx.traceDyn "ping" . Rx.constDyn $ Right ()
+    ePong <- cPing dPing $ void eFormSubmitted
+    Rx.widgetHold_ (Rx.text "ping") $ const (Rx.text "pong") <$> ePong
 
 
  where
