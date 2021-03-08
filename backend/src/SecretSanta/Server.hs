@@ -9,14 +9,20 @@ import           Polysemy.Error
 import           Polysemy.Input
 import           Polysemy.Input.Env
 
+import qualified Network.Wai.Application.Static
+                                               as Static
 import qualified Network.Wai.Handler.Warp      as Warp
-import qualified Network.Wai.Middleware.Cors   as CORS
 import qualified Network.Wai.Middleware.RequestLogger
                                                as RL
 import qualified Network.Wai.Middleware.Servant.Options
                                                as SO
-import           Servant.API                    ( (:<|>)(..) )
+import           Servant.API                    ( (:<|>)(..)
+                                                , Raw
+                                                )
 import qualified Servant.Server                as SS
+import qualified Servant.Server.StaticFiles    as SS
+import qualified WaiAppStatic.Types            as Static
+                                                ( unsafeToPiece )
 
 import           SecretSanta.API
 import           SecretSanta.Data
@@ -25,21 +31,19 @@ import           SecretSanta.Effect.Match
 import           SecretSanta.Effect.SecretSanta
 import           SecretSanta.Opts
 
+type API' = API :<|> Raw
+api' :: Proxy API'
+api' = Proxy @API'
 
 secretSantaServer :: IO ()
 secretSantaServer = do
   opts          <- parseOpts
   requestLogger <- RL.mkRequestLogger def
   Warp.run 8080
-    . CORS.cors (const $ Just corsPolicy)
     . requestLogger
-    . SO.provideOptions api
-    . SS.serve api
-    . SS.hoistServer api (runInHandler opts)
+    . SS.serve api'
+    . SS.hoistServer api' (runInHandler opts)
     $ apiServer
- where
-  corsPolicy =
-    CORS.simpleCorsResourcePolicy { CORS.corsRequestHeaders = ["content-type"] }
 
 runInHandler
   :: forall r a
@@ -61,8 +65,8 @@ runInHandler Opts {..} act =
           Left  e   -> throwError SS.err500 { SS.errBody = show e }
 
 
-apiServer :: Members '[SecretSanta , Embed IO] r => SS.ServerT API (Sem r)
-apiServer = pingHandler :<|> createSecretSantaHandler
+apiServer :: Members '[SecretSanta , Embed IO] r => SS.ServerT API' (Sem r)
+apiServer = (pingHandler :<|> createSecretSantaHandler) :<|> staticServer
 
 pingHandler :: () -> Sem r ()
 pingHandler () = pure ()
@@ -74,3 +78,10 @@ createSecretSantaHandler f = do
   liftIO $ print f
   createSecretSanta f
   liftIO $ putStrLn @Text "done"
+
+staticServer :: SS.ServerT Raw (Sem r)
+staticServer = SS.serveDirectoryWith $ (Static.defaultWebAppSettings "/var/www"
+                                       )
+  { Static.ssRedirectToIndex = True
+  , Static.ssIndices         = pure . Static.unsafeToPiece $ "index.html"
+  }
