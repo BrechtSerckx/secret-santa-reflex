@@ -65,6 +65,7 @@ executable backend
       -- data
     , pretty-simple
     , text
+    , emailaddress
   default-language:    Haskell2010
   default-extensions:
     ApplicativeDo

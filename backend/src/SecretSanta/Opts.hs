@@ -4,10 +4,14 @@ module SecretSanta.Opts
   , EmailBackend(..)
   ) where
 
+import qualified Data.Text                     as T
 import qualified Options.Applicative           as OA
+import "common"  Text.EmailAddress
+import "emailaddress" Text.EmailAddress         ( validateFromString )
 
-newtype Opts = Opts
+data Opts = Opts
   { oEmailBackend :: EmailBackend
+  , oEmailSender  :: EmailAddress
   }
 
 data EmailBackend = None | GMail | SES
@@ -21,6 +25,7 @@ parseOpts =
 pOpts :: OA.Parser Opts
 pOpts = do
   oEmailBackend <- pEmailBackend
+  oEmailSender  <- pEmailSender
   pure Opts { .. }
 
 pEmailBackend :: OA.Parser EmailBackend
@@ -28,3 +33,9 @@ pEmailBackend =
   OA.option OA.auto
     . mconcat
     $ [OA.long "email-backend", OA.metavar "EMAIL_BACKEND", OA.value None]
+
+pEmailSender :: OA.Parser EmailAddress
+pEmailSender =
+  OA.option (OA.eitherReader validateFromString)
+    . mconcat
+    $ [OA.long "email-sender", OA.metavar "EMAIL_ADDRESS"]

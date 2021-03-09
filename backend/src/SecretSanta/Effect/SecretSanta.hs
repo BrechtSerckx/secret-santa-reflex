@@ -16,7 +16,7 @@ import qualified Data.Text.Lazy                as TL
 import           Network.Mail.Mime
 import qualified Text.Blaze.Html.Renderer.Text as BlazeHtml
 import qualified Text.Blaze.Renderer.Text      as BlazeText
-import           Text.EmailAddress
+import "common"  Text.EmailAddress
 import           Text.Hamlet
 
 import           SecretSanta.Data
@@ -40,21 +40,22 @@ runSecretSantaPrint = reinterpret $ \case
 runSecretSanta
   :: forall r a
    . Members '[Error InternalError] r
-  => Sem (SecretSanta ': r) a
+  => EmailAddress
+  -> Sem (SecretSanta ': r) a
   -> Sem (Match ': Email ': r) a
-runSecretSanta = reinterpret2 $ \case
+runSecretSanta sender = reinterpret2 $ \case
   CreateSecretSanta f@(Form UnsafeForm {..}) -> do
     mMatches <- makeMatch fParticipants
     case mMatches of
       Nothing      -> throw $ NoMatchesFound fParticipants
-      Just matches -> forM_ matches $ sendEmail . mkMail f
+      Just matches -> forM_ matches $ sendEmail . mkMail sender f
 
-mkMail :: Form -> (Participant, Participant) -> Mail
-mkMail f (gifter, receiver) =
+mkMail :: EmailAddress -> Form -> (Participant, Participant) -> Mail
+mkMail sender f (gifter, receiver) =
   let to =
         Address { addressName = Just gifterName, addressEmail = gifterEmail }
       from = Address { addressName  = Just "Secret Santa"
-                     , addressEmail = "secret-santa@host"
+                     , addressEmail = emailAddressToText sender
                      }
       subject = "Secret Santa"
       html :: Html = [shamlet|

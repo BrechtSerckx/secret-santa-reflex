@@ -20,7 +20,7 @@ import           Polysemy.Input
 import           Network.Mail.Mime
 import qualified Network.Mail.Mime.SES         as SES
 import qualified Network.Mail.SMTP             as SMTP
-import           Text.EmailAddress
+import "common"  Text.EmailAddress
 
 import qualified Environment                   as Env
 

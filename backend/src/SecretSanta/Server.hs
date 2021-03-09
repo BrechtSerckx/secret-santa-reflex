@@ -59,7 +59,13 @@ runInHandler Opts {..} act =
         SES   -> runInputEnv sesSettingsDecoder . runEmailSES
   in  do
         eRes <-
-          liftIO . runM . runError . runEmail . runMatch . runSecretSanta $ act
+          liftIO
+          . runM
+          . runError
+          . runEmail
+          . runMatch
+          . runSecretSanta oEmailSender
+          $ act
         case eRes of
           Right res -> pure res
           Left  e   -> throwError SS.err500 { SS.errBody = show e }

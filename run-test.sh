@@ -3,9 +3,11 @@
 
 FLAGS=()
 
-# FLAGS+=(--email-backend None)
+FLAGS+=(--email-sender "info@secret-santa.link")
+
+FLAGS+=(--email-backend None)
 # FLAGS+=(--email-backend GMail)
-FLAGS+=(--email-backend SES)
+# FLAGS+=(--email-backend SES)
 
 # run with configuration in a `.env` file, that for obvious reasons is not
 # included in here
