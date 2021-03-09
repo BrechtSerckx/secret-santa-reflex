@@ -60,12 +60,12 @@ mkMail sender f (gifter, receiver) =
       subject = "Secret Santa"
       html :: Html = [shamlet|
         <p>Hi #{gifterName},
-        <p>
-          #{hostName} invited you to <b>#{eventName}</b>:
-          Description: #{description}
+        <p>#{hostName} invited you to <b>#{eventName}</b>:
+        <p>Description:
+        <p>#{description}
 
-          For this event, you are chosen to buy a present for <b>#{receiverName}</b>.
-          Someone else will buy a present for you in return!
+        <p> For this event, you are chosen to buy a present for <b>#{receiverName}</b>.
+            Someone else will buy a present for you in return!
 
         <p>Additional info about <b>#{eventName}</b>:
           <ul>
