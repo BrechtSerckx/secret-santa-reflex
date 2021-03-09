@@ -52,7 +52,7 @@ runInHandler
   -> Sem r a
   -> SS.Handler a
 runInHandler Opts {..} act =
-  let runMatch = runMatchDet
+  let runMatch = runMatchRandom
       runEmail = case oEmailBackend of
         None  -> runEmailPrint
         GMail -> runInputEnv gmailSettingsDecoder . runEmailGmail
