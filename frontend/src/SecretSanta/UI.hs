@@ -108,8 +108,7 @@ cCreateSecretSanta
   ) = client
 
 client :: forall t m . Rx.MonadWidget t m => SR.Client t m API ()
-client = SR.client
-  api
-  (Proxy @m)
-  (Proxy @())
-  (Rx.constDyn $ SR.BaseFullUrl SR.Http "localhost" 8080 "/")
+client =
+  -- let baseUrl = SR.BaseFullUrl SR.Http "localhost" 8080 "/"
+  let baseUrl = SR.BasePath "/"
+  in  SR.client api (Proxy @m) (Proxy @()) $ Rx.constDyn baseUrl
