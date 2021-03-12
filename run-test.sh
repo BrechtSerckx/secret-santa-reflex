@@ -9,6 +9,8 @@ FLAGS+=(--email-backend None)
 # FLAGS+=(--email-backend GMail)
 # FLAGS+=(--email-backend SES)
 
+FLAGS+=(--port 8000)
+
 run_cabal() {
     # run with configuration in a `.env` file, that for obvious reasons is not
     # included in here
@@ -17,7 +19,7 @@ run_cabal() {
 run_binary() {
     FRONTEND=$(nix-build -o result-frontend -A ghcjs.frontend)
     BACKEND=$(nix-build -o result-backend -A ghc.backend)
-    # firefox --new-tab "$FRONTEND"/bin/frontend.jsexe/index.html
+    FLAGS+=(--web-root "$FRONTEND"/bin/frontend.jsexe)
     "$BACKEND"/bin/backend "${FLAGS[@]}"
 }
 run_docker() {
@@ -26,4 +28,6 @@ run_docker() {
     docker logs -f secret-santa-test
 }
 
-run_docker
+# run_cabal
+run_binary
+# run_docker

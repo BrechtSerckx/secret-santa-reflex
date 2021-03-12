@@ -37,13 +37,13 @@ api' = Proxy @API'
 
 secretSantaServer :: IO ()
 secretSantaServer = do
-  opts          <- parseOpts
-  requestLogger <- RL.mkRequestLogger def
-  Warp.run 8080
+  opts@Opts { oPort } <- parseOpts
+  requestLogger       <- RL.mkRequestLogger def
+  Warp.run oPort
     . requestLogger
     . SS.serve api'
     . SS.hoistServer api' (runInHandler opts)
-    $ apiServer
+    $ apiServer opts
 
 runInHandler
   :: forall r a
@@ -71,8 +71,10 @@ runInHandler Opts {..} act =
           Left  e   -> throwError SS.err500 { SS.errBody = show e }
 
 
-apiServer :: Members '[SecretSanta , Embed IO] r => SS.ServerT API' (Sem r)
-apiServer = (pingHandler :<|> createSecretSantaHandler) :<|> staticServer
+apiServer
+  :: Members '[SecretSanta , Embed IO] r => Opts -> SS.ServerT API' (Sem r)
+apiServer opts =
+  (pingHandler :<|> createSecretSantaHandler) :<|> staticServer opts
 
 pingHandler :: () -> Sem r ()
 pingHandler () = pure ()
@@ -85,9 +87,9 @@ createSecretSantaHandler f = do
   createSecretSanta f
   liftIO $ putStrLn @Text "done"
 
-staticServer :: SS.ServerT Raw (Sem r)
-staticServer = SS.serveDirectoryWith $ (Static.defaultWebAppSettings "/var/www"
-                                       )
-  { Static.ssRedirectToIndex = True
-  , Static.ssIndices         = pure . Static.unsafeToPiece $ "index.html"
-  }
+staticServer :: Opts -> SS.ServerT Raw (Sem r)
+staticServer Opts {..} =
+  SS.serveDirectoryWith $ (Static.defaultWebAppSettings oWebRoot)
+    { Static.ssRedirectToIndex = True
+    , Static.ssIndices         = pure . Static.unsafeToPiece $ "index.html"
+    }
