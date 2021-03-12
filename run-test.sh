@@ -11,10 +11,22 @@ FLAGS+=(--email-backend None)
 
 FLAGS+=(--port 8000)
 
-run_cabal() {
+run_cabal_backend() {
     # run with configuration in a `.env` file, that for obvious reasons is not
     # included in here
     env $(cat .env | xargs) cabal run backend -- "${FLAGS[@]}"
+}
+run_cabal_multi() {
+    backend="cabal run backend -- ${FLAGS[@]}"
+    frontend="cabal run frontend"
+
+    init="tmux new-session"
+    add="split-window -h"
+    remain_on_exit="set-option -p remain-on-exit"
+    opts="select-layout tiled \; bind-key -n r respawn-pane \; bind-key -n q kill-session"
+
+    nix-shell -A shells.ghc --run  \
+              "$init \"$backend\" \; $remain_on_exit \; $add \"$frontend\" \; $remain_on_exit \; $opts"
 }
 run_binary() {
     FRONTEND=$(nix-build -o result-frontend -A ghcjs.frontend)
@@ -28,6 +40,7 @@ run_docker() {
     docker logs -f secret-santa-test
 }
 
-# run_cabal
-run_binary
+# run_cabal_backend
+run_cabal_multi
+# run_binary
 # run_docker
