@@ -380,11 +380,9 @@ participantsWidget eAddNewParticipant layout eSubmit = do
           ]
       pEvents <- Rx.listWithKey dParticipantMap $ \k p -> do
         let dPMap' = Map.elems . Map.delete k <$> dParticipantMap
-            eExtEmail =
-              Rx.leftmost [void eSubmit, void $ eUpdatePEmails pEvents]
         (dName, dEmail, eDeleted) <- layout
-          ( wPName eSubmit (void $ eUpdatePNames pEvents) $ map fst <$> dPMap'
-          , wPEmail eExtEmail $ map snd <$> dPMap'
+          ( wPName eSubmit $ map fst <$> dPMap'
+          , wPEmail eSubmit $ map snd <$> dPMap'
           , wPDelete k
           )
         let dParticipant :: Rx.Dynamic t (Validated Participant)
@@ -430,55 +428,38 @@ data UpdatePEmail = UpdatePEmail Int (Validated PEmail)
 wPName
   :: Rx.MonadWidget t m
   => Rx.Event t Submit
-  -> Rx.Event t ()
   -> Rx.Dynamic t [Validated PName]
   -> m (Rx.Dynamic t (Validated PName))
-wPName (Rx.traceEvent "submit" -> eSubmit) (Rx.traceEvent "other" -> eOtherPNames) dPNames
-  = do
-    let
-      defaultAttrs = mconcat
+wPName eSubmit dPNames = do
+  let defaultAttrs = mconcat
         [ "placeholder" =: "Participant name"
         , "class" =: "input"
         , "type" =: "text"
         ]
-      construct = fmap validatePName . Rx.value
-      validate (Rx.traceEvent "blur" -> eDoneEditing) d =
-        let
-          eLocalErrs = Rx.tagPromptlyDyn (getFailures <$> d)
-            $ Rx.leftmost [void eSubmit, eDoneEditing]
-          mkGlobalErrs (Failure es) _ = []
-          mkGlobalErrs (Success pName) otherPNames =
-            validatePNameUnique pName otherPNames
-          eGlobalErrs =
-            Rx.tagPromptlyDyn (mkGlobalErrs <$> d <*> dPNames) $ Rx.leftmost
-              [ void eSubmit
-              , eDoneEditing
-              , Rx.gate (hasFailures <$> Rx.current d) eOtherPNames
-              ]
-        in
-          Rx.mergeWith (<>) [eLocalErrs, eGlobalErrs]
-    rec let wUnvalidatedInput =
-              Rx.inputElement
-                $ def
-                & (  Rx.inputElementConfig_elementConfig
-                  .  Rx.elementConfig_initialAttributes
-                  .~ defaultAttrs
-                  )
-                & (  Rx.inputElementConfig_elementConfig
-                  .  Rx.elementConfig_modifyAttributes
-                  .~ (modifyClass defaultAttrs <$> eValidationAttrs)
-                  )
-        (eValidationAttrs, dValidatedInput) <- mkValidation' wUnvalidatedInput
-                                                             construct
-                                                             validate
-    pure dValidatedInput
+  rec let wUnvalidatedInput =
+            Rx.inputElement
+              $ def
+              & (  Rx.inputElementConfig_elementConfig
+                .  Rx.elementConfig_initialAttributes
+                .~ defaultAttrs
+                )
+              & (  Rx.inputElementConfig_elementConfig
+                .  Rx.elementConfig_modifyAttributes
+                .~ (modifyClass defaultAttrs <$> eValidationAttrs)
+                )
+      (eValidationAttrs, dValidatedInput) <- mkPValidation wUnvalidatedInput
+                                                           eSubmit
+                                                           validatePName
+                                                           validatePNameUnique
+                                                           dPNames
+  pure dValidatedInput
 
 wPEmail
   :: Rx.MonadWidget t m
-  => Rx.Event t ()
+  => Rx.Event t Submit
   -> Rx.Dynamic t [Validated PEmail]
   -> m (Rx.Dynamic t (Validated PEmail))
-wPEmail eExt dPEmails = do
+wPEmail eSubmit dPEmails = do
   let defaultAttrs = mconcat
         [ "placeholder" =: "john.doe@email.com"
         , "class" =: "input"
@@ -493,11 +474,14 @@ wPEmail eExt dPEmails = do
                 )
               & (  Rx.inputElementConfig_elementConfig
                 .  Rx.elementConfig_modifyAttributes
-                .~ setValidationAttrs defaultAttrs
+                .~ (modifyClass defaultAttrs <$> eValidationAttrs)
                 )
-      (setValidationAttrs, dValidatedInput) <- mkValidation (eExt $> Submit)
-                                                            wUnvalidatedInput
-                                                            validatePEmail
+      (eValidationAttrs, dValidatedInput) <- mkPValidation
+        wUnvalidatedInput
+        eSubmit
+        validatePEmail
+        validatePEmailUnique
+        dPEmails
   pure dValidatedInput
 wPDelete :: Rx.MonadWidget t m => Int -> m (Rx.Event t DeleteParticipant)
 wPDelete k =
@@ -583,25 +567,32 @@ mkPValidation
      , Rx.HasValue elem
      , Show a
      )
-  => Rx.Event t ()
-  -> m elem
+  => m elem
+  -> Rx.Event t Submit
   -> (val -> Validated a)
-  -> (Validated a -> [Validated a] -> [Text])
+  -> (a -> [Validated a] -> [Text])
   -> Rx.Dynamic t [Validated a]
-  -> m
-       (  Map Rx.AttributeName Text
-       -> Rx.Event t (Map Rx.AttributeName (Maybe Text))
-       ,  Rx.Dynamic t (Validated a)
-       )
-mkPValidation eExt wInput validate check dPMap = do
-  let construct' = fmap validate . Rx.value
-      validate' e d =
-        let e'    = Rx.leftmost [e, eExt]
-            dErrs = check <$> d <*> dPMap
-        in  Rx.tagPromptlyDyn dErrs e'
-  (eValidationAttrs, dRes) <- mkValidation' wInput construct' validate'
-  let eModifyAttrs defAttrs = modifyClass defAttrs <$> eValidationAttrs
-  pure (eModifyAttrs, dRes)
+  -> m (Rx.Event t [Text], Rx.Dynamic t (Validated a))
+mkPValidation wInput eSubmit validateLocal validateGlobal dGlobal = do
+  let
+    eGlobal   = void $ Rx.updated dGlobal
+    construct = fmap validateLocal . Rx.value
+    validate eDoneEditing d =
+      let
+        eLocalErrs = Rx.tagPromptlyDyn (getFailures <$> d)
+          $ Rx.leftmost [void eSubmit, eDoneEditing]
+        mkGlobalErrs (Failure es) _      = []
+        mkGlobalErrs (Success a ) global = validateGlobal a global
+        eGlobalErrs =
+          Rx.tagPromptlyDyn (mkGlobalErrs <$> d <*> dGlobal) $ Rx.leftmost
+            [ void eSubmit
+            , eDoneEditing
+            , Rx.gate (hasFailures <$> Rx.current d) eGlobal
+            ]
+      in
+        Rx.mergeWith (<>) [eLocalErrs, eGlobalErrs]
+  (eValidationAttrs, dRes) <- mkValidation' wInput construct validate
+  pure (eValidationAttrs, dRes)
 
 modifyClass
   :: Map Rx.AttributeName Text -> [Text] -> Map Rx.AttributeName (Maybe Text)

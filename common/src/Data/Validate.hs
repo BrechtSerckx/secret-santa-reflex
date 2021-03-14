@@ -5,6 +5,8 @@ module Data.Validate
   , failures
   , getFailures
   , hasFailures
+  , allSuccesses
+  , allFailures
   , isSuccess
   , readValidation
   , readValidationMaybe
@@ -32,6 +34,17 @@ hasFailures :: Validated a -> Bool
 hasFailures = null . getFailures
 isSuccess :: Validated a -> Bool
 isSuccess = not . hasFailures
+
+validationToMaybe :: Validated a -> Maybe a
+validationToMaybe = \case
+  Success a -> Just a
+  Failure _ -> Nothing
+
+allSuccesses :: [Validated a] -> [a]
+allSuccesses = mapMaybe validationToMaybe
+
+allFailures :: [Validated a] -> [Text]
+allFailures = concatMap getFailures
 
 readValidation :: Read a => Text -> Validated a
 readValidation t = case readMaybe . T.unpack $ t of

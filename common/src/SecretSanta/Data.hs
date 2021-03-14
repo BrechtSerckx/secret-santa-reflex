@@ -160,17 +160,9 @@ validatePName :: Text -> Validated PName
 validatePName = refine
 
 validatePNameUnique :: PName -> [Validated PName] -> [Text]
-validatePNameUnique name vnames =
-  let names =
-        mconcat
-          $   (\case
-                Success n -> [n]
-                Failure _ -> []
-              )
-          <$> vnames
-  in  if (length . filter (== traceShowId name) $ traceShowId names) == 0
-        then mempty
-        else pure "Name must be unique"
+validatePNameUnique name names = if notElem name $ allSuccesses names
+  then mempty
+  else pure "Name must be unique"
 
 type PEmail = EmailAddress
 
@@ -178,17 +170,7 @@ validatePEmail :: Text -> Validated PEmail
 validatePEmail = validateEmailAddress
 
 
-validatePEmailUnique :: Validated PEmail -> [Validated PEmail] -> [Text]
-validatePEmailUnique vemail vemails = case vemail of
-  Failure es -> es
-  Success email ->
-    let emails :: [PEmail] =
-          mconcat
-            $   (\case
-                  Success n -> [n]
-                  Failure _ -> []
-                )
-            <$> vemails
-    in  if (length . filter (== email) $ emails) == 1
-          then mempty
-          else pure "Email must be unique"
+validatePEmailUnique :: PEmail -> [Validated PEmail] -> [Text]
+validatePEmailUnique email emails = if notElem email $ allSuccesses emails
+  then mempty
+  else pure "Email must be unique"
