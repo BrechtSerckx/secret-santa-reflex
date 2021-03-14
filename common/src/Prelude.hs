@@ -11,5 +11,9 @@ import           GHC.Generics                  as Export
                                                 ( Generic )
 
 
+import           Data.Tuple.Extra              as Export
+                                         hiding ( first
+                                                , second
+                                                )
 import           Protolude                     as Export
                                          hiding ( Location )

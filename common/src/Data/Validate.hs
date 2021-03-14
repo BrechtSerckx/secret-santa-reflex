@@ -3,6 +3,9 @@ module Data.Validate
   , success
   , failure
   , failures
+  , getFailures
+  , hasFailures
+  , isSuccess
   , readValidation
   , readValidationMaybe
   , bindValidation
@@ -21,6 +24,14 @@ failure :: Text -> Validated a
 failure = Failure . pure
 failures :: [Text] -> Validated a
 failures = Failure
+getFailures :: Validated a -> [Text]
+getFailures = \case
+  Success _  -> []
+  Failure es -> es
+hasFailures :: Validated a -> Bool
+hasFailures = null . getFailures
+isSuccess :: Validated a -> Bool
+isSuccess = not . hasFailures
 
 readValidation :: Read a => Text -> Validated a
 readValidation t = case readMaybe . T.unpack $ t of
