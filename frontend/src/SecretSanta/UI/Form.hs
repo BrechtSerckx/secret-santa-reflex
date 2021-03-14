@@ -85,13 +85,9 @@ formWidget = do
 
       let
         -- TODO: ideally we would provide better feedback here.
-        -- Currently, when there are non-unique participants or less than 3, we
-        -- get an error message below the submit button, but the conflicting
-        -- fields are still marked as valid.
-        -- Ideally, we would throw the validation in a feedback loop where the
-        -- conflicting fields are marked as invalid.
-        -- We also would like to update the validation of all participants when
-        -- one is updated?
+        -- Currently, when there are less than 3 participants, we
+        -- get an error message below the submit button, but we can submit.
+        -- Ideally we should disable the submit button
         bForm = fmap (`bindValidation` validateForm) . getCompose $ do
           fEventName   <- Compose $ withFieldLabel "EventName" <$> wEventName
           fHostName    <- Compose $ withFieldLabel "Your name" <$> wHostName

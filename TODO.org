@@ -5,7 +5,7 @@
 - [x] Create a reflex frontend
 - [x] Common: create a match function and a test function
 - [x] Backend: have `create` endpoint that matches and sends emails
-- [ ] fix form validation
+- [x] fix form validation
 - [ ] fix email layout
 
 ** Allow hosts to update the config
