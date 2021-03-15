@@ -79,11 +79,7 @@ runInHandler Opts {..} act =
 
 apiServer
   :: Members '[SecretSanta , Embed IO] r => Opts -> SS.ServerT API' (Sem r)
-apiServer opts =
-  (pingHandler :<|> createSecretSantaHandler) :<|> staticServer opts
-
-pingHandler :: () -> Sem r ()
-pingHandler () = pure ()
+apiServer opts = createSecretSantaHandler :<|> staticServer opts
 
 createSecretSantaHandler
   :: Members '[SecretSanta , Embed IO] r => Form -> Sem r ()

@@ -16,10 +16,6 @@ import           SecretSanta.API
 import           SecretSanta.Data
 import           SecretSanta.UI.Form
 
-enablePing :: Bool
-enablePing = False
-
-
 ui :: IO ()
 ui = Rx.mainWidgetWithHead headWidget bodyWidget
 
@@ -60,11 +56,6 @@ bodyWidget = Rx.elClass "section" "section" . Rx.elClass "div" "container" $ do
   -- show response if success
   Rx.widgetHold_ Rx.blank $ mkSuccessWidget <$> eSuccess
 
-  when enablePing $ do
-    let dPing = Rx.traceDyn "ping" . Rx.constDyn $ Right ()
-    ePong <- cPing dPing $ void eFormSubmitted
-    Rx.widgetHold_ (Rx.text "ping") $ const (Rx.text "pong") <$> ePong
-
 
  where
   displayErr      = Rx.elClass "el" "notification is-danger" . Rx.text
@@ -82,12 +73,6 @@ bodyWidget = Rx.elClass "section" "section" . Rx.elClass "div" "container" $ do
       $ "Secret Santa successfully submitted!"
 
 
-cPing
-  :: forall t m
-   . Rx.MonadWidget t m
-  => Rx.Dynamic t (Either Text ())
-  -> Rx.Event t ()
-  -> m (Rx.Event t (SR.ReqResult () ()))
 cCreateSecretSanta
   :: forall t m
    . Rx.MonadWidget t m
@@ -96,8 +81,7 @@ cCreateSecretSanta
   -> m (Rx.Event t (SR.ReqResult () ()))
 
 --brittany-disable-next-binding
-(      cPing
-  :<|> cCreateSecretSanta
+( cCreateSecretSanta
   ) = client
 
 client :: forall t m . Rx.MonadWidget t m => SR.Client t m API ()
