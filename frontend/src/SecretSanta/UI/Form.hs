@@ -138,9 +138,10 @@ eventNameWidget eSubmit = do
                 .  Rx.elementConfig_modifyAttributes
                 .~ setValidationAttrs defaultAttrs
                 )
-      (setValidationAttrs, dValidatedInput) <- mkValidation eSubmit
-                                                            wUnvalidatedInput
-                                                            validateEventName
+      (setValidationAttrs, dValidatedInput) <- mkSimpleValidation
+        eSubmit
+        wUnvalidatedInput
+        validateEventName
   pure . Rx.current $ dValidatedInput
 
 hostNameWidget
@@ -162,9 +163,10 @@ hostNameWidget eSubmit = do
                 .  Rx.elementConfig_modifyAttributes
                 .~ setValidationAttrs defaultAttrs
                 )
-      (setValidationAttrs, dValidatedInput) <- mkValidation eSubmit
-                                                            wUnvalidatedInput
-                                                            validateHostName
+      (setValidationAttrs, dValidatedInput) <- mkSimpleValidation
+        eSubmit
+        wUnvalidatedInput
+        validateHostName
   pure . Rx.current $ dValidatedInput
 
 hostEmailWidget
@@ -186,9 +188,10 @@ hostEmailWidget eSubmit = do
                 .  Rx.elementConfig_modifyAttributes
                 .~ setValidationAttrs defaultAttrs
                 )
-      (setValidationAttrs, dValidatedInput) <- mkValidation eSubmit
-                                                            wUnvalidatedInput
-                                                            validateHostEmail
+      (setValidationAttrs, dValidatedInput) <- mkSimpleValidation
+        eSubmit
+        wUnvalidatedInput
+        validateHostEmail
   pure . Rx.current $ dValidatedInput
 
 dateWidget
@@ -208,9 +211,10 @@ dateWidget eSubmit = do
                 .  Rx.elementConfig_modifyAttributes
                 .~ setValidationAttrs defaultAttrs
                 )
-      (setValidationAttrs, dValidatedInput) <- mkValidation eSubmit
-                                                            wUnvalidatedInput
-                                                            validateDateMaybe
+      (setValidationAttrs, dValidatedInput) <- mkSimpleValidation
+        eSubmit
+        wUnvalidatedInput
+        validateDateMaybe
   pure . Rx.current $ dValidatedInput
  where
 
@@ -231,9 +235,10 @@ timeWidget eSubmit = do
                 .  Rx.elementConfig_modifyAttributes
                 .~ setValidationAttrs defaultAttrs
                 )
-      (setValidationAttrs, dValidatedInput) <- mkValidation eSubmit
-                                                            wUnvalidatedInput
-                                                            validateTimeMaybe
+      (setValidationAttrs, dValidatedInput) <- mkSimpleValidation
+        eSubmit
+        wUnvalidatedInput
+        validateTimeMaybe
   pure . Rx.current $ dValidatedInput
 
 locationWidget
@@ -257,7 +262,7 @@ locationWidget eSubmit = do
                 .  Rx.elementConfig_modifyAttributes
                 .~ setValidationAttrs defaultAttrs
                 )
-      (setValidationAttrs, dValidatedInput) <- mkValidation
+      (setValidationAttrs, dValidatedInput) <- mkSimpleValidation
         eSubmit
         wUnvalidatedInput
         validateLocationMaybe
@@ -284,9 +289,10 @@ priceWidget eSubmit = do
                 .  Rx.elementConfig_modifyAttributes
                 .~ setValidationAttrs defaultAttrs
                 )
-      (setValidationAttrs, dValidatedInput) <- mkValidation eSubmit
-                                                            wUnvalidatedInput
-                                                            validatePriceMaybe
+      (setValidationAttrs, dValidatedInput) <- mkSimpleValidation
+        eSubmit
+        wUnvalidatedInput
+        validatePriceMaybe
   pure . Rx.current $ dValidatedInput
 
 descriptionWidget
@@ -311,7 +317,7 @@ descriptionWidget eSubmit = do
                 .  Rx.elementConfig_modifyAttributes
                 .~ setValidationAttrs defaultAttrs
                 )
-      (setValidationAttrs, dValidatedInput) <- mkValidation
+      (setValidationAttrs, dValidatedInput) <- mkSimpleValidation
         eSubmit
         wUnvalidatedInput
         validateDescription
@@ -528,7 +534,7 @@ title :: Rx.DomBuilder t m => Int -> m a -> m a
 title (show -> i) = Rx.elClass ("h" <> i) ("title is-" <> i)
 
 
-mkValidation
+mkSimpleValidation
   :: forall t m a elem val
    . ( Rx.MonadWidget t m
      , Rx.Value elem ~ Rx.Dynamic t val
@@ -544,13 +550,13 @@ mkValidation
        -> Rx.Event t (Map Rx.AttributeName (Maybe Text))
        ,  Rx.Dynamic t (Validated a)
        )
-mkValidation eSubmit wInput validate = do
+mkSimpleValidation eSubmit wInput validate = do
   let construct' = fmap validate . Rx.value
       validate' e d =
         Rx.tagPromptlyDyn d (Rx.leftmost [e, void eSubmit]) <&> \case
           Success _  -> []
           Failure es -> es
-  (eValidationAttrs, dRes) <- mkValidation' wInput construct' validate'
+  (eValidationAttrs, dRes) <- mkValidation wInput construct' validate'
   let eModifyAttrs defAttrs = modifyClass defAttrs <$> eValidationAttrs
   pure (eModifyAttrs, dRes)
 
@@ -587,7 +593,7 @@ mkPValidation wInput eSubmit validateLocal validateGlobal dGlobal = do
             ]
       in
         Rx.mergeWith (<>) [eLocalErrs, eGlobalErrs]
-  (eValidationAttrs, dRes) <- mkValidation' wInput construct validate
+  (eValidationAttrs, dRes) <- mkValidation wInput construct validate
   pure (eValidationAttrs, dRes)
 
 modifyClass
@@ -598,7 +604,7 @@ modifyClass defAttrs style =
         Just c  -> c <> " " <> T.unwords style
   in  [("class", newClass)]
 
-mkValidation'
+mkValidation
   :: forall t m elem res rest
    . ( Rx.MonadWidget t m
      , Rx.HasDomEvent t elem 'Rx.BlurTag
@@ -608,7 +614,7 @@ mkValidation'
   -> (elem -> Rx.Dynamic t res) -- ^ constructs the resulting value from the widget
   -> (Rx.Event t () -> Rx.Dynamic t res -> Rx.Event t [Text]) -- ^ validates the widget value on an event
   -> m (Rx.Event t [Text], Rx.Dynamic t res)
-mkValidation' wInput construct validate = do
+mkValidation wInput construct validate = do
   input <- wInput
   let eOnChange =
         Rx.leftmost [void $ Rx.updated dRes, Rx.domEvent Rx.Blur input]
