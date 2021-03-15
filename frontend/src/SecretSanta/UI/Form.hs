@@ -30,12 +30,12 @@ formWidget = do
 
       -- Event name
       wEventName <- fieldHorizontal $ do
-        label "Event"
+        label "Event*"
         fieldBody . field . control $ eventNameWidget eSubmit
 
       -- Host name and email
       (wHostName, wHostEmail) <- fieldHorizontal $ do
-        label "Organizer"
+        label "Organizer*"
         fieldBody $ do
           wHostName'  <- field . control $ hostNameWidget eSubmit
           wHostEmail' <- field . control $ hostEmailWidget eSubmit
@@ -61,7 +61,7 @@ formWidget = do
 
       -- Description
       wDescription <- fieldHorizontal $ do
-        label "Description"
+        label "Description*"
         fieldBody . field . control $ descriptionWidget eSubmit
 
       -- Participant section
@@ -89,7 +89,7 @@ formWidget = do
         -- get an error message below the submit button, but we can submit.
         -- Ideally we should disable the submit button
         bForm = fmap (`bindValidation` validateForm) . getCompose $ do
-          fEventName   <- Compose $ withFieldLabel "EventName" <$> wEventName
+          fEventName   <- Compose $ withFieldLabel "Event name" <$> wEventName
           fHostName    <- Compose $ withFieldLabel "Your name" <$> wHostName
           fHostEmail   <- Compose $ withFieldLabel "Your email" <$> wHostEmail
           fDate        <- Compose $ withFieldLabel "Date" <$> wDate
@@ -109,7 +109,7 @@ formWidget = do
   withFieldLabel :: Text -> Validated a -> Validated a
   withFieldLabel t = first . fmap $ \e -> t <> ": " <> e
   layoutParticipant (wPName, wPEmail, wPDelete) = fieldHorizontal $ do
-    label "Participant"
+    label "Participant*"
     fieldBody $ do
       wPName'   <- field . control $ wPName
       wPEmail'  <- field . control' "is-expanded" $ wPEmail
@@ -126,6 +126,7 @@ eventNameWidget eSubmit = do
         [ "placeholder" =: "My Secret Santa"
         , "class" =: "input"
         , "type" =: "text"
+        , "required" =: "required"
         ]
   rec let wUnvalidatedInput =
             Rx.inputElement
@@ -151,7 +152,11 @@ hostNameWidget
   -> m (Rx.Behavior t (Validated PName))
 hostNameWidget eSubmit = do
   let defaultAttrs = mconcat
-        ["placeholder" =: "Your name", "class" =: "input", "type" =: "text"]
+        [ "placeholder" =: "Your name"
+        , "class" =: "input"
+        , "type" =: "text"
+        , "required" =: "required"
+        ]
   rec let wUnvalidatedInput =
             Rx.inputElement
               $ def
@@ -176,7 +181,11 @@ hostEmailWidget
   -> m (Rx.Behavior t (Validated PEmail))
 hostEmailWidget eSubmit = do
   let defaultAttrs = mconcat
-        ["placeholder" =: "Your email", "class" =: "input", "type" =: "email"]
+        [ "placeholder" =: "Your email"
+        , "class" =: "input"
+        , "type" =: "email"
+        , "required" =: "required"
+        ]
   rec let wUnvalidatedInput =
             Rx.inputElement
               $ def
@@ -305,6 +314,7 @@ descriptionWidget eSubmit = do
         , "class" =: "textarea"
         , "type" =: "text"
         , "rows" =: "5"
+        , "required" =: "required"
         ]
   rec let wUnvalidatedInput =
             Rx.textAreaElement
@@ -437,6 +447,7 @@ wPName eSubmit dPNames = do
         [ "placeholder" =: "Participant name"
         , "class" =: "input"
         , "type" =: "text"
+        , "required" =: "required"
         ]
   rec let wUnvalidatedInput =
             Rx.inputElement
@@ -466,6 +477,7 @@ wPEmail eSubmit dPEmails = do
         [ "placeholder" =: "john.doe@email.com"
         , "class" =: "input"
         , "type" =: "email"
+        , "required" =: "required"
         ]
   rec let wUnvalidatedInput =
             Rx.inputElement
