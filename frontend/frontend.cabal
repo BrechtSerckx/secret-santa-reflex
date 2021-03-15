@@ -15,6 +15,9 @@ maintainer:          professional@brechtserckx.be
 -- category:
 build-type:          Simple
 -- extra-source-files:  CHANGELOG.md
+flag devel
+     description: develop mode
+     default: False
 
 executable frontend
   main-is:             Main.hs
@@ -22,6 +25,7 @@ executable frontend
     Main
     SecretSanta.UI
     SecretSanta.UI.Form
+    Config
   build-depends:
       base-noprelude >=4.12 && <4.13
     , common
@@ -38,6 +42,12 @@ executable frontend
     , servant
   hs-source-dirs:
     src
+  if flag(devel)
+    hs-source-dirs:
+      config/devel
+  else
+    hs-source-dirs:
+      config/build
   default-language:    Haskell2010
   default-extensions:
     ApplicativeDo

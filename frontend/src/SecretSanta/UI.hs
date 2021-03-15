@@ -11,6 +11,7 @@ import           Reflex.Dom                     ( (=:) )
 import           Servant.API                    ( (:<|>)(..) )
 import qualified Servant.Reflex                as SR
 
+import           Config                         ( baseUrl )
 import           SecretSanta.API
 import           SecretSanta.Data
 import           SecretSanta.UI.Form
@@ -108,7 +109,4 @@ cCreateSecretSanta
   ) = client
 
 client :: forall t m . Rx.MonadWidget t m => SR.Client t m API ()
-client =
-  -- let baseUrl = SR.BaseFullUrl SR.Http "localhost" 8000 "/"
-  let baseUrl = SR.BasePath "/"
-  in  SR.client api (Proxy @m) (Proxy @()) $ Rx.constDyn baseUrl
+client = SR.client api (Proxy @m) (Proxy @()) $ Rx.constDyn baseUrl

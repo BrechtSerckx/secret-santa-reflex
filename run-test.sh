@@ -12,12 +12,14 @@ FLAGS+=(--email-backend None)
 FLAGS+=(--port 8000)
 
 run_cabal_backend() {
+    cabal configure
     # run with configuration in a `.env` file, that for obvious reasons is not
     # included in here
     env $(cat .env | xargs) cabal run backend -- "${FLAGS[@]}"
 }
 run_cabal_multi() {
-    backend="cabal run backend -- ${FLAGS[@]}"
+    nix-shell -A shells.ghc --run "cabal configure -f devel"
+    backend="cabal run -f devel backend -- ${FLAGS[@]}"
     frontend="cabal run frontend"
 
     init="tmux new-session"
