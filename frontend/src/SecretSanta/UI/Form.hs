@@ -610,9 +610,10 @@ mkValidation'
   -> m (Rx.Event t [Text], Rx.Dynamic t res)
 mkValidation' wInput construct validate = do
   input <- wInput
-  let eDoneEditing = Rx.domEvent Rx.Blur input
-      dRes         = construct input
-      eErrs        = validate eDoneEditing dRes
+  let eOnChange =
+        Rx.leftmost [void $ Rx.updated dRes, Rx.domEvent Rx.Blur input]
+      dRes  = construct input
+      eErrs = validate eOnChange dRes
   Rx.widgetHold_ Rx.blank . Rx.ffor eErrs $ \case
     [] -> Rx.blank
     es -> forM_ es $ Rx.elClass "p" "help is-danger" . Rx.text
