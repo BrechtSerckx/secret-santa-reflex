@@ -13,7 +13,7 @@
   - recoverable error: custom error type with description, maybe context, name (type) and error code (type)
 - [x] show which fields are required and which aren't
 - [ ] check that the secret santa date is in the future
-- [ ] display a nicer success message
+- [x] display a nicer success message
 
 ** Allow hosts to update the config
 

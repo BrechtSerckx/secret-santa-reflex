@@ -47,26 +47,18 @@ bodyWidget = Rx.elClass "section" "section" . Rx.elClass "div" "container" $ do
   -- form
   rec
       -- first show form, wheb event fires show nothing
-      eFormSubmitted <-
-        Rx.traceEvent "form submitted"
-        .   Rx.switch
-        .   Rx.current
-        <$> Rx.widgetHold formWidget' (eSuccess $> dummyFormWidget)
+      eFormSubmitted <- Rx.switch . Rx.current <$> Rx.widgetHold
+        formWidget'
+        (eSuccess $> dummyFormWidget)
       dReqBody <- Rx.traceDyn "reqbody" <$> mkReqBody eFormSubmitted
       eReqRes <- cCreateSecretSanta dReqBody $ Rx.traceEvent "submit req" $ void
         eFormSubmitted
-      let eSuccess =
-            Rx.traceEvent "success"
-              . Rx.fmapMaybe SR.reqSuccess
-              . Rx.traceEventWith (const "reqres")
-              $ eReqRes
+      let eSuccess = Rx.fmapMaybe SR.reqSuccess eReqRes
 
   -- show errors
   Rx.widgetHold_ Rx.blank $ mkErrorWidget <$> eReqRes
   -- show response if success
-  Rx.widgetHold_ Rx.blank
-    $   mkSuccessWidget
-    <$> Rx.tagPromptlyDyn dReqBody eSuccess
+  Rx.widgetHold_ Rx.blank $ mkSuccessWidget <$> eSuccess
 
   when enablePing $ do
     let dPing = Rx.traceDyn "ping" . Rx.constDyn $ Right ()
@@ -84,10 +76,10 @@ bodyWidget = Rx.elClass "section" "section" . Rx.elClass "div" "container" $ do
     SR.ResponseFailure _ t  _ -> displayErr t
     SR.RequestFailure _ t     -> displayErr t
   mkSuccessWidget =
-    Rx.elClass "div" "notification is-success"
+    const
+      $ Rx.elClass "div" "notification is-success"
       . Rx.text
-      . TL.toStrict
-      . Pretty.pShowNoColor
+      $ "Secret Santa successfully submitted!"
 
 
 cPing
