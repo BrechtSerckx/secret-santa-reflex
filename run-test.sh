@@ -38,7 +38,7 @@ run_binary() {
 }
 run_docker() {
     docker image load -i $(nix-build docker.nix)
-    docker run -p 8081:8080 --name secret-santa-test --rm --env-file .env secret-santa-reflex:latest "${FLAGS[@]}"
+    docker run -p 8081:8000 --name secret-santa-test --rm --env-file .env secret-santa-reflex:latest "${FLAGS[@]}"
     docker logs -f secret-santa-test
 }
 
