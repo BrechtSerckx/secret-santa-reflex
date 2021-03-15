@@ -1,4 +1,23 @@
-:backend = http://localhost:8080
+:backend = http://localhost:8000
+
+
+
+
+# test CORS
+OPTIONS :backend/api/secret-santa
+Connection: keep-alive
+Pragma: no-cache
+Cache-Control: no-cache
+Accept: */*
+Access-Control-Request-Method: POST
+Access-Control-Request-Headers: content-type
+Origin: http://localhost:3003
+Sec-Fetch-Mode: cors
+Sec-Fetch-Site: same-site
+Sec-Fetch-Dest: empty
+Referer: http://localhost:3003/
+
+
 
 # Create secret santa
 POST :backend/api/secret-santa

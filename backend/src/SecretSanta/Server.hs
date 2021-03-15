@@ -12,6 +12,7 @@ import           Polysemy.Input.Env
 import qualified Network.Wai.Application.Static
                                                as Static
 import qualified Network.Wai.Handler.Warp      as Warp
+import qualified Network.Wai.Middleware.Cors   as CORS
 import qualified Network.Wai.Middleware.RequestLogger
                                                as RL
 import qualified Network.Wai.Middleware.Servant.Options
@@ -41,9 +42,14 @@ secretSantaServer = do
   requestLogger       <- RL.mkRequestLogger def
   Warp.run oPort
     . requestLogger
+    . CORS.cors (const $ Just corsPolicy)
+    . SO.provideOptions api
     . SS.serve api'
     . SS.hoistServer api' (runInHandler opts)
     $ apiServer opts
+ where
+  corsPolicy =
+    CORS.simpleCorsResourcePolicy { CORS.corsRequestHeaders = ["content-type"] }
 
 runInHandler
   :: forall r a
