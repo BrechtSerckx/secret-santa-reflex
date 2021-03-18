@@ -4,7 +4,6 @@ module SecretSanta.Opts
   , EmailBackend(..)
   ) where
 
-import qualified Data.Text                     as T
 import qualified Network.Wai.Handler.Warp      as Warp
 import qualified Options.Applicative           as OA
 import "common"  Text.EmailAddress

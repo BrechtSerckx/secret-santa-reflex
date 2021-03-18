@@ -59,6 +59,6 @@ readValidationMaybe t
     Just a  -> success a
 
 bindValidation :: Validated a -> (a -> Validated b) -> Validated b
-bindValidation a f = case a of
+bindValidation va f = case va of
   Failure es -> failures es
   Success a  -> f a

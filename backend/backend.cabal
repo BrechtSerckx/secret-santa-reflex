@@ -33,6 +33,7 @@ executable backend
     -flate-specialise
     -fspecialise-aggressively
     -fplugin=Polysemy.Plugin
+    -Wall
   build-depends:
       base-noprelude >=4.12 && <4.13
     , common

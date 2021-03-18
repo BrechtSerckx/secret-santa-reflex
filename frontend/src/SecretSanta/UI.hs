@@ -2,13 +2,8 @@
 module SecretSanta.UI where
 
 
-import qualified Data.Text.Lazy                as TL
-import qualified Text.Pretty.Simple            as Pretty
-
 import qualified Reflex                        as Rx
 import qualified Reflex.Dom                    as Rx
-import           Reflex.Dom                     ( (=:) )
-import           Servant.API                    ( (:<|>)(..) )
 import qualified Servant.Reflex                as SR
 
 import           Config                         ( baseUrl )
@@ -28,9 +23,9 @@ headWidget = do
     Rx.blank
   styleSheet "https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css"
  where
-  styleSheet link =
+  styleSheet href =
     Rx.elAttr "link"
-              [("rel", "stylesheet"), ("type", "text/css"), ("href", link)]
+              [("rel", "stylesheet"), ("type", "text/css"), ("href", href)]
       $ pure ()
 
 bodyWidget :: forall t m . Rx.MonadWidget t m => m ()

@@ -2,11 +2,9 @@ module SecretSanta.Server
   ( secretSantaServer
   ) where
 
-import           Data.String
 
 import           Polysemy
 import           Polysemy.Error
-import           Polysemy.Input
 import           Polysemy.Input.Env
 
 import qualified Network.Wai.Application.Static

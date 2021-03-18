@@ -9,8 +9,10 @@ module SecretSanta.Data
   , HostEmail
   , validateHostEmail
   , Date
+  , unDate
   , validateDateMaybe
   , Time
+  , unTime
   , validateTimeMaybe
   , Location
   , validateLocationMaybe
@@ -31,7 +33,6 @@ import           Control.Monad.Fail             ( fail )
 import qualified Data.Aeson                    as Aeson
 import qualified Data.List                     as L
 import qualified Data.Text                     as T
-import qualified Data.Text.Encoding            as T
 import qualified Data.Time                     as Time
 import           Text.EmailAddress
 import           Text.NonEmpty
@@ -62,7 +63,7 @@ newtype Form = Form UnsafeForm
   deriving  (Aeson.ToJSON, Aeson.FromJSON) via (Refined UnsafeForm Form)
 
 instance Refine UnsafeForm Form where
-  rguard f@UnsafeForm {..} = mconcat
+  rguard UnsafeForm {..} = mconcat
     [ not (unique $ pName <$> fParticipants)
       |> "Participant names must be unique."
     , not (unique $ pEmail <$> fParticipants)

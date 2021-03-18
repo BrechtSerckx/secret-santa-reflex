@@ -12,6 +12,7 @@ import           SecretSanta.Data
 
 type API = CreateSecretSantaEP
 
+api :: Proxy API
 api = Proxy @API
 
 type CreateSecretSantaEP

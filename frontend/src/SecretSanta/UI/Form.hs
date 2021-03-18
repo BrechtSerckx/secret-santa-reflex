@@ -14,7 +14,6 @@ import           Data.Validate
 import qualified Reflex                        as Rx
 import qualified Reflex.Dom                    as Rx
 import           Reflex.Dom                     ( (=:) )
-import qualified Servant.Reflex                as SR
 
 import           SecretSanta.Data
 
@@ -81,7 +80,7 @@ formWidget = do
       -- Errors
       Rx.widgetHold_ Rx.blank . Rx.ffor eForm $ \case
         Failure es -> forM_ es $ Rx.elClass "p" "help is-danger" . Rx.text
-        Success e  -> Rx.blank
+        Success _  -> Rx.blank
 
       let
         -- TODO: ideally we would provide better feedback here.
@@ -108,13 +107,13 @@ formWidget = do
  where
   withFieldLabel :: Text -> Validated a -> Validated a
   withFieldLabel t = first . fmap $ \e -> t <> ": " <> e
-  layoutParticipant (wPName, wPEmail, wPDelete) = fieldHorizontal $ do
+  layoutParticipant (wPName', wPEmail', wPDelete') = fieldHorizontal $ do
     label "Participant*"
     fieldBody $ do
-      wPName'   <- field . control $ wPName
-      wPEmail'  <- field . control' "is-expanded" $ wPEmail
-      wPDelete' <- control wPDelete
-      pure (wPName', wPEmail', wPDelete')
+      wPName''   <- field . control $ wPName'
+      wPEmail''  <- field . control' "is-expanded" $ wPEmail'
+      wPDelete'' <- control wPDelete'
+      pure (wPName'', wPEmail'', wPDelete'')
 
 eventNameWidget
   :: forall t m
@@ -357,10 +356,16 @@ emptyParticipant :: Participant'
 emptyParticipant =
   (Failure . pure $ "empty participant", Failure . pure $ "empty participant")
 
+addNewParticipant :: ParticipantMap -> ParticipantMap
 addNewParticipant m = case Map.maxViewWithKey m of
   Nothing          -> [(0, emptyParticipant)]
   Just ((k, _), _) -> Map.insert (succ k) emptyParticipant m
+
+updateParticipantName
+  :: Int -> Validated PName -> ParticipantMap -> ParticipantMap
 updateParticipantName i name = Map.adjust (\(_name, email) -> (name, email)) i
+updateParticipantEmail
+  :: Int -> Validated PEmail -> ParticipantMap -> ParticipantMap
 updateParticipantEmail i email =
   Map.adjust (\(name, _email) -> (name, email)) i
 
@@ -390,19 +395,14 @@ participantsWidget eAddNewParticipant layout eSubmit = do
           , eUpdatePNames pEvents
           , eUpdatePEmails pEvents
           ]
-      pEvents <- Rx.listWithKey dParticipantMap $ \k p -> do
+      pEvents <- Rx.listWithKey dParticipantMap $ \k _p -> do
         let dPMap' = Map.elems . Map.delete k <$> dParticipantMap
         (dName, dEmail, eDeleted) <- layout
           ( wPName eSubmit $ map fst <$> dPMap'
           , wPEmail eSubmit $ map snd <$> dPMap'
           , wPDelete k
           )
-        let dParticipant :: Rx.Dynamic t (Validated Participant)
-            dParticipant = getCompose $ do
-              pName  <- Compose dName
-              pEmail <- Compose dEmail
-              pure Participant { .. }
-            eUpdatePName  = UpdatePName k <$> Rx.updated dName
+        let eUpdatePName  = UpdatePName k <$> Rx.updated dName
             eUpdatePEmail = UpdatePEmail k <$> Rx.updated dEmail
         pure $ (eDeleted, eUpdatePName, eUpdatePEmail)
   pure
@@ -595,8 +595,8 @@ mkPValidation wInput eSubmit validateLocal validateGlobal dGlobal = do
       let
         eLocalErrs = Rx.tagPromptlyDyn (getFailures <$> d)
           $ Rx.leftmost [void eSubmit, eDoneEditing]
-        mkGlobalErrs (Failure es) _      = []
-        mkGlobalErrs (Success a ) global = validateGlobal a global
+        mkGlobalErrs (Failure _es) _      = []
+        mkGlobalErrs (Success a  ) global = validateGlobal a global
         eGlobalErrs =
           Rx.tagPromptlyDyn (mkGlobalErrs <$> d <*> dGlobal) $ Rx.leftmost
             [ void eSubmit
@@ -617,7 +617,7 @@ modifyClass defAttrs style =
   in  [("class", newClass)]
 
 mkValidation
-  :: forall t m elem res rest
+  :: forall t m elem res
    . ( Rx.MonadWidget t m
      , Rx.HasDomEvent t elem 'Rx.BlurTag
      , Rx.DomEventType elem 'Rx.BlurTag ~ ()

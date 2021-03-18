@@ -12,7 +12,6 @@ import           Polysemy.Error
 
 import           Text.NonEmpty
 
-import qualified Data.Text.Lazy                as TL
 import           Network.Mail.Mime
 import qualified Text.Blaze.Html.Renderer.Text as BlazeHtml
 import qualified Text.Blaze.Renderer.Text      as BlazeText
@@ -52,11 +51,11 @@ runSecretSanta sender = reinterpret2 $ \case
 
 mkMail :: EmailAddress -> Form -> (Participant, Participant) -> Mail
 mkMail sender f (gifter, receiver) =
-  let to =
+  let toAddress =
         Address { addressName = Just gifterName, addressEmail = gifterEmail }
-      from = Address { addressName  = Just "Secret Santa"
-                     , addressEmail = emailAddressToText sender
-                     }
+      fromAddress = Address { addressName  = Just "Secret Santa"
+                            , addressEmail = emailAddressToText sender
+                            }
       subject = "Secret Santa"
       html :: Html = [shamlet|
         <p>Hi #{gifterName},
@@ -81,7 +80,7 @@ mkMail sender f (gifter, receiver) =
         |]
       plainBody = BlazeText.renderMarkup html
       htmlBody  = BlazeHtml.renderHtml html
-  in  simpleMailInMemory to from subject plainBody htmlBody []
+  in  simpleMailInMemory toAddress fromAddress subject plainBody htmlBody []
  where
   Form UnsafeForm {..} = f
   eventName            = unNonEmptyText fEventName
