@@ -25,6 +25,7 @@ tmux_cmds=()
 head=${packages[0]}
 unset "packages[0]"
 tmux_cmds+=("new-session ghcid -l --command \"cabal repl $head\"")
+tmux_cmds+=("set-option -p remain-on-exit")
 
 # split window on every tail package
 for package in "${packages[@]}"; do
