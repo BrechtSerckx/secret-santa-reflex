@@ -8,12 +8,11 @@ module SecretSanta.Data
   , validateHostName
   , HostEmail
   , validateHostEmail
-  , Date
-  , unDate
+  , Date(..)
   , validateDateMaybe
-  , Time
-  , unTime
+  , Time(..)
   , validateTimeMaybe
+  , validateDateTime
   , Location
   , validateLocationMaybe
   , Price
@@ -39,7 +38,10 @@ import           Text.NonEmpty
 import qualified Text.Read                     as Read
 import qualified Text.Show                     as Show
 
+import           Protolude.Error                ( error )
+
 import           Data.Refine
+import           Data.Time.MonadTime
 import           Data.Validate
 
 -- * Secret Santa form
@@ -48,6 +50,7 @@ data UnsafeForm = UnsafeForm
   { fEventName    :: EventName
   , fHostName     :: HostName
   , fHostEmail    :: HostEmail
+  , fTimeZone     :: TimeZone
   , fDate         :: Maybe Date
   , fTime         :: Maybe Time
   , fLocation     :: Maybe Location
@@ -94,6 +97,19 @@ type HostEmail = EmailAddress
 validateHostEmail :: Text -> Validated HostEmail
 validateHostEmail = validateEmailAddress
 
+instance Aeson.FromJSON TimeZone where
+  parseJSON = Aeson.withText "TimeZone" $ \t ->
+    case readMaybe . T.unpack $ t of
+      Just r  -> pure r
+      Nothing -> invalidTimeZone
+   where
+    invalidTimeZone =
+      fail
+        "Invalid timezone. Allowed: ±HHMM format, single-letter military time-zones, and these time-zones: 'UTC', 'UT', 'GMT', 'EST', 'EDT', 'CST', 'CDT', 'MST', 'MDT', 'PST', 'PDT'."
+
+instance Aeson.ToJSON TimeZone where
+  toJSON = Aeson.String . show
+
 newtype Date = Date { unDate :: Time.Day }
   deriving newtype (Show, Read, Eq, Aeson.ToJSON, Aeson.FromJSON)
 validateDateMaybe :: Text -> Validated (Maybe Date)
@@ -124,6 +140,26 @@ instance Aeson.ToJSON Time where
 
 validateTimeMaybe :: Text -> Validated (Maybe Time)
 validateTimeMaybe = readValidationMaybe
+
+validateDateTime :: MonadTime m => TimeZone -> Maybe Date -> Maybe Time -> m ()
+validateDateTime zonedTimeZone mDate mTime = case (mDate, mTime) of
+  (Nothing        , _      ) -> pure ()
+  (Just (Date day), Nothing) -> do
+    let localDay             = Time.addDays 1 day
+        localTimeOfDay       = Time.midnight
+        zonedTimeToLocalTime = LocalTime { .. }
+        clientTime           = ZonedTime { .. }
+    serverTime <- getZonedTime
+    case compareZonedTime serverTime clientTime of
+      LT -> pure ()
+      _  -> error "Must be in future" -- TODO: decent errors
+  (Just (Date localDay), Just (Time localTimeOfDay)) -> do
+    let zonedTimeToLocalTime = LocalTime { .. }
+        clientTime           = ZonedTime { .. }
+    serverTime <- getZonedTime
+    case compareZonedTime serverTime clientTime of
+      LT -> pure ()
+      _  -> error "Must be in future" -- TODO: decent errors
 
 type Location = NonEmptyText
 

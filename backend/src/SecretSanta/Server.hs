@@ -28,6 +28,7 @@ import           SecretSanta.Data
 import           SecretSanta.Effect.Email
 import           SecretSanta.Effect.Match
 import           SecretSanta.Effect.SecretSanta
+import           SecretSanta.Effect.Time
 import           SecretSanta.Opts
 
 type API' = API :<|> Raw
@@ -51,7 +52,7 @@ secretSantaServer = do
 
 runInHandler
   :: forall r a
-   . r ~ '[SecretSanta, Error InternalError, Embed IO]
+   . r ~ '[SecretSanta, GetTime, Error InternalError, Embed IO]
   => Opts
   -> Sem r a
   -> SS.Handler a
@@ -66,6 +67,7 @@ runInHandler Opts {..} act =
           liftIO
           . runM
           . runError
+          . runGetTime
           . runEmail
           . runMatch
           . runSecretSanta oEmailSender

@@ -19,6 +19,7 @@ build-type:          Simple
 library
   exposed-modules:
     Prelude
+    Data.Time.MonadTime
     Data.Validate
     Data.Refine
     Text.EmailAddress

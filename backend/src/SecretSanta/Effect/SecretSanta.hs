@@ -21,6 +21,7 @@ import           Text.Hamlet
 import           SecretSanta.Data
 import           SecretSanta.Effect.Email
 import           SecretSanta.Effect.Match
+import           SecretSanta.Effect.Time
 
 data SecretSanta m a where
   -- | Create a new secret santa
@@ -38,12 +39,13 @@ runSecretSantaPrint = reinterpret $ \case
 
 runSecretSanta
   :: forall r a
-   . Members '[Error InternalError] r
+   . Members '[Error InternalError , Embed IO , GetTime] r
   => EmailAddress
   -> Sem (SecretSanta ': r) a
   -> Sem (Match ': Email ': r) a
 runSecretSanta sender = reinterpret2 $ \case
   CreateSecretSanta f@(Form UnsafeForm {..}) -> do
+    validateDateTime fTimeZone fDate fTime
     mMatches <- makeMatch fParticipants
     case mMatches of
       Nothing      -> throw $ NoMatchesFound fParticipants

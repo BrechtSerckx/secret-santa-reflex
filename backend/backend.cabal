@@ -26,6 +26,7 @@ executable backend
     SecretSanta.Effect.SecretSanta
     SecretSanta.Effect.Email
     SecretSanta.Effect.Match
+    SecretSanta.Effect.Time
     SecretSanta.Opts
     SecretSanta.Server
   ghc-options:
