@@ -91,7 +91,4 @@ createSecretSantaHandler f = do
 
 staticServer :: Opts -> SS.ServerT Raw (Sem r)
 staticServer Opts {..} =
-  SS.serveDirectoryWith $ (Static.defaultWebAppSettings oWebRoot)
-    { Static.ssRedirectToIndex = True
-    , Static.ssIndices         = pure . Static.unsafeToPiece $ "index.html"
-    }
+  SS.serveDirectoryWith $ Static.defaultFileServerSettings oWebRoot
