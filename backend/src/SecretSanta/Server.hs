@@ -7,6 +7,10 @@ import           Polysemy
 import           Polysemy.Error
 import           Polysemy.Input.Env
 
+import           Control.Monad.Except           ( liftEither )
+import qualified Data.ByteString.Lazy.Char8    as BSL
+import           Data.Error
+
 import qualified Network.Wai.Application.Static
                                                as Static
 import qualified Network.Wai.Handler.Warp      as Warp
@@ -65,6 +69,9 @@ runInHandler Opts {..} act =
   in  do
         eRes <-
           liftIO
+          . (fmap join . fmap (first fromException) . try) -- merge with exceptions
+          . (fmap join . fmap (first fromInternalError) . try) -- merge with internal errors
+          . fmap (first fromServerError) -- convert server error
           . runM
           . runError
           . runGetTime
@@ -72,9 +79,17 @@ runInHandler Opts {..} act =
           . runMatch
           . runSecretSanta oEmailSender
           $ act
-        case eRes of
-          Right res -> pure res
-          Left  e   -> throwError SS.err500 { SS.errBody = show e }
+        liftEither eRes
+ where
+  fromInternalError :: InternalError -> SS.ServerError
+  fromInternalError e =
+    SS.err500 { SS.errBody = BSL.pack $ displayException e }
+  fromException :: SomeException -> SS.ServerError
+  fromException e = SS.err500 { SS.errBody = BSL.pack $ displayException e }
+  fromServerError :: ServerError status name -> SS.ServerError
+  fromServerError e =
+    -- TODO
+    SS.err400 { SS.errBody = BSL.pack $ show e }
 
 
 apiServer

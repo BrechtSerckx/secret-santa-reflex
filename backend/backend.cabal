@@ -64,11 +64,13 @@ executable backend
     , random-shuffle
     , optparse-applicative
     , nri-env-parser
+    , mtl
 
       -- data
     , pretty-simple
     , text
     , emailaddress
+    , bytestring
   default-language:    Haskell2010
   default-extensions:
     ApplicativeDo
