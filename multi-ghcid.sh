@@ -1,19 +1,12 @@
 #! /usr/bin/env bash
 # shellcheck disable=SC2039
 
-
-# packages=(common)
-# packages=(backend)
-# packages=(frontend)
-# packages=(common backend)
-# packages=(common frontend)
-packages=(common backend frontend)
-
 error() {
     echo "ERROR: $1"
     exit 1
 }
 
+packages=("$@")
 # check that packages is not empty
 if [ ${#packages[@]} -eq 0 ]; then
     error "No packages specified"
