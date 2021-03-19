@@ -38,8 +38,6 @@ import           Text.NonEmpty
 import qualified Text.Read                     as Read
 import qualified Text.Show                     as Show
 
-import           Protolude.Error                ( error )
-
 import           Data.Refine
 import           Data.Time.MonadTime
 import           Data.Validate

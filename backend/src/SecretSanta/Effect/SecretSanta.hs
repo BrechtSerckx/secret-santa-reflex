@@ -38,7 +38,7 @@ runSecretSantaPrint
 runSecretSantaPrint = reinterpret $ \case
   CreateSecretSanta f -> embed $ print @IO f
 
-type InvalidDateTimeError = BError 400 "INVALID_DATE_TIME"
+type InvalidDateTimeError = ServerError 400 "INVALID_DATE_TIME"
 
 runSecretSanta
   :: forall r a
@@ -51,11 +51,15 @@ runSecretSanta sender = reinterpret2 $ \case
     serverTime <- getZonedTime
     case validateDateTime serverTime fTimeZone fDate fTime of
       Success _  -> pure ()
-      Failure es -> throw @InvalidDateTimeError . error $ show es
+      Failure es -> throw @InvalidDateTimeError . serverError $ show es
     mMatches <- makeMatch fParticipants
     case mMatches of
-      Nothing      -> internalError $ "No matches found: " <> show fParticipants
+      Nothing      -> throwInternalError $ noMatchesFound fParticipants
       Just matches -> forM_ matches $ sendEmail . mkMail sender f
+ where
+  noMatchesFound ps =
+    serverError ("No matches found: " <> show ps)
+      `errWhen` "running Secret Santa"
 
 mkMail :: EmailAddress -> Form -> (Participant, Participant) -> Mail
 mkMail sender f (gifter, receiver) =
