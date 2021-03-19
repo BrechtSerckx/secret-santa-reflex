@@ -52,7 +52,7 @@ secretSantaServer = do
 
 runInHandler
   :: forall r a
-   . r ~ '[SecretSanta, GetTime, Error InternalError, Embed IO]
+   . r ~ '[SecretSanta, GetTime, Error InvalidDateTimeError, Embed IO]
   => Opts
   -> Sem r a
   -> SS.Handler a

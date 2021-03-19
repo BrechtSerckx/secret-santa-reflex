@@ -4,13 +4,15 @@ module SecretSanta.Effect.SecretSanta
   , createSecretSanta
   , runSecretSantaPrint
   , runSecretSanta
-  , InternalError(..)
+  , InvalidDateTimeError
   ) where
 
 import           Polysemy
 import           Polysemy.Error
 
+import           Data.Error
 import           Data.Time.MonadTime
+import           Data.Validate
 import           Text.NonEmpty
 
 import           Network.Mail.Mime
@@ -28,8 +30,6 @@ data SecretSanta m a where
   -- | Create a new secret santa
   CreateSecretSanta ::Form -> SecretSanta m ()
 
-data InternalError = NoMatchesFound [Participant] -- ^ No matches are found, so preconditions weren't met
-  deriving Show
 
 makeSem ''SecretSanta
 
@@ -38,9 +38,11 @@ runSecretSantaPrint
 runSecretSantaPrint = reinterpret $ \case
   CreateSecretSanta f -> embed $ print @IO f
 
+type InvalidDateTimeError = BError 400 "INVALID_DATE_TIME"
+
 runSecretSanta
   :: forall r a
-   . Members '[Error InternalError , Embed IO , GetTime] r
+   . Members '[Embed IO , GetTime , Error InvalidDateTimeError] r
   => EmailAddress
   -> Sem (SecretSanta ': r) a
   -> Sem (Match ': Email ': r) a
@@ -49,10 +51,10 @@ runSecretSanta sender = reinterpret2 $ \case
     serverTime <- getZonedTime
     case validateDateTime serverTime fTimeZone fDate fTime of
       Success _  -> pure ()
-      Failure es -> undefined
+      Failure es -> throw @InvalidDateTimeError . error $ show es
     mMatches <- makeMatch fParticipants
     case mMatches of
-      Nothing      -> throw $ NoMatchesFound fParticipants
+      Nothing      -> internalError $ "No matches found: " <> show fParticipants
       Just matches -> forM_ matches $ sendEmail . mkMail sender f
 
 mkMail :: EmailAddress -> Form -> (Participant, Participant) -> Mail

@@ -19,6 +19,7 @@ build-type:          Simple
 library
   exposed-modules:
     Prelude
+    Data.Error
     Data.Time.MonadTime
     Data.Validate
     Data.Refine
@@ -56,6 +57,7 @@ library
     LambdaCase
     MultiParamTypeClasses
     MultiWayIf
+    NamedFieldPuns
     OverloadedLists
     OverloadedStrings
     PackageImports
