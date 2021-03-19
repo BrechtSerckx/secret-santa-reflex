@@ -10,6 +10,7 @@ module SecretSanta.Effect.SecretSanta
 import           Polysemy
 import           Polysemy.Error
 
+import           Data.Time.MonadTime
 import           Text.NonEmpty
 
 import           Network.Mail.Mime
@@ -21,7 +22,7 @@ import           Text.Hamlet
 import           SecretSanta.Data
 import           SecretSanta.Effect.Email
 import           SecretSanta.Effect.Match
-import           SecretSanta.Effect.Time
+import           SecretSanta.Effect.Time        ( GetTime )
 
 data SecretSanta m a where
   -- | Create a new secret santa
@@ -45,7 +46,10 @@ runSecretSanta
   -> Sem (Match ': Email ': r) a
 runSecretSanta sender = reinterpret2 $ \case
   CreateSecretSanta f@(Form UnsafeForm {..}) -> do
-    validateDateTime fTimeZone fDate fTime
+    serverTime <- getZonedTime
+    case validateDateTime serverTime fTimeZone fDate fTime of
+      Success _  -> pure ()
+      Failure es -> undefined
     mMatches <- makeMatch fParticipants
     case mMatches of
       Nothing      -> throw $ NoMatchesFound fParticipants

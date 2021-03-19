@@ -42,7 +42,7 @@ run_docker() {
     docker logs -f secret-santa-test
 }
 
-# run_cabal_backend
-run_cabal_multi
+run_cabal_backend
+# run_cabal_multi
 # run_binary
 # run_docker

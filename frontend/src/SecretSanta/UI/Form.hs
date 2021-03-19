@@ -1,3 +1,4 @@
+{-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE DataKinds #-}
 module SecretSanta.UI.Form
   ( formWidget
@@ -9,6 +10,7 @@ import           Control.Monad.Fix
 import           Data.Functor.Compose
 import qualified Data.Map                      as Map
 import qualified Data.Text                     as T
+import           Data.Time.MonadTime
 import           Data.Validate
 
 import qualified Reflex                        as Rx
@@ -28,12 +30,12 @@ formWidget = do
       title 3 $ Rx.text "General"
 
       -- Event name
-      wEventName <- fieldHorizontal $ do
+      bEventName <- fieldHorizontal $ do
         label "Event*"
         fieldBody . field . control $ eventNameWidget eSubmit
 
       -- Host name and email
-      (wHostName, wHostEmail) <- fieldHorizontal $ do
+      (bHostName, bHostEmail) <- fieldHorizontal $ do
         label "Organizer*"
         fieldBody $ do
           wHostName'  <- field . control $ hostNameWidget eSubmit
@@ -41,31 +43,41 @@ formWidget = do
           pure (wHostName', wHostEmail')
 
       -- Event date and time
-      (wDate, wTime) <- fieldHorizontal $ do
+      (bDate, bTime) <- fieldHorizontal $ do
         label "Date/Time"
         fieldBody $ do
           wDate' <- field . control $ dateWidget eSubmit
           wTime' <- field . control $ timeWidget eSubmit
           pure (wDate', wTime')
+      fTimeZone  <- liftIO getTimeZone
+      clientTime <- liftIO getZonedTime
+      let bDateTimeErrs =
+            fmap (`bindValidation` identity)
+              .   getCompose
+              $   validateDateTime clientTime fTimeZone
+              <$> Compose bDate
+              <*> Compose bTime
+          eDateTimeErrs = getFailures <$> Rx.tag bDateTimeErrs eSubmit
+
 
       -- Location
-      wLocation <- fieldHorizontal $ do
+      bLocation <- fieldHorizontal $ do
         label "Location"
         fieldBody . field . control $ locationWidget eSubmit
 
       -- Price
-      wPrice <- fieldHorizontal $ do
+      bPrice <- fieldHorizontal $ do
         label "Price"
         fieldBody . field . control $ priceWidget eSubmit
 
       -- Description
-      wDescription <- fieldHorizontal $ do
+      bDescription <- fieldHorizontal $ do
         label "Description*"
         fieldBody . field . control $ descriptionWidget eSubmit
 
       -- Participant section
       title 3 $ Rx.text "Participants"
-      wParticipants <- participantsWidget eNewParticipant
+      bParticipants <- participantsWidget eNewParticipant
                                           layoutParticipant
                                           eSubmit
 
@@ -78,9 +90,11 @@ formWidget = do
           pure (eNewParticipant', eSubmit')
 
       -- Errors
-      Rx.widgetHold_ Rx.blank . Rx.ffor eForm $ \case
-        Failure es -> forM_ es $ Rx.elClass "p" "help is-danger" . Rx.text
-        Success _  -> Rx.blank
+      Rx.widgetHold_ Rx.blank
+        . Rx.ffor (Rx.mergeWith (<>) [getFailures <$> eForm, eDateTimeErrs])
+        $ \case
+            [] -> Rx.blank
+            es -> forM_ es $ Rx.elClass "p" "help is-danger" . Rx.text
 
       let
         -- TODO: ideally we would provide better feedback here.
@@ -88,17 +102,17 @@ formWidget = do
         -- get an error message below the submit button, but we can submit.
         -- Ideally we should disable the submit button
         bForm = fmap (`bindValidation` validateForm) . getCompose $ do
-          fEventName   <- Compose $ withFieldLabel "Event name" <$> wEventName
-          fHostName    <- Compose $ withFieldLabel "Your name" <$> wHostName
-          fHostEmail   <- Compose $ withFieldLabel "Your email" <$> wHostEmail
-          fDate        <- Compose $ withFieldLabel "Date" <$> wDate
-          fTime        <- Compose $ withFieldLabel "Time" <$> wTime
-          fLocation    <- Compose $ withFieldLabel "Location" <$> wLocation
-          fPrice       <- Compose $ withFieldLabel "Price" <$> wPrice
+          fEventName   <- Compose $ withFieldLabel "Event name" <$> bEventName
+          fHostName    <- Compose $ withFieldLabel "Your name" <$> bHostName
+          fHostEmail   <- Compose $ withFieldLabel "Your email" <$> bHostEmail
+          fDate        <- Compose $ withFieldLabel "Date" <$> bDate
+          fTime        <- Compose $ withFieldLabel "Time" <$> bTime
+          fLocation    <- Compose $ withFieldLabel "Location" <$> bLocation
+          fPrice       <- Compose $ withFieldLabel "Price" <$> bPrice
           fDescription <-
-            Compose $ withFieldLabel "Description" <$> wDescription
+            Compose $ withFieldLabel "Description" <$> bDescription
           fParticipants <-
-            Compose $ withFieldLabel "Participants" <$> wParticipants
+            Compose $ withFieldLabel "Participants" <$> bParticipants
           pure UnsafeForm { .. }
         eForm = Rx.tag bForm eSubmit
     pure . Rx.fforMaybe eForm $ \case

@@ -141,25 +141,24 @@ instance Aeson.ToJSON Time where
 validateTimeMaybe :: Text -> Validated (Maybe Time)
 validateTimeMaybe = readValidationMaybe
 
-validateDateTime :: MonadTime m => TimeZone -> Maybe Date -> Maybe Time -> m ()
-validateDateTime zonedTimeZone mDate mTime = case (mDate, mTime) of
-  (Nothing        , _      ) -> pure ()
-  (Just (Date day), Nothing) -> do
-    let localDay             = Time.addDays 1 day
-        localTimeOfDay       = Time.midnight
-        zonedTimeToLocalTime = LocalTime { .. }
-        clientTime           = ZonedTime { .. }
-    serverTime <- getZonedTime
-    case compareZonedTime serverTime clientTime of
-      LT -> pure ()
-      _  -> error "Must be in future" -- TODO: decent errors
-  (Just (Date localDay), Just (Time localTimeOfDay)) -> do
-    let zonedTimeToLocalTime = LocalTime { .. }
-        clientTime           = ZonedTime { .. }
-    serverTime <- getZonedTime
-    case compareZonedTime serverTime clientTime of
-      LT -> pure ()
-      _  -> error "Must be in future" -- TODO: decent errors
+validateDateTime
+  :: ZonedTime -> TimeZone -> Maybe Date -> Maybe Time -> Validated ()
+validateDateTime serverTime zonedTimeZone mDate mTime = case mDate of
+  Nothing -> pure ()
+  Just (Date date) ->
+    let clientTime = case mTime of
+          Nothing ->
+            let localDay             = Time.addDays 1 date
+                localTimeOfDay       = Time.midnight
+                zonedTimeToLocalTime = LocalTime { .. }
+            in  ZonedTime { .. }
+          Just (Time localTimeOfDay) ->
+            let localDay             = date
+                zonedTimeToLocalTime = LocalTime { .. }
+            in  ZonedTime { .. }
+    in  case compareZonedTime serverTime clientTime of
+          LT -> pure ()
+          _  -> failure "Must be in future" -- TODO: decent errors
 
 type Location = NonEmptyText
 

@@ -3,9 +3,11 @@
 
 
 # packages=(common)
+# packages=(backend)
+# packages=(frontend)
 # packages=(common backend)
 # packages=(common frontend)
-# packages=(common backend frontend)
+packages=(common backend frontend)
 
 error() {
     echo "ERROR: $1"
