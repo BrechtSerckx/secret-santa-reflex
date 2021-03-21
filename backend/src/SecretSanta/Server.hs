@@ -10,6 +10,7 @@ import           Polysemy.Input.Env
 import           Control.Monad.Except           ( liftEither )
 import qualified Data.ByteString.Lazy.Char8    as BSL
 import           Data.Error
+import qualified Data.Text                     as T
 
 import qualified Network.Wai.Application.Static
                                                as Static
@@ -54,12 +55,10 @@ secretSantaServer = do
   corsPolicy =
     CORS.simpleCorsResourcePolicy { CORS.corsRequestHeaders = ["content-type"] }
 
-runInHandler
-  :: forall r a
-   . r ~ '[SecretSanta, GetTime, Error InvalidDateTimeError, Embed IO]
-  => Opts
-  -> Sem r a
-  -> SS.Handler a
+type HandlerEffects
+  = '[SecretSanta , GetTime , Error InvalidDateTimeError , Embed IO]
+
+runInHandler :: forall a . Opts -> Sem HandlerEffects a -> SS.Handler a
 runInHandler Opts {..} act =
   let runMatch = runMatchRandom
       runEmail = case oEmailBackend of
@@ -69,28 +68,18 @@ runInHandler Opts {..} act =
   in  do
         eRes <-
           liftIO
-          . (fmap join . fmap (first fromException) . try) -- merge with exceptions
-          . (fmap join . fmap (first fromInternalError) . try) -- merge with internal errors
-          . fmap (first fromServerError) -- convert server error
+          . fmap join
+          . (fmap (first toServantError) . try @SomeException)
+          . fmap join
+          . (fmap (first toServantError) . try @InternalError)
           . runM
-          . runError
+          . (fmap (first toServantError) . runError)
           . runGetTime
           . runEmail
           . runMatch
           . runSecretSanta oEmailSender
           $ act
         liftEither eRes
- where
-  fromInternalError :: InternalError -> SS.ServerError
-  fromInternalError e =
-    SS.err500 { SS.errBody = BSL.pack $ displayException e }
-  fromException :: SomeException -> SS.ServerError
-  fromException e = SS.err500 { SS.errBody = BSL.pack $ displayException e }
-  fromServerError :: ServerError status name -> SS.ServerError
-  fromServerError e =
-    -- TODO
-    SS.err400 { SS.errBody = BSL.pack $ show e }
-
 
 apiServer
   :: Members '[SecretSanta , Embed IO] r => Opts -> SS.ServerT API' (Sem r)
@@ -110,3 +99,20 @@ staticServer Opts {..} =
     { Static.ssRedirectToIndex = True
     , Static.ssIndices         = pure . Static.unsafeToPiece $ "index.html"
     }
+
+
+-- TODO: remove, replace by UVerb
+class ToServantError e where
+  toServantError :: e -> SS.ServerError
+instance ToServantError SomeException where
+  toServantError e = SS.err500 { SS.errBody = BSL.pack $ displayException e }
+class IsStatusCode status where
+  errorConstructor :: Proxy status -> SS.ServerError
+instance IsStatusCode status => ToServantError (ServerError status _name) where
+  toServantError se = (errorConstructor $ Proxy @status)
+    { SS.errBody = BSL.pack . T.unpack $ errMessage se
+    }
+instance IsStatusCode 500 where
+  errorConstructor Proxy = SS.err500
+instance IsStatusCode 400 where
+  errorConstructor Proxy = SS.err400
