@@ -1,4 +1,5 @@
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE TypeApplications #-}
 module SecretSanta.Handler.Create
   ( createSecretSantaHandler
   , InvalidDateTimeError
@@ -10,8 +11,8 @@ import           Polysemy.Input
 
 import           Data.Error
 import           Data.Time.MonadTime
-import           Text.NonEmpty
 import           Data.Validate
+import           Text.NonEmpty
 
 import           Network.Mail.Mime
 import qualified Text.Blaze.Html.Renderer.Text as BlazeHtml
@@ -28,11 +29,11 @@ import           SecretSanta.Effect.Time        ( GetTime )
 type InvalidDateTimeError = ServerError 400 "INVALID_DATE_TIME"
 
 createSecretSantaHandler
-  :: Members '[Input Sender, Error InvalidDateTimeError, GetTime, Match, Email, Embed IO] r => Form -> Sem r ()
-createSecretSantaHandler f@(Form UnsafeForm {..}) = do
-  liftIO $ putStrLn @Text @IO "start"
-  liftIO $ print f
-  sender <- input @Sender
+  :: Members '[Input Sender , GetTime , Match , Email , Embed IO] r
+  => Form
+  -> Sem r ()
+createSecretSantaHandler f@(Form UnsafeForm {..}) = fmap fromRight . runError $ do
+  sender     <- input @Sender
   serverTime <- getZonedTime
   case validateDateTime serverTime fTimeZone fDate fTime of
     Success _  -> pure ()
@@ -41,11 +42,13 @@ createSecretSantaHandler f@(Form UnsafeForm {..}) = do
   case mMatches of
     Nothing      -> throwInternalError $ noMatchesFound fParticipants
     Just matches -> forM_ matches $ sendEmail . mkMail sender f
-  liftIO $ putStrLn @Text "done"
  where
   noMatchesFound ps =
     serverError ("No matches found: " <> show ps)
       `errWhen` "running Secret Santa"
+  fromRight = \case
+    Left _e -> undefined -- FIXME: add to api
+    Right r -> r
 
 mkMail :: Sender -> Form -> (Participant, Participant) -> Mail
 mkMail (Sender sender) f (gifter, receiver) =

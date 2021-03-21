@@ -4,7 +4,6 @@ module SecretSanta.Server
 
 
 import           Polysemy
-import           Polysemy.Error
 import           Polysemy.Input
 import           Polysemy.Input.Env
 
@@ -57,7 +56,7 @@ secretSantaServer = do
     CORS.simpleCorsResourcePolicy { CORS.corsRequestHeaders = ["content-type"] }
 
 type HandlerEffects
-  = '[Match, Email, GetTime , Input Sender, Error InvalidDateTimeError , Embed IO]
+  = '[Match, Email, GetTime , Input Sender , Embed IO]
 
 runInHandler :: forall a . Opts -> Sem HandlerEffects a -> SS.Handler a
 runInHandler Opts {..} act =
@@ -71,10 +70,8 @@ runInHandler Opts {..} act =
           liftIO
           . fmap join
           . (fmap (first toServantError) . try @SomeException)
-          . fmap join
           . (fmap (first toServantError) . try @InternalError)
           . runM
-          . (fmap (first toServantError) . runError)
           . runInputConst (Sender oEmailSender)
           . runGetTime
           . runEmail
