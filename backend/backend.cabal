@@ -23,10 +23,10 @@ executable backend
   other-modules:
     Main
     Polysemy.Input.Env
-    SecretSanta.Effect.SecretSanta
     SecretSanta.Effect.Email
     SecretSanta.Effect.Match
     SecretSanta.Effect.Time
+    SecretSanta.Handler.Create
     SecretSanta.Opts
     SecretSanta.Server
   ghc-options:

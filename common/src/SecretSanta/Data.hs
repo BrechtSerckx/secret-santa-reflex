@@ -26,6 +26,7 @@ module SecretSanta.Data
   , PEmail
   , validatePEmail
   , validatePEmailUnique
+  , Sender(..)
   ) where
 
 import           Control.Monad.Fail             ( fail )
@@ -41,6 +42,8 @@ import qualified Text.Show                     as Show
 import           Data.Refine
 import           Data.Time.MonadTime
 import           Data.Validate
+
+newtype Sender = Sender EmailAddress
 
 -- * Secret Santa form
 

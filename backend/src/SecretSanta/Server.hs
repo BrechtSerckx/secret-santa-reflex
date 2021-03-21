@@ -5,6 +5,7 @@ module SecretSanta.Server
 
 import           Polysemy
 import           Polysemy.Error
+import           Polysemy.Input
 import           Polysemy.Input.Env
 
 import           Control.Monad.Except           ( liftEither )
@@ -32,8 +33,8 @@ import           SecretSanta.API
 import           SecretSanta.Data
 import           SecretSanta.Effect.Email
 import           SecretSanta.Effect.Match
-import           SecretSanta.Effect.SecretSanta
 import           SecretSanta.Effect.Time
+import           SecretSanta.Handler.Create
 import           SecretSanta.Opts
 
 type API' = API :<|> Raw
@@ -56,7 +57,7 @@ secretSantaServer = do
     CORS.simpleCorsResourcePolicy { CORS.corsRequestHeaders = ["content-type"] }
 
 type HandlerEffects
-  = '[SecretSanta , GetTime , Error InvalidDateTimeError , Embed IO]
+  = '[Match, Email, GetTime , Input Sender, Error InvalidDateTimeError , Embed IO]
 
 runInHandler :: forall a . Opts -> Sem HandlerEffects a -> SS.Handler a
 runInHandler Opts {..} act =
@@ -74,24 +75,16 @@ runInHandler Opts {..} act =
           . (fmap (first toServantError) . try @InternalError)
           . runM
           . (fmap (first toServantError) . runError)
+          . runInputConst (Sender oEmailSender)
           . runGetTime
           . runEmail
           . runMatch
-          . runSecretSanta oEmailSender
           $ act
         liftEither eRes
 
 apiServer
-  :: Members '[SecretSanta , Embed IO] r => Opts -> SS.ServerT API' (Sem r)
+  :: Opts -> SS.ServerT API' (Sem HandlerEffects)
 apiServer opts = createSecretSantaHandler :<|> staticServer opts
-
-createSecretSantaHandler
-  :: Members '[SecretSanta , Embed IO] r => Form -> Sem r ()
-createSecretSantaHandler f = do
-  liftIO $ putStrLn @Text @IO "start"
-  liftIO $ print f
-  createSecretSanta f
-  liftIO $ putStrLn @Text "done"
 
 staticServer :: Opts -> SS.ServerT Raw (Sem r)
 staticServer Opts {..} =
