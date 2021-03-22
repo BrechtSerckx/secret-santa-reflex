@@ -33,10 +33,14 @@
     };
     useWarp = true;
     overrides = self: super: {
-      # servant-reflex = self.callCabal2nix "servant-reflex" sources.servant-reflex { };
       polysemy-plugin =
         hlib.dontCheck (hlib.markUnbroken super.polysemy-plugin);
       smtp-mail = self.callCabal2nix "smtp-mail" sources.smtp-mail { };
+
+      # override servant version
+      servant = self.callCabal2nix "servant" "${sources.servant}/servant" { };
+      servant-server = hlib.dontCheck (self.callCabal2nix "servant-server" "${sources.servant}/servant-server" { });
+      servant-foreign = self.callCabal2nix "servant-foreign" "${sources.servant}/servant-foreign" { };
 
       # stuff for nri-env-parser, sucks that it requires these deps
       # I'll have to build my own alternative, with blackjack and hookers!
