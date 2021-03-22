@@ -10,6 +10,10 @@
 }:
 
 let
+  sources.servant = builtins.fetchGit {
+    url = "https://github.com/haskell-servant/servant.git";
+    rev = "0ad2bd221ad390a442f740549a502d9524b2d5d5";
+  };
 
   reflexPlatform = import ./nix/reflex-platform.nix;
 
@@ -19,19 +23,25 @@ let
   ghcjsPkgs = with lib; reflexPlatform.${jsCompiler}.override {
     overrides = self: super: {
       http-media      = dontCheck super.http-media;
-      servant         = dontCheck super.servant;
+      # servant         = dontCheck super.servant;
       lens-aeson      = dontCheck super.lens-aeson;
       servant-reflex = lib.appendConfigureFlag
                          (self.callPackage ./default.nix {}) "-fExample";
+      servant = self.callCabal2nix "servant" "${sources.servant}/servant" { };
+      servant-server = hlib.dontCheck (self.callCabal2nix "servant-server" "${sources.servant}/servant-server" { });
+      servant-foreign = self.callCabal2nix "servant-foreign" "${sources.servant}/servant-foreign" { };
     };
   };
 
   ghcPkgs = with lib; reflexPlatform.${nativeCompiler}.override {
     overrides = self: super: {
-      servant-snap    = dontCheck ((import ./nix/servant-snap.nix {}) self super);
+      servant-snap    = doJailbreak (dontCheck ((import ./nix/servant-snap.nix {}) self super));
       testdriver      = self.callCabal2nix "testdriver" ./testdriver {};
       testserver      = import nix/testserver.nix ghcjsPkgs.servant-reflex self super;
       servant-reflex  = self.callPackage ./default.nix {};
+      servant = self.callCabal2nix "servant" "${sources.servant}/servant" { };
+      servant-server = hlib.dontCheck (self.callCabal2nix "servant-server" "${sources.servant}/servant-server" { });
+      servant-foreign = self.callCabal2nix "servant-foreign" "${sources.servant}/servant-foreign" { };
     };
   };
 

@@ -1,14 +1,17 @@
+{-# LANGUAGE UndecidableInstances #-}
 module SecretSanta.Server
   ( secretSantaServer
-  ) where
+  )
+where
 
 
 import           Polysemy
 import           Polysemy.Input
 import           Polysemy.Input.Env
 
+import           Control.Lens
 import           Control.Monad.Except           ( liftEither )
-import qualified Data.ByteString.Lazy.Char8    as BSL
+import qualified Data.Aeson                    as Aeson
 import           Data.Error
 import qualified Data.Text                     as T
 
@@ -23,6 +26,10 @@ import qualified Network.Wai.Middleware.Servant.Options
 import           Servant.API                    ( (:<|>)(..)
                                                 , Raw
                                                 )
+import qualified Servant.API                   as S
+import qualified Servant.API.TypeLevel         as S
+import qualified Servant.Foreign               as SF
+import qualified Servant.Foreign.Internal      as SF
 import qualified Servant.Server                as SS
 import qualified Servant.Server.StaticFiles    as SS
 import qualified WaiAppStatic.Types            as Static
@@ -55,8 +62,7 @@ secretSantaServer = do
   corsPolicy =
     CORS.simpleCorsResourcePolicy { CORS.corsRequestHeaders = ["content-type"] }
 
-type HandlerEffects
-  = '[Match, Email, GetTime , Input Sender , Embed IO]
+type HandlerEffects = '[Match, Email, GetTime, Input Sender, Embed IO]
 
 runInHandler :: forall a . Opts -> Sem HandlerEffects a -> SS.Handler a
 runInHandler Opts {..} act =
@@ -68,9 +74,11 @@ runInHandler Opts {..} act =
   in  do
         eRes <-
           liftIO
+          . fmap (first toServantError)
           . fmap join
-          . (fmap (first toServantError) . try @SomeException)
-          . (fmap (first toServantError) . try @InternalError)
+          . fmap (first $ serverError . T.pack . displayException)
+          . try @SomeException
+          . try @InternalError
           . runM
           . runInputConst (Sender oEmailSender)
           . runGetTime
@@ -79,8 +87,7 @@ runInHandler Opts {..} act =
           $ act
         liftEither eRes
 
-apiServer
-  :: Opts -> SS.ServerT API' (Sem HandlerEffects)
+apiServer :: Opts -> SS.ServerT API' (Sem HandlerEffects)
 apiServer opts = createSecretSantaHandler :<|> staticServer opts
 
 staticServer :: Opts -> SS.ServerT Raw (Sem r)
@@ -90,19 +97,35 @@ staticServer Opts {..} =
     , Static.ssIndices         = pure . Static.unsafeToPiece $ "index.html"
     }
 
-
--- TODO: remove, replace by UVerb
-class ToServantError e where
-  toServantError :: e -> SS.ServerError
-instance ToServantError SomeException where
-  toServantError e = SS.err500 { SS.errBody = BSL.pack $ displayException e }
 class IsStatusCode status where
   errorConstructor :: Proxy status -> SS.ServerError
-instance IsStatusCode status => ToServantError (ServerError status _name) where
-  toServantError se = (errorConstructor $ Proxy @status)
-    { SS.errBody = BSL.pack . T.unpack $ errMessage se
-    }
+toServantError
+  :: forall status name
+   . (IsStatusCode status, KnownSymbol name)
+  => ServerError status name
+  -> SS.ServerError
+toServantError se = (errorConstructor $ Proxy @status)
+  { SS.errBody    = Aeson.encode se
+  , SS.errHeaders = [("Content-Type", "application/json")]
+  }
 instance IsStatusCode 500 where
   errorConstructor Proxy = SS.err500
 instance IsStatusCode 400 where
   errorConstructor Proxy = SS.err400
+
+instance
+  ( SF.HasForeignType lang ftype as
+  , SF.ReflectMethod method
+  , S.Elem SF.JSON list
+  )
+  => SF.HasForeign (lang::k) ftype (S.UVerb method list as) where
+  type Foreign ftype (S.UVerb method list as) = SF.Req ftype
+  foreignFor lang Proxy Proxy req =
+    req
+      & (SF.reqFuncName . SF._FunctionName %~ (methodLC :))
+      & (SF.reqMethod .~ method)
+      & (SF.reqReturnType .~ Just retType)
+   where
+    retType  = SF.typeFor lang (Proxy :: Proxy ftype) (Proxy :: Proxy as)
+    method   = SF.reflectMethod (Proxy :: Proxy method)
+    methodLC = T.toLower $ decodeUtf8 method

@@ -44,9 +44,9 @@
         "type": "git"
     },
     "servant": {
-        "ref": "refs/tags/v0.18.2",
+        "ref": "master",
         "repo": "https://github.com/haskell-servant/servant.git",
-        "rev": "0ad2bd221ad390a442f740549a502d9524b2d5d5",
+        "rev": "0743ca724d7ab217094363b8d4c0cf510775fe63",
         "tag": "refs/tags/v0.18.2",
         "type": "git"
     },

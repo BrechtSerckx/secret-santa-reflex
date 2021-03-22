@@ -20,19 +20,21 @@ import qualified Text.Blaze.Renderer.Text      as BlazeText
 import "common"  Text.EmailAddress
 import           Text.Hamlet
 
+import           Servant.API.UVerb
+import           Servant.Server.UVerb
+
+import           SecretSanta.API
 import           SecretSanta.Data
 import           SecretSanta.Effect.Email
 import           SecretSanta.Effect.Match
 import           SecretSanta.Effect.Time        ( GetTime )
 
 
-type InvalidDateTimeError = ServerError 400 "INVALID_DATE_TIME"
-
 createSecretSantaHandler
   :: Members '[Input Sender , GetTime , Match , Email , Embed IO] r
   => Form
-  -> Sem r ()
-createSecretSantaHandler f@(Form UnsafeForm {..}) = fmap fromRight . runError $ do
+  -> Sem r (Union '[WithStatus 200 () , InvalidDateTimeError])
+createSecretSantaHandler f@(Form UnsafeForm {..}) = fromRight =<< runError do
   sender     <- input @Sender
   serverTime <- getZonedTime
   case validateDateTime serverTime fTimeZone fDate fTime of
@@ -47,8 +49,8 @@ createSecretSantaHandler f@(Form UnsafeForm {..}) = fmap fromRight . runError $ 
     serverError ("No matches found: " <> show ps)
       `errWhen` "running Secret Santa"
   fromRight = \case
-    Left _e -> undefined -- FIXME: add to api
-    Right r -> r
+    Right r -> respond $ WithStatus @200 r
+    Left  e -> respond e
 
 mkMail :: Sender -> Form -> (Participant, Participant) -> Mail
 mkMail (Sender sender) f (gifter, receiver) =

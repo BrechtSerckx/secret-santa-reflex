@@ -40,6 +40,8 @@ executable frontend
     , pretty-simple
     , either
     , servant
+    , aeson
+    , bytestring
   hs-source-dirs:
     src
   if flag(devel)

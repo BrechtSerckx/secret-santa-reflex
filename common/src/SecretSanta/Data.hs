@@ -109,7 +109,7 @@ instance Aeson.FromJSON TimeZone where
         "Invalid timezone. Allowed: ±HHMM format, single-letter military time-zones, and these time-zones: 'UTC', 'UT', 'GMT', 'EST', 'EDT', 'CST', 'CDT', 'MST', 'MDT', 'PST', 'PDT'."
 
 instance Aeson.ToJSON TimeZone where
-  toJSON = Aeson.String . show
+  toJSON = Aeson.String . T.pack . Time.timeZoneOffsetString
 
 newtype Date = Date { unDate :: Time.Day }
   deriving newtype (Show, Read, Eq, Aeson.ToJSON, Aeson.FromJSON)

@@ -39,36 +39,50 @@ module Servant.Reflex
 
 ------------------------------------------------------------------------------
 import           Control.Applicative
-import qualified Data.CaseInsensitive    as CI
-import           Data.Functor.Identity
-import qualified Data.Map                as Map
+import           Control.Arrow                  ( (+++)
+                                                , left
+                                                )
 import           Data.Monoid             ((<>))
-import           Data.Proxy              (Proxy (..))
+import qualified Data.ByteString.Lazy          as BSL
+import Data.Bifunctor  (second)
 import qualified Data.Set                as Set
+import qualified Data.Text.Encoding      as E
+import qualified Data.CaseInsensitive    as CI
+import Data.Either (partitionEithers)
+import           Data.Functor.Identity
+import           Data.Proxy              (Proxy (..))
+import qualified Data.Map                as Map
+import           Data.SOP.BasicFunctors ((:.:)(..), I(..))
+import           Data.SOP.Constraint (All(..))
+import           Data.SOP.NP (NP(..), cpure_NP)
+import           Data.SOP.NS (NS(..))
 import           Data.Text               (Text)
 import qualified Data.Text               as T
-import qualified Data.Text.Encoding      as E
 import           GHC.Exts                (Constraint)
 import           GHC.TypeLits            (KnownSymbol, symbolVal)
-import           Servant.API             ((:<|>) (..), (:>), BasicAuth,
-                                          BasicAuthData, BuildHeadersTo (..),
-                                          Capture, Header, Headers (..),
-                                          HttpVersion, IsSecure,
-                                          MimeRender (..), MimeUnrender,
+import           Network.HTTP.Media             ( MediaType )
+import           Network.HTTP.Types             ( Status
+                                                , mkStatus
+                                                )
+import           Servant.API             ((:<|>)(..),(:>), BasicAuth,
+                                          BasicAuthData, BuildHeadersTo(..),
+                                          Capture, contentType, Header,
+                                          Headers(..), HttpVersion, IsSecure,
+                                          MimeRender(..), MimeUnrender, inject,
                                           NoContent, QueryFlag, QueryParam,
-                                          QueryParams, Raw, ReflectMethod (..),
-                                          RemoteHost, ReqBody,
-                                          ToHttpApiData (..), Vault, Verb,
-                                          contentType)
-import           Servant.API.Description (Summary)
+                                          QueryParams, Raw, ReflectMethod(..),
+                                          RemoteHost, ReqBody, HasStatus(..), statusOf,
+                                          ToHttpApiData(..), Vault, Verb, UVerb, Union)
+import Servant.API.ContentTypes      (AllMime, AllMimeUnrender, allMimeUnrender)
+import Servant.API.UVerb             (HasStatuses)
 import qualified Servant.Auth            as Auth
 
 import           Reflex.Dom.Core         (Dynamic, Event, Reflex,
-                                          XhrRequest (..), XhrResponse (..),
-                                          XhrResponseHeaders (..),
-                                          attachPromptlyDynWith, constDyn, ffor,
-                                          fmapMaybe, leftmost,
-                                          performRequestsAsync)
+                                          XhrRequest(..),
+                                          XhrResponseHeaders(..),
+                                          XhrResponse(..), attachPromptlyDynWith, constDyn, ffor, fmapMaybe,
+                                          leftmost, performRequestsAsync, XhrResponseBody(..)
+                                          )
 ------------------------------------------------------------------------------
 import           Servant.Common.BaseUrl  (BaseUrl(..), Scheme(..), baseUrlWidget,
                                           showBaseUrl,
@@ -78,7 +92,7 @@ import           Servant.Common.Req      (ClientOptions(..),
                                           Req, ReqResult(..), QParam(..),
                                           QueryPart(..), addHeader, authData,
                                           defReq, evalResponse, prependToPathParts,
-                                          -- performRequestCT,
+                                          performRequests,
                                           performRequestsCT,
                                           -- performRequestNoBody,
                                           performRequestsNoBody,
@@ -328,19 +342,6 @@ instance HasClient t m sublayout tag
 
   clientWithRouteAndResultHandler Proxy =
     clientWithRouteAndResultHandler (Proxy :: Proxy sublayout)
-
--- | Using a 'Summary' combinator in your API doesn't affect the client
--- functions.
-instance (HasClient t m sublayout tag, KnownSymbol sym)
-  => HasClient t m (Summary sym :> sublayout) tag where
-
-  type Client t m (Summary sym :> sublayout) tag =
-    Client t m sublayout tag
-
-  clientWithRouteAndResultHandler Proxy =
-    clientWithRouteAndResultHandler (Proxy :: Proxy sublayout)
-
-
 
 
 -- | If you use a 'QueryParam' in one of your endpoints in your API,
@@ -623,3 +624,77 @@ type family HasCookieAuth xs :: Constraint where
 
 class CookieAuthNotEnabled
 
+
+-- * servant-uverb
+
+instance
+  ( SupportsServantReflex t m
+  , ReflectMethod method
+  , AllMime contentTypes
+  , All (AllMimeUnrender contentTypes) as
+  , All HasStatus as
+  , HasStatuses as
+  )
+  => HasClient t m (UVerb method contentTypes as) tag where
+  type Client t m (UVerb method contentTypes as) tag
+    = Event t tag -> m (Event t (ReqResult tag (Union as)))
+  clientWithRouteAndResultHandler
+    :: Proxy layout -- ^ route
+    -> Proxy m -- ^ widget monad
+    -> Proxy tag -- ^ tag
+    -> Req t -- ^ request
+    -> Dynamic t BaseUrl -- ^ base url
+    -> ClientOptions -- ^ opts
+    -> (  forall a
+        . Event t (ReqResult tag a)
+       -> m (Event t (ReqResult tag a))
+       ) -- ^ result handler
+    -> Event t tag -- ^ event
+    -> m (Event t (ReqResult tag (Union as)))
+  clientWithRouteAndResultHandler Proxy Proxy Proxy req dBaseUrl opts resultHandler trigger
+    = do
+      let method = E.decodeUtf8 . reflectMethod $ (Proxy :: Proxy method)
+          dReqs  = constDyn . Identity $ req { reqMethod = method }
+
+      resps :: Event t (tag, Either Text XhrResponse) <-
+        fmap (second runIdentity)
+          <$> performRequests method dReqs dBaseUrl opts trigger
+      resultHandler . ffor resps $ \(t, r) -> case r of
+        Left e -> RequestFailure t e
+        Right (resp :: XhrResponse) ->
+          let status = mkStatus
+                (fromIntegral $ _xhrResponse_status resp)
+                (E.encodeUtf8 $ _xhrResponse_statusText resp)
+              body = case _xhrResponse_response resp of
+                Just (XhrResponseBody_ArrayBuffer bs) -> BSL.fromStrict bs
+                _ -> ""
+              res = tryParsers status $ mimeUnrenders body
+          in  case res of
+                Left  errors -> ResponseFailure t (T.intercalate "," errors) resp
+                Right x      -> ResponseSuccess t x resp
+   where
+    tryParsers
+      :: forall xs
+       . All HasStatus xs
+      => Status
+      -> NP ([] :.: Either (MediaType, String)) xs
+      -> Either [Text] (Union xs)
+    tryParsers _ Nil = Left ["ClientNoMatchingStatus"]
+    tryParsers status (Comp x :* xs)
+      | status == statusOf (Comp x) = case partitionEithers x of
+        (err', []) ->
+          (map (mappend "ClientParseError: " . T.pack . show) err' ++)
+            +++ S
+            $   tryParsers status xs
+        (_, (res : _)) -> Right . inject . I $ res
+      | otherwise = -- no reason to parse in the first place. This ain't the one we're looking for
+                    ("ClientStatusMismatch" :) +++ S $ tryParsers status xs
+    mimeUnrenders
+      :: BSL.ByteString -> NP ([] :.: Either (MediaType, String)) as
+    mimeUnrenders body = cpure_NP
+      (Proxy :: Proxy (AllMimeUnrender contentTypes))
+      ( Comp
+      . map (\(mediaType, parser) -> left ((,) mediaType) (parser body))
+      . allMimeUnrender
+      $ (Proxy :: Proxy contentTypes)
+      )

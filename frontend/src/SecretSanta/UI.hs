@@ -1,12 +1,18 @@
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 module SecretSanta.UI where
 
+import qualified Data.Aeson                    as Aeson
+import qualified Data.ByteString.Lazy          as BSL
 
 import qualified Reflex                        as Rx
 import qualified Reflex.Dom                    as Rx
+import qualified Servant.API                   as S
+import qualified Servant.API.UVerb             as S
 import qualified Servant.Reflex                as SR
 
 import           Config                         ( baseUrl )
+import           Data.Error
 import           SecretSanta.API
 import           SecretSanta.Data
 import           SecretSanta.UI.Form
@@ -37,35 +43,53 @@ bodyWidget = Rx.elClass "section" "section" . Rx.elClass "div" "container" $ do
 
   -- form
   rec
-      -- first show form, wheb event fires show nothing
+      -- first show form, when event fires show nothing
       eFormSubmitted <- Rx.switch . Rx.current <$> Rx.widgetHold
-        formWidget'
-        (eSuccess $> dummyFormWidget)
+        (Rx.elClass "div" "block" formWidget)
+        (eSuccess $> (Rx.blank $> Rx.never))
       dReqBody <- Rx.traceDyn "reqbody" <$> mkReqBody eFormSubmitted
-      eReqRes <- cCreateSecretSanta dReqBody $ Rx.traceEvent "submit req" $ void
-        eFormSubmitted
-      let eSuccess = Rx.fmapMaybe SR.reqSuccess eReqRes
+      eReqRes  <-
+        fmap (fmap parseReqResult)
+        . cCreateSecretSanta dReqBody
+        $ Rx.traceEvent "submit req"
+        $ void eFormSubmitted
+      let eSuccess = Rx.fforMaybe eReqRes $ \case
+            Left  _ -> Nothing
+            Right r -> Just r
 
-  -- show errors
-  Rx.widgetHold_ Rx.blank $ mkErrorWidget <$> eReqRes
-  -- show response if success
-  Rx.widgetHold_ Rx.blank $ mkSuccessWidget <$> eSuccess
-
-
+  -- success or errors widget
+  Rx.widgetHold_ Rx.blank $ eReqRes <&> \case
+    Left err -> displayErr err
+    Right u ->
+      fromMaybe
+          (         throwInternalError
+          $         serverError "Unexpected return type"
+          `errWhen` "making secret-santa return widget"
+          )
+        . foldl' @[] (<|>) Nothing
+        $ [ S.matchUnion @(S.WithStatus 200 ()) u
+            $> ( Rx.elClass "div" "notification is-success"
+               $ Rx.text "Secret Santa successfully submitted!"
+               )
+          , S.matchUnion @InvalidDateTimeError u <&> displayErr . errMessage
+          ]
  where
-  displayErr      = Rx.elClass "el" "notification is-danger" . Rx.text
-  formWidget'     = Rx.elClass "div" "block" formWidget
-  dummyFormWidget = Rx.blank $> Rx.never
-  mkReqBody       = Rx.holdDyn (Left "") . fmap Right
-  mkErrorWidget   = \case
-    SR.ResponseSuccess _ () _ -> Rx.blank
-    SR.ResponseFailure _ t  _ -> displayErr t
-    SR.RequestFailure _ t     -> displayErr t
-  mkSuccessWidget =
-    const
-      $ Rx.elClass "div" "notification is-success"
-      . Rx.text
-      $ "Secret Santa successfully submitted!"
+  displayErr = Rx.elClass "div" "notification is-danger" . Rx.el "p" . Rx.text
+  mkReqBody  = Rx.holdDyn (Left "") . fmap Right
+
+parseReqResult :: SR.ReqResult tag a -> Either Text a
+parseReqResult = \case
+  SR.ResponseSuccess _ a _ -> Right a
+  SR.ResponseFailure _ err b ->
+    Left . fromMaybe err $ Rx._xhrResponse_response b <&> \case
+      Rx.XhrResponseBody_Default t -> t
+      Rx.XhrResponseBody_Text    t -> t
+      Rx.XhrResponseBody_Blob    _ -> "<blob>"
+      Rx.XhrResponseBody_ArrayBuffer t ->
+        case Aeson.decode' @InternalError $ BSL.fromStrict t of
+          Just e  -> errMessage e
+          Nothing -> "<arraybuffer>"
+  SR.RequestFailure _ err -> Left err
 
 
 cCreateSecretSanta
@@ -73,7 +97,14 @@ cCreateSecretSanta
    . Rx.MonadWidget t m
   => Rx.Dynamic t (Either Text Form)
   -> Rx.Event t ()
-  -> m (Rx.Event t (SR.ReqResult () ()))
+  -> m
+       ( Rx.Event
+           t
+           ( SR.ReqResult
+               ()
+               (S.Union '[S.WithStatus 200 (), InvalidDateTimeError])
+           )
+       )
 
 --brittany-disable-next-binding
 ( cCreateSecretSanta
@@ -81,3 +112,4 @@ cCreateSecretSanta
 
 client :: forall t m . Rx.MonadWidget t m => SR.Client t m API ()
 client = SR.client api (Proxy @m) (Proxy @()) $ Rx.constDyn baseUrl
+
