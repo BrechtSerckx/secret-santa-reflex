@@ -367,15 +367,19 @@ participantsWidget eAddNewParticipant layout eSubmit = do
       Rx.foldDyn ($) initialParticipants
       . Rx.mergeWith (.)
       $ [ addNewParticipant <$ eAddNewParticipant
-        , overParticipants (\(DeleteParticipant i) -> Map.delete i)
-        $   map fst
-        <$> dParticipantsMap
-        , overParticipants (\(UpdateParticipant i n) -> Map.adjust (const n) i)
-        $   map snd
-        <$> dParticipantsMap
+        , eDeleteParticipants
+        , eUpdateParticipants
         ]
-    dParticipantsMap <- Rx.listWithKey dCurrParticipants
+    dParticipantMap <- Rx.listWithKey dCurrParticipants
       $ \k p -> participantWidget k p layout eSubmit
+    let eDeleteParticipants =
+          overParticipants (\(DeleteParticipant i) -> Map.delete i)
+            $   map fst
+            <$> dParticipantMap
+        eUpdateParticipants =
+          overParticipants (\(UpdateParticipant i n) -> Map.adjust (const n) i)
+            $   map snd
+            <$> dParticipantMap
   pure . Rx.current $ sequenceA . Map.elems <$> dCurrParticipants
  where
   overParticipants f m =
@@ -402,7 +406,8 @@ participantWidget
          )
        )
 participantWidget k p layout eSubmit = do
-  (bName, bEmail, eDeleted) <- layout (wName, wEmail, wDelete)
+  (bName, bEmail, eDeleted) <- layout
+    (wPName eSubmit, wPEmail eSubmit, wPDelete k)
   let dParticipant :: Rx.Dynamic t (Validated Participant)
       dParticipant = getCompose $ do
         pName  <- Compose bName
@@ -410,63 +415,69 @@ participantWidget k p layout eSubmit = do
         pure Participant { .. }
       eUpdated = UpdateParticipant k <$> Rx.updated dParticipant
   pure $ (eDeleted, eUpdated)
- where
-  wName :: m (Rx.Dynamic t (Validated PName))
-  wName = do
-    let defaultAttrs = mconcat
-          [ "placeholder" =: "Participant name"
-          , "class" =: "input"
-          , "type" =: "text"
-          ]
-    rec let wUnvalidatedInput =
-              Rx.inputElement
-                $ def
-                & (  Rx.inputElementConfig_elementConfig
-                  .  Rx.elementConfig_initialAttributes
-                  .~ defaultAttrs
-                  )
-                & (  Rx.inputElementConfig_elementConfig
-                  .  Rx.elementConfig_modifyAttributes
-                  .~ setValidationAttrs defaultAttrs
-                  )
-        (setValidationAttrs, dValidatedInput) <- mkValidation
-          eSubmit
-          wUnvalidatedInput
-          validatePName
-    pure dValidatedInput
-  wEmail :: m (Rx.Dynamic t (Validated PEmail))
-  wEmail = do
-    let defaultAttrs = mconcat
-          [ "placeholder" =: "john.doe@email.com"
-          , "class" =: "input"
-          , "type" =: "email"
-          ]
-    rec let wUnvalidatedInput =
-              Rx.inputElement
-                $ def
-                & (  Rx.inputElementConfig_elementConfig
-                  .  Rx.elementConfig_initialAttributes
-                  .~ defaultAttrs
-                  )
-                & (  Rx.inputElementConfig_elementConfig
-                  .  Rx.elementConfig_modifyAttributes
-                  .~ setValidationAttrs defaultAttrs
-                  )
-        (setValidationAttrs, dValidatedInput) <- mkValidation
-          eSubmit
-          wUnvalidatedInput
-          validatePEmail
-    pure dValidatedInput
-  wDelete =
-    fmap (fmap (const (DeleteParticipant k)) . Rx.domEvent Rx.Click)
-      . fmap fst
-      . Rx.element
-          "button"
-          (  def
-          &  Rx.elementConfig_initialAttributes
-          .~ [("class", "button is-danger"), ("type", "button")]
-          )
-      $ Rx.text "x"
+
+wPName
+  :: Rx.MonadWidget t m
+  => Rx.Event t Submit
+  -> m (Rx.Dynamic t (Validated PName))
+wPName eSubmit = do
+  let defaultAttrs = mconcat
+        [ "placeholder" =: "Participant name"
+        , "class" =: "input"
+        , "type" =: "text"
+        ]
+  rec let wUnvalidatedInput =
+            Rx.inputElement
+              $ def
+              & (  Rx.inputElementConfig_elementConfig
+                .  Rx.elementConfig_initialAttributes
+                .~ defaultAttrs
+                )
+              & (  Rx.inputElementConfig_elementConfig
+                .  Rx.elementConfig_modifyAttributes
+                .~ setValidationAttrs defaultAttrs
+                )
+      (setValidationAttrs, dValidatedInput) <- mkValidation eSubmit
+                                                            wUnvalidatedInput
+                                                            validatePName
+  pure dValidatedInput
+
+wPEmail
+  :: Rx.MonadWidget t m
+  => Rx.Event t Submit
+  -> m (Rx.Dynamic t (Validated PEmail))
+wPEmail eSubmit = do
+  let defaultAttrs = mconcat
+        [ "placeholder" =: "john.doe@email.com"
+        , "class" =: "input"
+        , "type" =: "email"
+        ]
+  rec let wUnvalidatedInput =
+            Rx.inputElement
+              $ def
+              & (  Rx.inputElementConfig_elementConfig
+                .  Rx.elementConfig_initialAttributes
+                .~ defaultAttrs
+                )
+              & (  Rx.inputElementConfig_elementConfig
+                .  Rx.elementConfig_modifyAttributes
+                .~ setValidationAttrs defaultAttrs
+                )
+      (setValidationAttrs, dValidatedInput) <- mkValidation eSubmit
+                                                            wUnvalidatedInput
+                                                            validatePEmail
+  pure dValidatedInput
+wPDelete :: Rx.MonadWidget t m => Int -> m (Rx.Event t DeleteParticipant)
+wPDelete k =
+  fmap (fmap (const (DeleteParticipant k)) . Rx.domEvent Rx.Click)
+    . fmap fst
+    . Rx.element
+        "button"
+        (  def
+        &  Rx.elementConfig_initialAttributes
+        .~ [("class", "button is-danger"), ("type", "button")]
+        )
+    $ Rx.text "x"
 
 submitWidget :: Rx.DomBuilder t m => m (Rx.Event t Submit)
 submitWidget = fieldHorizontal . control $ do
