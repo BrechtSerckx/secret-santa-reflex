@@ -8,11 +8,6 @@ module SecretSanta.Data
   , validateHostName
   , HostEmail
   , validateHostEmail
-  , Date(..)
-  , validateDateMaybe
-  , Time(..)
-  , validateTimeMaybe
-  , validateDateTime
   , Location
   , validateLocationMaybe
   , Price
@@ -27,20 +22,16 @@ module SecretSanta.Data
   , validatePEmail
   , validatePEmailUnique
   , Sender(..)
-  ) where
+  )
+where
 
-import           Control.Monad.Fail             ( fail )
 import qualified Data.Aeson                    as Aeson
 import qualified Data.List                     as L
-import qualified Data.Text                     as T
-import qualified Data.Time                     as Time
+import qualified "this" Data.Time              as Time
 import           Text.EmailAddress
 import           Text.NonEmpty
-import qualified Text.Read                     as Read
-import qualified Text.Show                     as Show
 
 import           Data.Refine
-import           Data.Time.MonadTime
 import           Data.Validate
 
 newtype Sender = Sender EmailAddress
@@ -51,9 +42,9 @@ data UnsafeForm = UnsafeForm
   { fEventName    :: EventName
   , fHostName     :: HostName
   , fHostEmail    :: HostEmail
-  , fTimeZone     :: TimeZone
-  , fDate         :: Maybe Date
-  , fTime         :: Maybe Time
+  , fTimeZone     :: Time.TimeZone
+  , fDate         :: Maybe Time.Date
+  , fTime         :: Maybe Time.Time
   , fLocation     :: Maybe Location
   , fPrice        :: Maybe Price
   , fDescription  :: Description
@@ -97,69 +88,6 @@ type HostEmail = EmailAddress
 
 validateHostEmail :: Text -> Validated HostEmail
 validateHostEmail = validateEmailAddress
-
-instance Aeson.FromJSON TimeZone where
-  parseJSON = Aeson.withText "TimeZone" $ \t ->
-    case readMaybe . T.unpack $ t of
-      Just r  -> pure r
-      Nothing -> invalidTimeZone
-   where
-    invalidTimeZone =
-      fail
-        "Invalid timezone. Allowed: ±HHMM format, single-letter military time-zones, and these time-zones: 'UTC', 'UT', 'GMT', 'EST', 'EDT', 'CST', 'CDT', 'MST', 'MDT', 'PST', 'PDT'."
-
-instance Aeson.ToJSON TimeZone where
-  toJSON = Aeson.String . T.pack . Time.timeZoneOffsetString
-
-newtype Date = Date { unDate :: Time.Day }
-  deriving newtype (Show, Read, Eq, Aeson.ToJSON, Aeson.FromJSON)
-validateDateMaybe :: Text -> Validated (Maybe Date)
-validateDateMaybe = readValidationMaybe
-
-newtype Time = Time { unTime :: Time.TimeOfDay }
-  deriving newtype Eq
-
-instance Show.Show Time where
-  show (Time (Time.TimeOfDay h m _s)) = show h <> ":" <> show m
-
-instance Read.Read Time where
-  readsPrec _ = \case
-    (h1 : h2 : ':' : m1 : m2 : rest) -> maybe [] pure $ do
-      h' <- readMaybe [h1, h2]
-      m' <- readMaybe [m1, m2]
-      (, rest) . Time <$> Time.makeTimeOfDayValid h' m' 0
-    _ -> []
-
-instance Aeson.FromJSON Time where
-  parseJSON = Aeson.withText "Time" $ \t -> case readMaybe . T.unpack $ t of
-    Just r  -> pure r
-    Nothing -> invalidTime
-    where invalidTime = fail "Invalid time. Format: hh:mm"
-
-instance Aeson.ToJSON Time where
-  toJSON = Aeson.String . show
-
-validateTimeMaybe :: Text -> Validated (Maybe Time)
-validateTimeMaybe = readValidationMaybe
-
-validateDateTime
-  :: ZonedTime -> TimeZone -> Maybe Date -> Maybe Time -> Validated ()
-validateDateTime serverTime zonedTimeZone mDate mTime = case mDate of
-  Nothing -> pure ()
-  Just (Date date) ->
-    let clientTime = case mTime of
-          Nothing ->
-            let localDay             = Time.addDays 1 date
-                localTimeOfDay       = Time.midnight
-                zonedTimeToLocalTime = LocalTime { .. }
-            in  ZonedTime { .. }
-          Just (Time localTimeOfDay) ->
-            let localDay             = date
-                zonedTimeToLocalTime = LocalTime { .. }
-            in  ZonedTime { .. }
-    in  case compareZonedTime serverTime clientTime of
-          LT -> pure ()
-          _  -> failure "Must be in future" -- TODO: decent errors
 
 type Location = NonEmptyText
 
