@@ -1,14 +1,13 @@
 module Text.NonEmpty
   ( NonEmptyText
   , unNonEmptyText
-  )
-where
+  ) where
 
 
 import qualified Data.Aeson                    as Aeson
 import           Data.Refine
-import           Data.Validate
 import qualified Data.Text                     as T
+import           Data.Validate
 
 newtype NonEmptyText = NonEmptyText { unNonEmptyText :: Text}
   deriving newtype (Show, Eq)

@@ -22,16 +22,18 @@ Referer: http://localhost:3003/
 # Create secret santa
 POST :backend/api/secret-santa
 Content-Type: application/json
-{ "fEventName"    : "My Secret Santa"
-, "fHostName"     : "Foo"
-, "fHostEmail"    : "foo@bar"
-, "fTimeZone"     : "+0100"
-, "fDate"         : "2021-03-18"
-, "fTime"         : "13:26"
-, "fLocation"     : null
-, "fPrice"        : null
-, "fDescription"  : "Some description"
-, "fParticipants" :
+{ "secretsantaInfo":
+  { "iEventName"    : "My Secret Santa"
+  , "iHostName"     : "Foo"
+  , "iHostEmail"    : "foo@bar"
+  , "iTimeZone"     : "+0100"
+  , "iDate"         : "2022-03-18"
+  , "iTime"         : "13:26"
+  , "iLocation"     : null
+  , "iPrice"        : null
+  , "iDescription"  : "Some description"
+  }
+, "secretsantaParticipants" :
   [ { "pName" : "Brecht"
     , "pEmail" : "brecht@host"
     }

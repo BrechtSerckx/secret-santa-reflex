@@ -55,6 +55,7 @@
         self.callCabal2nix "tasty-test-reporter" sources.tasty-test-reporter
         { };
       brittany = self.callCabal2nix "brittany" sources.brittany {};
+      beam-migrate = hlib.doJailbreak super.beam-migrate;
     };
     shellToolOverrides = ghc: super: {
       inherit (ghc) brittany hlint;

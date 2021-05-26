@@ -7,14 +7,19 @@ module Data.Refine
   , (|>)
   , refineTextMaybe
   , refineTextReadMaybe
-  )
-where
+  , unsafeRefine
+  ) where
+
+import           Prelude                 hiding ( from
+                                                , to
+                                                )
 
 import           Control.Monad.Fail             ( fail )
 import qualified Data.Aeson                    as Aeson
 import           Data.Coerce                    ( Coercible
                                                 , coerce
                                                 )
+import           Data.Error
 import qualified Data.Text                     as T
 import           Data.Validate
 
@@ -62,3 +67,10 @@ refineTextReadMaybe
 refineTextReadMaybe t
   | T.null t  = Success Nothing
   | otherwise = fmap Just $ readValidation t `bindValidation` refine
+
+unsafeRefine :: Refine from to => Text -> from -> to
+unsafeRefine ctx from = case refine from of
+  Success to -> to
+  Failure errs ->
+    let msg = mconcat $ "Errors while using unsafeRefine: " : errs
+    in  throwInternalError $ serverError msg `errContext` ctx

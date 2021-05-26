@@ -1,6 +1,9 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 module Data.Time
   ( module Export
+  , TimeZone(..)
+  , getCurrentTimeZone
+  , utcToZonedTime
   , Date(..)
   , validateDateMaybe
   , Time(..)
@@ -13,12 +16,22 @@ import           Control.Monad.Fail             ( fail )
 import qualified Data.Aeson                    as Aeson
 import qualified Data.Text                     as T
 import "time"    Data.Time                     as Export
-                                         hiding ( getTimeZone
+                                         hiding ( TimeZone(..)
+                                                , getCurrentTimeZone
+                                                , getTimeZone
                                                 , getZonedTime
+                                                , utcToZonedTime
                                                 )
+import qualified "time" Data.Time              as Time
 import           Data.Validate
 import qualified Text.Read                     as Read
 import qualified Text.Show                     as Show
+
+newtype TimeZone = TimeZone { unTimeZone :: Time.TimeZone }
+  deriving newtype (Eq, Ord, Read)
+
+instance Show TimeZone where
+  show = Time.timeZoneOffsetString . unTimeZone
 
 instance Aeson.FromJSON TimeZone where
   parseJSON = Aeson.withText "TimeZone" $ \t ->
@@ -31,25 +44,32 @@ instance Aeson.FromJSON TimeZone where
         "Invalid timezone. Allowed: ±HHMM format, single-letter military time-zones, and these time-zones: 'UTC', 'UT', 'GMT', 'EST', 'EDT', 'CST', 'CDT', 'MST', 'MDT', 'PST', 'PDT'."
 
 instance Aeson.ToJSON TimeZone where
-  toJSON = Aeson.String . T.pack . timeZoneOffsetString
+  toJSON = Aeson.String . T.pack . show
 
-newtype Date = Date { unDate :: Day }
+getCurrentTimeZone :: IO TimeZone
+getCurrentTimeZone = TimeZone <$> Time.getCurrentTimeZone
+
+utcToZonedTime :: TimeZone -> UTCTime -> ZonedTime
+utcToZonedTime (TimeZone timeZone) utcTime =
+  Time.utcToZonedTime timeZone utcTime
+
+newtype Date = Date { unDate :: Time.Day }
   deriving newtype (Show, Read, Eq, Aeson.ToJSON, Aeson.FromJSON)
 validateDateMaybe :: Text -> Validated (Maybe Date)
 validateDateMaybe = readValidationMaybe
 
-newtype Time = Time { unTime :: TimeOfDay }
+newtype Time = Time { unTime :: Time.TimeOfDay }
   deriving newtype Eq
 
 instance Show.Show Time where
-  show (Time (TimeOfDay h m _s)) = show h <> ":" <> show m
+  show (Time (Time.TimeOfDay h m _s)) = show h <> ":" <> show m
 
 instance Read.Read Time where
   readsPrec _ = \case
     (h1 : h2 : ':' : m1 : m2 : rest) -> maybe [] pure $ do
       h' <- readMaybe [h1, h2]
       m' <- readMaybe [m1, m2]
-      (, rest) . Time <$> makeTimeOfDayValid h' m' 0
+      (, rest) . Time <$> Time.makeTimeOfDayValid h' m' 0
     _ -> []
 
 instance Aeson.FromJSON Time where
@@ -65,23 +85,24 @@ validateTimeMaybe :: Text -> Validated (Maybe Time)
 validateTimeMaybe = readValidationMaybe
 
 validateDateTime
-  :: ZonedTime -> TimeZone -> Maybe Date -> Maybe Time -> Validated ()
-validateDateTime serverTime zonedTimeZone mDate mTime = case mDate of
-  Nothing -> pure ()
-  Just (Date date) ->
-    let clientTime = case mTime of
-          Nothing ->
-            let localDay             = addDays 1 date
-                localTimeOfDay       = midnight
-                zonedTimeToLocalTime = LocalTime { .. }
-            in  ZonedTime { .. }
-          Just (Time localTimeOfDay) ->
-            let localDay             = date
-                zonedTimeToLocalTime = LocalTime { .. }
-            in  ZonedTime { .. }
-    in  case compareZonedTime serverTime clientTime of
-          LT -> pure ()
-          _  -> failure "Must be in future" -- TODO: decent errors
+  :: Time.ZonedTime -> TimeZone -> Maybe Date -> Maybe Time -> Validated ()
+validateDateTime serverTime (TimeZone zonedTimeZone) mDate mTime =
+  case mDate of
+    Nothing -> pure ()
+    Just (Date date) ->
+      let clientTime = case mTime of
+            Nothing ->
+              let localDay             = Time.addDays 1 date
+                  localTimeOfDay       = Time.midnight
+                  zonedTimeToLocalTime = Time.LocalTime { .. }
+              in  Time.ZonedTime { .. }
+            Just (Time localTimeOfDay) ->
+              let localDay             = date
+                  zonedTimeToLocalTime = Time.LocalTime { .. }
+              in  Time.ZonedTime { .. }
+      in  case compareZonedTime serverTime clientTime of
+            LT -> pure ()
+            _  -> failure "Must be in future" -- TODO: decent errors
 
-compareZonedTime :: ZonedTime -> ZonedTime -> Ordering
-compareZonedTime zt1 zt2 = comparing zonedTimeToUTC zt1 zt2
+compareZonedTime :: Time.ZonedTime -> Time.ZonedTime -> Ordering
+compareZonedTime zt1 zt2 = comparing Time.zonedTimeToUTC zt1 zt2

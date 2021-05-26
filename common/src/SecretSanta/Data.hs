@@ -1,7 +1,13 @@
 module SecretSanta.Data
-  ( Form(..)
-  , validateForm
-  , UnsafeForm(..)
+  ( UnsafeSecretSantaT(..)
+  , UnsafeSecretSanta
+  , SecretSantaT(..)
+  , SecretSanta
+  , validateSecretSanta
+  , InfoT(..)
+  , Info
+  , ParticipantsT
+  , Participants
   , EventName
   , validateEventName
   , HostName
@@ -14,7 +20,8 @@ module SecretSanta.Data
   , validatePriceMaybe
   , Description
   , validateDescription
-  , Participant(..)
+  , ParticipantT(..)
+  , Participant
   , PName
   , validatePName
   , validatePNameUnique
@@ -22,6 +29,8 @@ module SecretSanta.Data
   , validatePEmail
   , validatePEmailUnique
   , Sender(..)
+  , WithPrimaryKeyT(..)
+  , WithPrimaryKey
   ) where
 
 import qualified Data.Aeson                    as Aeson
@@ -33,43 +42,94 @@ import           Text.NonEmpty
 import           Data.Refine
 import           Data.Validate
 
+import           Database.Beam
+
 newtype Sender = Sender EmailAddress
 
--- * Secret Santa form
-
-data UnsafeForm = UnsafeForm
-  { fEventName    :: EventName
-  , fHostName     :: HostName
-  , fHostEmail    :: HostEmail
-  , fTimeZone     :: Time.TimeZone
-  , fDate         :: Maybe Time.Date
-  , fTime         :: Maybe Time.Time
-  , fLocation     :: Maybe Location
-  , fPrice        :: Maybe Price
-  , fDescription  :: Description
-  , fParticipants :: [Participant]
+data WithPrimaryKeyT k t (f :: * -> *) = WithPrimaryKey
+  { key   :: Columnar f k
+  , value :: t f
   }
-  deriving stock (Show, Eq, Generic)
-  deriving anyclass (Aeson.ToJSON, Aeson.FromJSON)
+  deriving stock Generic
+  deriving anyclass Beamable
+type WithPrimaryKey k t = WithPrimaryKeyT k t Identity
 
-newtype Form = Form UnsafeForm
-  deriving newtype (Show, Eq)
-  deriving  (Aeson.ToJSON, Aeson.FromJSON) via (Refined UnsafeForm Form)
+-- * Secret Santa
 
-instance Refine UnsafeForm Form where
-  rguard UnsafeForm {..} = mconcat
-    [ not (unique $ pName <$> fParticipants)
+-- | Base secret santa
+data UnsafeSecretSantaT f = UnsafeSecretSanta
+  { secretsantaInfo         :: InfoT f
+  , secretsantaParticipants :: ParticipantsT f
+  }
+  deriving Generic
+  deriving anyclass Beamable
+type UnsafeSecretSanta = UnsafeSecretSantaT Identity
+
+deriving stock instance Show UnsafeSecretSanta
+deriving stock instance Eq UnsafeSecretSanta
+deriving anyclass instance Aeson.ToJSON UnsafeSecretSanta
+deriving anyclass instance Aeson.FromJSON UnsafeSecretSanta
+
+-- | Secret santa with checked participants
+newtype SecretSantaT f = SecretSanta { unSecretSanta :: UnsafeSecretSantaT f}
+  deriving Generic
+  deriving anyclass Beamable
+type SecretSanta = SecretSantaT Identity
+
+deriving newtype instance Show SecretSanta
+deriving newtype instance Eq SecretSanta
+deriving via Refined UnsafeSecretSanta SecretSanta instance Aeson.ToJSON SecretSanta
+deriving via Refined UnsafeSecretSanta SecretSanta instance Aeson.FromJSON SecretSanta
+
+instance Refine UnsafeSecretSanta SecretSanta where
+  rguard UnsafeSecretSanta {..} = mconcat
+    [ not (unique $ pName <$> secretsantaParticipants)
       |> "Participant names must be unique."
-    , not (unique $ pEmail <$> fParticipants)
+    , not (unique $ pEmail <$> secretsantaParticipants)
       |> "Participant emails must be unique."
-    , length fParticipants
+    , length secretsantaParticipants
     <  3
     |> "There must be at least 3 participants to ensure random matches."
     ]
     where unique l = length l == length (L.nub l)
 
-validateForm :: UnsafeForm -> Validated Form
-validateForm = refine
+validateSecretSanta :: UnsafeSecretSanta -> Validated SecretSanta
+validateSecretSanta = refine
+
+-- * Secret santa information
+
+data InfoT f = Info
+  { iEventName   :: Columnar f EventName
+  , iHostName    :: Columnar f HostName
+  , iHostEmail   :: Columnar f HostEmail
+  , iTimeZone    :: Columnar f Time.TimeZone
+  , iDate        :: Columnar f (Maybe Time.Date)
+  , iTime        :: Columnar f (Maybe Time.Time)
+  , iLocation    :: Columnar f (Maybe Location)
+  , iPrice       :: Columnar f (Maybe Price)
+  , iDescription :: Columnar f Description
+  }
+  deriving stock Generic
+  deriving anyclass Beamable
+type Info = InfoT Identity
+
+deriving stock instance Show Info
+deriving stock instance Eq Info
+deriving anyclass instance Aeson.FromJSON Info
+deriving anyclass instance Aeson.ToJSON Info
+
+
+instance Table (WithPrimaryKeyT Int InfoT) where
+  data PrimaryKey (WithPrimaryKeyT Int InfoT) f = InfoId (Columnar f Int)
+    deriving (Generic, Beamable)
+  primaryKey = InfoId . key
+
+-- * Secret santa participants
+
+type ParticipantsT f = Columnar f [Participant]
+type Participants = ParticipantsT Identity
+
+
 
 -- ** Basic information
 
@@ -86,7 +146,7 @@ validateHostName = refine
 type HostEmail = EmailAddress
 
 validateHostEmail :: Text -> Validated HostEmail
-validateHostEmail = validateEmailAddress
+validateHostEmail = refine
 
 type Location = NonEmptyText
 
@@ -111,12 +171,27 @@ validateDescription = refine
 
 -- ** Participants
 
-data Participant = Participant
-  { pName  :: PName
-  , pEmail :: PEmail
+data ParticipantT f = Participant
+  { pName  :: Columnar f PName
+  , pEmail :: Columnar f PEmail
   }
-  deriving stock (Show, Generic, Eq)
-  deriving anyclass (Aeson.ToJSON, Aeson.FromJSON)
+  deriving stock Generic
+  deriving anyclass Beamable
+
+type Participant = ParticipantT Identity
+deriving stock instance Show Participant
+deriving stock instance Eq Participant
+deriving anyclass instance Aeson.FromJSON Participant
+deriving anyclass instance Aeson.ToJSON Participant
+
+instance Table (WithPrimaryKeyT Int ParticipantT) where
+  data PrimaryKey (WithPrimaryKeyT Int ParticipantT) f = ParticipantId
+    { piSecretSanta :: Columnar f Int
+    , piPName :: Columnar f PName
+  
+    }
+    deriving (Generic, Beamable)
+  primaryKey (WithPrimaryKey key p) = ParticipantId key $ pName p
 
 type PName = NonEmptyText
 
@@ -131,7 +206,7 @@ validatePNameUnique name names = if notElem name $ allSuccesses names
 type PEmail = EmailAddress
 
 validatePEmail :: Text -> Validated PEmail
-validatePEmail = validateEmailAddress
+validatePEmail = refine
 
 
 validatePEmailUnique :: PEmail -> [Validated PEmail] -> [Text]

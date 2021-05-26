@@ -1,9 +1,9 @@
+{-# OPTIONS_GHC -Wno-orphans #-}
 module Text.EmailAddress
   ( module Export
-  , validateEmailAddress
-  , emailAddressToText
   ) where
 
+import           Data.Refine
 import qualified Data.Text                     as T
 import           Data.Validate
 import "emailaddress" Text.EmailAddress        as Export
@@ -12,13 +12,11 @@ import "emailaddress" Text.EmailAddress        as Export
                                                 )
 import "emailaddress" Text.EmailAddress         ( toText )
 
-validateEmailAddress :: Text -> Validated EmailAddress
-validateEmailAddress t
-  | T.null t  = Failure . pure $ "Email cannot be empty"
-  | otherwise = maybe invalidEmail Success . emailAddressFromText $ t
- where
-  invalidEmail =
-    Failure . pure $ "Invalid email. Format: my-email-adress@my-provider"
+instance Refine Text EmailAddress where
+  refine t | T.null t  = failure "Email cannot be empty"
+           | otherwise = maybe invalidEmail success . emailAddressFromText $ t
+   where
+    invalidEmail = failure "Invalid email. Format: my-email-adress@my-provider"
 
-emailAddressToText :: EmailAddress -> Text
-emailAddressToText = toText
+  rdeconstruct = toText
+  rconstruct   = undefined

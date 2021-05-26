@@ -10,3 +10,6 @@ cabal.project.local
 /frontend.log
 /.envrc
 /.direnv/
+/dist/
+/secretsanta.db
+/backend/secretsanta.db

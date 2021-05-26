@@ -10,6 +10,7 @@ import           Polysemy.Error
 import           Polysemy.Input
 
 import           Data.Error
+import           Data.Refine
 import           Data.Time
 import           Data.Time.MonadTime
 import           Data.Validate
@@ -18,15 +19,14 @@ import           Text.NonEmpty
 import           Network.Mail.Mime
 import qualified Text.Blaze.Html.Renderer.Text as BlazeHtml
 import qualified Text.Blaze.Renderer.Text      as BlazeText
-import "common"  Text.EmailAddress
 import           Text.Hamlet
 
 import           SecretSanta.API
+import           SecretSanta.DB
 import           SecretSanta.Data
 import           SecretSanta.Effect.Email
 import           SecretSanta.Effect.Match
 import           SecretSanta.Effect.Time        ( GetTime )
-
 
 createSecretSantaHandler
   :: Members
@@ -38,29 +38,33 @@ createSecretSantaHandler
         , Error InvalidDateTimeError
         ]
        r
-  => Form
+  => SecretSanta
   -> Sem r ()
-createSecretSantaHandler f@(Form UnsafeForm {..}) = do
+createSecretSantaHandler ss@(SecretSanta UnsafeSecretSanta {..}) = do
+  let Info {..}    = secretsantaInfo
+      participants = secretsantaParticipants
   sender     <- input @Sender
   serverTime <- getZonedTime
-  case validateDateTime serverTime fTimeZone fDate fTime of
+  case validateDateTime serverTime iTimeZone iDate iTime of
     Success _  -> pure ()
     Failure es -> throw @InvalidDateTimeError . serverError $ show es
-  mMatches <- makeMatch fParticipants
+  mMatches <- makeMatch participants
   case mMatches of
-    Nothing      -> throwInternalError $ noMatchesFound fParticipants
-    Just matches -> forM_ matches $ sendEmail . mkMail sender f
+    Nothing      -> throwInternalError $ noMatchesFound participants
+    Just matches -> do
+      embed . withConn $ \conn -> runInsertSecretSanta conn 0 ss
+      forM_ matches $ sendEmail . mkMail sender secretsantaInfo
  where
   noMatchesFound ps =
     serverError ("No matches found: " <> show ps)
       `errWhen` "running Secret Santa"
 
-mkMail :: Sender -> Form -> (Participant, Participant) -> Mail
-mkMail (Sender sender) f (gifter, receiver) =
+mkMail :: Sender -> Info -> (Participant, Participant) -> Mail
+mkMail (Sender sender) Info {..} (gifter, receiver) =
   let toAddress =
         Address { addressName = Just gifterName, addressEmail = gifterEmail }
       fromAddress = Address { addressName  = Just "Secret Santa"
-                            , addressEmail = emailAddressToText sender
+                            , addressEmail = rdeconstruct sender
                             }
       subject = "Secret Santa"
       html :: Html = [shamlet|
@@ -88,15 +92,14 @@ mkMail (Sender sender) f (gifter, receiver) =
       htmlBody  = BlazeHtml.renderHtml html
   in  simpleMailInMemory toAddress fromAddress subject plainBody htmlBody []
  where
-  Form UnsafeForm {..} = f
-  eventName            = unNonEmptyText fEventName
-  hostName             = unNonEmptyText fHostName
-  hostEmail            = emailAddressToText fHostEmail
-  mDate :: Maybe Text  = show <$> fDate
-  mTime :: Maybe Text  = show <$> fTime
-  mLocation            = unNonEmptyText <$> fLocation
-  mPrice :: Maybe Text = show <$> fPrice
-  description          = unNonEmptyText fDescription
+  eventName            = unNonEmptyText iEventName
+  hostName             = unNonEmptyText iHostName
+  hostEmail            = rdeconstruct iHostEmail
+  mDate :: Maybe Text  = show <$> iDate
+  mTime :: Maybe Text  = show <$> iTime
+  mLocation            = unNonEmptyText <$> iLocation
+  mPrice :: Maybe Text = show <$> iPrice
+  description          = unNonEmptyText iDescription
   gifterName           = unNonEmptyText . pName $ gifter
-  gifterEmail          = emailAddressToText . pEmail $ gifter
+  gifterEmail          = rdeconstruct . pEmail $ gifter
   receiverName         = unNonEmptyText . pName $ receiver

@@ -16,6 +16,7 @@
 - [x] check that the secret santa date is in the future
 - [x] display a nicer success message
 - [x] nonemptytext: strip whitespace
+- [ ] revisit Refine class and types
 
 ** Allow hosts to update the config
 

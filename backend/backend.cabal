@@ -22,7 +22,9 @@ executable backend
     src
   other-modules:
     Main
+    Data.Refine
     Polysemy.Input.Env
+    SecretSanta.DB
     SecretSanta.Effect.Email
     SecretSanta.Effect.Match
     SecretSanta.Effect.Time
@@ -75,16 +77,25 @@ executable backend
     , emailaddress
     , bytestring
     , lens
+
+      -- database
+    , beam-core
+    , beam-sqlite
+    , sqlite-simple
+    , beam-migrate
   default-language:    Haskell2010
   default-extensions:
     ApplicativeDo
     BlockArguments
+    ConstraintKinds
     DataKinds
+    DeriveAnyClass
     DeriveGeneric
     DerivingVia
-    GADTs
     FlexibleContexts
     FlexibleInstances
+    GADTs
+    GeneralizedNewtypeDeriving
     InstanceSigs
     LambdaCase
     MultiParamTypeClasses
@@ -98,6 +109,7 @@ executable backend
     RecordWildCards
     RecursiveDo
     ScopedTypeVariables
+    StandaloneDeriving
     StrictData
     TemplateHaskell
     TupleSections

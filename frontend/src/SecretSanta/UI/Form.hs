@@ -23,7 +23,7 @@ import           SecretSanta.Data
 data Submit = Submit
   deriving (Eq, Show)
 
-formWidget :: forall t m . Rx.MonadWidget t m => m (Rx.Event t Form)
+formWidget :: forall t m . Rx.MonadWidget t m => m (Rx.Event t SecretSanta)
 formWidget = do
   Rx.el "form" $ do
     rec
@@ -50,12 +50,12 @@ formWidget = do
           wDate' <- field . control $ dateWidget eSubmit
           wTime' <- field . control $ timeWidget eSubmit
           pure (wDate', wTime')
-      fTimeZone  <- liftIO getTimeZone
+      iTimeZone  <- liftIO getTimeZone
       clientTime <- liftIO getZonedTime
       let bDateTimeErrs =
             fmap (`bindValidation` identity)
               .   getCompose
-              $   validateDateTime clientTime fTimeZone
+              $   validateDateTime clientTime iTimeZone
               <$> Compose bDate
               <*> Compose bTime
           eDateTimeErrs = getFailures <$> Rx.tag bDateTimeErrs eSubmit
@@ -102,19 +102,21 @@ formWidget = do
       -- Currently, when there are less than 3 participants, we
       -- get an error message below the submit button, but we can submit.
       -- Ideally we should disable the submit button
-        bForm = fmap (`bindValidation` validateForm) . getCompose $ do
-          fEventName   <- Compose $ withFieldLabel "Event name" <$> bEventName
-          fHostName    <- Compose $ withFieldLabel "Your name" <$> bHostName
-          fHostEmail   <- Compose $ withFieldLabel "Your email" <$> bHostEmail
-          fDate        <- Compose $ withFieldLabel "Date" <$> bDate
-          fTime        <- Compose $ withFieldLabel "Time" <$> bTime
-          fLocation    <- Compose $ withFieldLabel "Location" <$> bLocation
-          fPrice       <- Compose $ withFieldLabel "Price" <$> bPrice
-          fDescription <-
-            Compose $ withFieldLabel "Description" <$> bDescription
-          fParticipants <-
+        bForm = fmap (`bindValidation` validateSecretSanta) . getCompose $ do
+          secretsantaInfo <- do
+            iEventName   <- Compose $ withFieldLabel "Event name" <$> bEventName
+            iHostName    <- Compose $ withFieldLabel "Your name" <$> bHostName
+            iHostEmail   <- Compose $ withFieldLabel "Your email" <$> bHostEmail
+            iDate        <- Compose $ withFieldLabel "Date" <$> bDate
+            iTime        <- Compose $ withFieldLabel "Time" <$> bTime
+            iLocation    <- Compose $ withFieldLabel "Location" <$> bLocation
+            iPrice       <- Compose $ withFieldLabel "Price" <$> bPrice
+            iDescription <-
+              Compose $ withFieldLabel "Description" <$> bDescription
+            pure Info { .. }
+          secretsantaParticipants <-
             Compose $ withFieldLabel "Participants" <$> bParticipants
-          pure UnsafeForm { .. }
+          pure UnsafeSecretSanta { .. }
         eForm = Rx.tag bForm eSubmit
     pure . Rx.fforMaybe eForm $ \case
       Failure _ -> Nothing

@@ -21,7 +21,7 @@ api = Proxy @API
 type CreateSecretSantaEP
   =  "api"
   :> "secret-santa"
-  :> ReqBody '[JSON] Form
+  :> ReqBody '[JSON] SecretSanta
   :> UVerb 'POST '[JSON]
      '[ WithStatus 200 ()
       , InvalidDateTimeError
