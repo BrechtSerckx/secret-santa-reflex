@@ -10,6 +10,7 @@ import           Control.Monad.Fix
 import           Data.Functor.Compose
 import qualified Data.Map                      as Map
 import qualified Data.Text                     as T
+import "common"  Data.Time
 import           Data.Time.MonadTime
 import           Data.Validate
 
@@ -29,12 +30,12 @@ formWidget = do
       -- General section
       title 3 $ Rx.text "General"
 
-      -- Event name
+    -- Event name
       bEventName <- fieldHorizontal $ do
         label "Event*"
         fieldBody . field . control $ eventNameWidget eSubmit
 
-      -- Host name and email
+    -- Host name and email
       (bHostName, bHostEmail) <- fieldHorizontal $ do
         label "Organizer*"
         fieldBody $ do
@@ -42,7 +43,7 @@ formWidget = do
           wHostEmail' <- field . control $ hostEmailWidget eSubmit
           pure (wHostName', wHostEmail')
 
-      -- Event date and time
+    -- Event date and time
       (bDate, bTime) <- fieldHorizontal $ do
         label "Date/Time"
         fieldBody $ do
@@ -60,28 +61,28 @@ formWidget = do
           eDateTimeErrs = getFailures <$> Rx.tag bDateTimeErrs eSubmit
 
 
-      -- Location
+    -- Location
       bLocation <- fieldHorizontal $ do
         label "Location"
         fieldBody . field . control $ locationWidget eSubmit
 
-      -- Price
+    -- Price
       bPrice <- fieldHorizontal $ do
         label "Price"
         fieldBody . field . control $ priceWidget eSubmit
 
-      -- Description
+    -- Description
       bDescription <- fieldHorizontal $ do
         label "Description*"
         fieldBody . field . control $ descriptionWidget eSubmit
 
-      -- Participant section
+    -- Participant section
       title 3 $ Rx.text "Participants"
       bParticipants <- participantsWidget eNewParticipant
                                           layoutParticipant
                                           eSubmit
 
-      -- Add participant and submit button
+    -- Add participant and submit button
       (eNewParticipant, eSubmit) <- do
         label ""
         fieldBody . field' "is-grouped" $ do
@@ -89,7 +90,7 @@ formWidget = do
           eSubmit'         <- control $ submitWidget
           pure (eNewParticipant', eSubmit')
 
-      -- Errors
+    -- Errors
       Rx.widgetHold_ Rx.blank
         . Rx.ffor (Rx.mergeWith (<>) [getFailures <$> eForm, eDateTimeErrs])
         $ \case
@@ -97,10 +98,10 @@ formWidget = do
             es -> forM_ es $ Rx.elClass "p" "help is-danger" . Rx.text
 
       let
-        -- TODO: ideally we would provide better feedback here.
-        -- Currently, when there are less than 3 participants, we
-        -- get an error message below the submit button, but we can submit.
-        -- Ideally we should disable the submit button
+      -- TODO: ideally we would provide better feedback here.
+      -- Currently, when there are less than 3 participants, we
+      -- get an error message below the submit button, but we can submit.
+      -- Ideally we should disable the submit button
         bForm = fmap (`bindValidation` validateForm) . getCompose $ do
           fEventName   <- Compose $ withFieldLabel "Event name" <$> bEventName
           fHostName    <- Compose $ withFieldLabel "Your name" <$> bHostName

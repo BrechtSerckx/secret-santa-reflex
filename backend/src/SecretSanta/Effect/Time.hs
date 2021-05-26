@@ -1,4 +1,5 @@
 {-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 module SecretSanta.Effect.Time
   ( GetTime
   , getTimeZone
@@ -6,6 +7,7 @@ module SecretSanta.Effect.Time
   , runGetTime
   ) where
 
+import qualified "common" Data.Time            as Time
 import qualified Data.Time.MonadTime           as Time
 
 import           Polysemy

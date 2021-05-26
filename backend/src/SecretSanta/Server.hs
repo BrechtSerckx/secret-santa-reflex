@@ -5,7 +5,13 @@ module SecretSanta.Server
 
 import           Polysemy
 import           Polysemy.Error
+import           Polysemy.Input
 import           Polysemy.Input.Env
+
+import           Control.Monad.Except           ( liftEither )
+import qualified Data.Aeson                    as Aeson
+import           Data.Error
+import qualified Data.Text                     as T
 
 import qualified Network.Wai.Application.Static
                                                as Static
@@ -18,8 +24,8 @@ import qualified Network.Wai.Middleware.Servant.Options
 import           Servant.API                    ( (:<|>)(..)
                                                 , Raw
                                                 )
+import           Servant.API.UVerb
 import qualified Servant.Server                as SS
-import qualified Servant.Server.StaticFiles    as SS
 import qualified WaiAppStatic.Types            as Static
                                                 ( unsafeToPiece )
 
@@ -27,8 +33,8 @@ import           SecretSanta.API
 import           SecretSanta.Data
 import           SecretSanta.Effect.Email
 import           SecretSanta.Effect.Match
-import           SecretSanta.Effect.SecretSanta
 import           SecretSanta.Effect.Time
+import           SecretSanta.Handler.Create
 import           SecretSanta.Opts
 
 type API' = API :<|> Raw
@@ -50,12 +56,9 @@ secretSantaServer = do
   corsPolicy =
     CORS.simpleCorsResourcePolicy { CORS.corsRequestHeaders = ["content-type"] }
 
-runInHandler
-  :: forall r a
-   . r ~ '[SecretSanta, GetTime, Error InvalidDateTimeError, Embed IO]
-  => Opts
-  -> Sem r a
-  -> SS.Handler a
+type HandlerEffects = '[Match , Email , GetTime , Input Sender , Embed IO]
+
+runInHandler :: forall a . Opts -> Sem HandlerEffects a -> SS.Handler a
 runInHandler Opts {..} act =
   let runMatch = runMatchRandom
       runEmail = case oEmailBackend of
@@ -65,30 +68,40 @@ runInHandler Opts {..} act =
   in  do
         eRes <-
           liftIO
+          . fmap (first toServantError)
+          . fmap join
+          . fmap (first $ serverError . T.pack . displayException)
+          . try @SomeException
+          . try @InternalError
           . runM
-          . runError
+          . runInputConst (Sender oEmailSender)
           . runGetTime
           . runEmail
           . runMatch
-          . runSecretSanta oEmailSender
           $ act
-        case eRes of
-          Right res -> pure res
-          Left  e   -> throwError SS.err500 { SS.errBody = show e }
+        liftEither eRes
 
-
-apiServer
-  :: Members '[SecretSanta , Embed IO] r => Opts -> SS.ServerT API' (Sem r)
-apiServer opts = createSecretSantaHandler :<|> staticServer opts
-
-createSecretSantaHandler
-  :: Members '[SecretSanta , Embed IO] r => Form -> Sem r ()
-createSecretSantaHandler f = do
-  liftIO $ putStrLn @Text @IO "start"
-  liftIO $ print f
-  createSecretSanta f
-  liftIO $ putStrLn @Text "done"
+apiServer :: Opts -> SS.ServerT API' (Sem HandlerEffects)
+apiServer opts =
+  (runError . createSecretSantaHandler >=> \case
+      Right r -> SS.respond $ WithStatus @200 r
+      Left  e -> SS.respond e
+    )
+    :<|> staticServer opts
 
 staticServer :: Opts -> SS.ServerT Raw (Sem r)
 staticServer Opts {..} =
-  SS.serveDirectoryWith $ Static.defaultFileServerSettings oWebRoot
+  SS.serveDirectoryWith $ (Static.defaultWebAppSettings oWebRoot)
+    { Static.ssRedirectToIndex = True
+    , Static.ssIndices         = pure . Static.unsafeToPiece $ "index.html"
+    }
+
+toServantError
+  :: forall status name
+   . (SS.IsStatusCode status, KnownSymbol name)
+  => ServerError status name
+  -> SS.ServerError
+toServantError se = (SS.errorConstructor $ Proxy @status)
+  { SS.errBody    = Aeson.encode se
+  , SS.errHeaders = [("Content-Type", "application/json")]
+  }

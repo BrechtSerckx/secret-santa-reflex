@@ -23,12 +23,13 @@ executable backend
   other-modules:
     Main
     Polysemy.Input.Env
-    SecretSanta.Effect.SecretSanta
     SecretSanta.Effect.Email
     SecretSanta.Effect.Match
     SecretSanta.Effect.Time
+    SecretSanta.Handler.Create
     SecretSanta.Opts
     SecretSanta.Server
+    Servant.Server
   ghc-options:
     -O2
     -flate-specialise
@@ -47,6 +48,7 @@ executable backend
     , servant
     , servant-options
     , servant-server
+    , servant-foreign
 
       -- polysemy
     , polysemy
@@ -64,11 +66,15 @@ executable backend
     , random-shuffle
     , optparse-applicative
     , nri-env-parser
+    , mtl
 
       -- data
+    , aeson
     , pretty-simple
     , text
     , emailaddress
+    , bytestring
+    , lens
   default-language:    Haskell2010
   default-extensions:
     ApplicativeDo

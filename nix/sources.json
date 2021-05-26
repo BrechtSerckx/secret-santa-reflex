@@ -1,4 +1,18 @@
 {
+    "brittany": {
+        "branch": "master",
+        "description": "haskell source code formatter",
+        "homepage": "",
+        "owner": "lspitzner",
+        "ref": "refs/tags/0.13.1.1",
+        "repo": "brittany",
+        "rev": "4d064db674203626fe5011d10874fcbc335ec9b1",
+        "sha256": "1sanc1n72s4jknnx6snryvynrccp1hvzlqfpfb3fy5gn6aapfwzi",
+        "type": "tarball",
+        "url": "https://github.com/lspitzner/brittany/archive/4d064db674203626fe5011d10874fcbc335ec9b1.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz",
+        "version": "0.13.1.1"
+    },
     "haskell-libraries": {
         "ref": "trunk",
         "repo": "https://github.com/NoRedInk/haskell-libraries.git",
@@ -43,17 +57,12 @@
         "rev": "4d7ecac49f8d9dde8a006126900843cc1ba63ca6",
         "type": "git"
     },
-    "servant-reflex": {
-        "branch": "master",
-        "description": "Generate reflex client functions for querying a servant API",
-        "homepage": null,
-        "owner": "asheshambasta",
-        "repo": "servant-reflex",
-        "rev": "a1edb7565451c2e4cf442c38a2f50e49c0b5707f",
-        "sha256": "0g5nm2n004r6iais710azvqncw9j15zhvc8gr4w4hxrkf759fc9q",
-        "type": "tarball",
-        "url": "https://github.com/asheshambasta/servant-reflex/archive/a1edb7565451c2e4cf442c38a2f50e49c0b5707f.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    "servant": {
+        "ref": "master",
+        "repo": "https://github.com/haskell-servant/servant.git",
+        "rev": "0743ca724d7ab217094363b8d4c0cf510775fe63",
+        "tag": "refs/tags/v0.18.2",
+        "type": "git"
     },
     "smtp-mail": {
         "ref": "master",

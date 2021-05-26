@@ -1,16 +1,16 @@
 {-# LANGUAGE QuasiQuotes #-}
-module SecretSanta.Effect.SecretSanta
-  ( SecretSanta
-  , createSecretSanta
-  , runSecretSantaPrint
-  , runSecretSanta
+{-# LANGUAGE TypeApplications #-}
+module SecretSanta.Handler.Create
+  ( createSecretSantaHandler
   , InvalidDateTimeError
   ) where
 
 import           Polysemy
 import           Polysemy.Error
+import           Polysemy.Input
 
 import           Data.Error
+import           Data.Time
 import           Data.Time.MonadTime
 import           Data.Validate
 import           Text.NonEmpty
@@ -21,44 +21,42 @@ import qualified Text.Blaze.Renderer.Text      as BlazeText
 import "common"  Text.EmailAddress
 import           Text.Hamlet
 
+import           SecretSanta.API
 import           SecretSanta.Data
 import           SecretSanta.Effect.Email
 import           SecretSanta.Effect.Match
 import           SecretSanta.Effect.Time        ( GetTime )
 
-data SecretSanta m a where
-  -- | Create a new secret santa
-  CreateSecretSanta ::Form -> SecretSanta m ()
 
+createSecretSantaHandler
+  :: Members
+       '[ Input Sender
+        , GetTime
+        , Match
+        , Email
+        , Embed IO
+        , Error InvalidDateTimeError
+        ]
+       r
+  => Form
+  -> Sem r ()
+createSecretSantaHandler f@(Form UnsafeForm {..}) = do
+  sender     <- input @Sender
+  serverTime <- getZonedTime
+  case validateDateTime serverTime fTimeZone fDate fTime of
+    Success _  -> pure ()
+    Failure es -> throw @InvalidDateTimeError . serverError $ show es
+  mMatches <- makeMatch fParticipants
+  case mMatches of
+    Nothing      -> throwInternalError $ noMatchesFound fParticipants
+    Just matches -> forM_ matches $ sendEmail . mkMail sender f
+ where
+  noMatchesFound ps =
+    serverError ("No matches found: " <> show ps)
+      `errWhen` "running Secret Santa"
 
-makeSem ''SecretSanta
-
-runSecretSantaPrint
-  :: forall r a . Sem (SecretSanta ': r) a -> Sem (Embed IO ': r) a
-runSecretSantaPrint = reinterpret $ \case
-  CreateSecretSanta f -> embed $ print @IO f
-
-type InvalidDateTimeError = BError 400 "INVALID_DATE_TIME"
-
-runSecretSanta
-  :: forall r a
-   . Members '[Embed IO , GetTime , Error InvalidDateTimeError] r
-  => EmailAddress
-  -> Sem (SecretSanta ': r) a
-  -> Sem (Match ': Email ': r) a
-runSecretSanta sender = reinterpret2 $ \case
-  CreateSecretSanta f@(Form UnsafeForm {..}) -> do
-    serverTime <- getZonedTime
-    case validateDateTime serverTime fTimeZone fDate fTime of
-      Success _  -> pure ()
-      Failure es -> throw @InvalidDateTimeError . error $ show es
-    mMatches <- makeMatch fParticipants
-    case mMatches of
-      Nothing      -> internalError $ "No matches found: " <> show fParticipants
-      Just matches -> forM_ matches $ sendEmail . mkMail sender f
-
-mkMail :: EmailAddress -> Form -> (Participant, Participant) -> Mail
-mkMail sender f (gifter, receiver) =
+mkMail :: Sender -> Form -> (Participant, Participant) -> Mail
+mkMail (Sender sender) f (gifter, receiver) =
   let toAddress =
         Address { addressName = Just gifterName, addressEmail = gifterEmail }
       fromAddress = Address { addressName  = Just "Secret Santa"
