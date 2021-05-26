@@ -7,12 +7,13 @@
 - [x] Backend: have `create` endpoint that matches and sends emails
 - [x] fix form validation
 - [ ] fix email layout
-- [ ] fix errors:
+- [x] fix errors:
   - validation errors: newtype over text, displayed to the user
   - internal errors: unrecoverable, give 500 with text message
   - recoverable error: custom error type with description, maybe context, name (type) and error code (type)
+- [ ] better error design
 - [x] show which fields are required and which aren't
-- [ ] check that the secret santa date is in the future
+- [x] check that the secret santa date is in the future
 - [x] display a nicer success message
 - [ ] nonemptytext: strip whitespace
 
