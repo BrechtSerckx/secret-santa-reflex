@@ -1,4 +1,3 @@
-{-# LANGUAGE UndecidableInstances #-}
 module SecretSanta.Server
   ( secretSantaServer
   )
@@ -10,7 +9,6 @@ import           Polysemy.Error
 import           Polysemy.Input
 import           Polysemy.Input.Env
 
-import           Control.Lens
 import           Control.Monad.Except           ( liftEither )
 import qualified Data.Aeson                    as Aeson
 import           Data.Error
@@ -27,17 +25,10 @@ import qualified Network.Wai.Middleware.Servant.Options
 import           Servant.API                    ( (:<|>)(..)
                                                 , Raw
                                                 )
-import qualified Servant.API                   as S
-import qualified Servant.API.TypeLevel         as S
-import qualified Servant.Foreign               as SF
-import qualified Servant.Foreign.Internal      as SF
+import           Servant.API.UVerb
 import qualified Servant.Server                as SS
-import qualified Servant.Server.StaticFiles    as SS
 import qualified WaiAppStatic.Types            as Static
                                                 ( unsafeToPiece )
-
-import           Servant.API.UVerb
-import           Servant.Server.UVerb
 
 import           SecretSanta.API
 import           SecretSanta.Data
@@ -94,8 +85,8 @@ runInHandler Opts {..} act =
 apiServer :: Opts -> SS.ServerT API' (Sem HandlerEffects)
 apiServer opts =
   (runError . createSecretSantaHandler >=> \case
-      Right r -> respond $ WithStatus @200 r
-      Left  e -> respond e
+      Right r -> SS.respond $ WithStatus @200 r
+      Left  e -> SS.respond e
     )
     :<|> staticServer opts
 
@@ -106,35 +97,12 @@ staticServer Opts {..} =
     , Static.ssIndices         = pure . Static.unsafeToPiece $ "index.html"
     }
 
-class IsStatusCode status where
-  errorConstructor :: Proxy status -> SS.ServerError
 toServantError
   :: forall status name
-   . (IsStatusCode status, KnownSymbol name)
+   . (SS.IsStatusCode status, KnownSymbol name)
   => ServerError status name
   -> SS.ServerError
-toServantError se = (errorConstructor $ Proxy @status)
+toServantError se = (SS.errorConstructor $ Proxy @status)
   { SS.errBody    = Aeson.encode se
   , SS.errHeaders = [("Content-Type", "application/json")]
   }
-instance IsStatusCode 500 where
-  errorConstructor Proxy = SS.err500
-instance IsStatusCode 400 where
-  errorConstructor Proxy = SS.err400
-
-instance
-  ( SF.HasForeignType lang ftype as
-  , SF.ReflectMethod method
-  , S.Elem SF.JSON list
-  )
-  => SF.HasForeign (lang::k) ftype (S.UVerb method list as) where
-  type Foreign ftype (S.UVerb method list as) = SF.Req ftype
-  foreignFor lang Proxy Proxy req =
-    req
-      & (SF.reqFuncName . SF._FunctionName %~ (methodLC :))
-      & (SF.reqMethod .~ method)
-      & (SF.reqReturnType .~ Just retType)
-   where
-    retType  = SF.typeFor lang (Proxy :: Proxy ftype) (Proxy :: Proxy as)
-    method   = SF.reflectMethod (Proxy :: Proxy method)
-    methodLC = T.toLower $ decodeUtf8 method

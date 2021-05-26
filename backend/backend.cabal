@@ -29,6 +29,7 @@ executable backend
     SecretSanta.Handler.Create
     SecretSanta.Opts
     SecretSanta.Server
+    Servant.Server
   ghc-options:
     -O2
     -flate-specialise
