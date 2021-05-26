@@ -3,7 +3,8 @@
 module SecretSanta.Handler.Create
   ( createSecretSantaHandler
   , InvalidDateTimeError
-  ) where
+  )
+where
 
 import           Polysemy
 import           Polysemy.Error
@@ -21,9 +22,6 @@ import qualified Text.Blaze.Renderer.Text      as BlazeText
 import "common"  Text.EmailAddress
 import           Text.Hamlet
 
-import           Servant.API.UVerb
-import           Servant.Server.UVerb
-
 import           SecretSanta.API
 import           SecretSanta.Data
 import           SecretSanta.Effect.Email
@@ -32,10 +30,13 @@ import           SecretSanta.Effect.Time        ( GetTime )
 
 
 createSecretSantaHandler
-  :: Members '[Input Sender , GetTime , Match , Email , Embed IO] r
+  :: Members
+       '[Input Sender, GetTime, Match, Email, Embed IO, Error
+         InvalidDateTimeError]
+       r
   => Form
-  -> Sem r (Union '[WithStatus 200 () , InvalidDateTimeError])
-createSecretSantaHandler f@(Form UnsafeForm {..}) = fromRight =<< runError do
+  -> Sem r ()
+createSecretSantaHandler f@(Form UnsafeForm {..}) = do
   sender     <- input @Sender
   serverTime <- getZonedTime
   case validateDateTime serverTime fTimeZone fDate fTime of
@@ -49,9 +50,6 @@ createSecretSantaHandler f@(Form UnsafeForm {..}) = fromRight =<< runError do
   noMatchesFound ps =
     serverError ("No matches found: " <> show ps)
       `errWhen` "running Secret Santa"
-  fromRight = \case
-    Right r -> respond $ WithStatus @200 r
-    Left  e -> respond e
 
 mkMail :: Sender -> Form -> (Participant, Participant) -> Mail
 mkMail (Sender sender) f (gifter, receiver) =

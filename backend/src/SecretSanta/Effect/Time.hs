@@ -1,4 +1,5 @@
 {-# LANGUAGE UndecidableInstances #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
 module SecretSanta.Effect.Time
   ( GetTime
   , getTimeZone

@@ -6,6 +6,7 @@ where
 
 
 import           Polysemy
+import           Polysemy.Error
 import           Polysemy.Input
 import           Polysemy.Input.Env
 
@@ -34,6 +35,9 @@ import qualified Servant.Server                as SS
 import qualified Servant.Server.StaticFiles    as SS
 import qualified WaiAppStatic.Types            as Static
                                                 ( unsafeToPiece )
+
+import           Servant.API.UVerb
+import           Servant.Server.UVerb
 
 import           SecretSanta.API
 import           SecretSanta.Data
@@ -88,7 +92,12 @@ runInHandler Opts {..} act =
         liftEither eRes
 
 apiServer :: Opts -> SS.ServerT API' (Sem HandlerEffects)
-apiServer opts = createSecretSantaHandler :<|> staticServer opts
+apiServer opts =
+  (runError . createSecretSantaHandler >=> \case
+      Right r -> respond $ WithStatus @200 r
+      Left  e -> respond e
+    )
+    :<|> staticServer opts
 
 staticServer :: Opts -> SS.ServerT Raw (Sem r)
 staticServer Opts {..} =
