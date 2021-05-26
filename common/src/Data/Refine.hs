@@ -5,10 +5,10 @@ module Data.Refine
   ( Refine(..)
   , Refined(..)
   , (|>)
-  , refine
   , refineTextMaybe
   , refineTextReadMaybe
-  ) where
+  )
+where
 
 import           Control.Monad.Fail             ( fail )
 import qualified Data.Aeson                    as Aeson
@@ -21,6 +21,7 @@ import           Data.Validate
 class Refine from to | to -> from where
 
   rguard :: from -> [Text]
+  rguard = getFailures . refine @from @to
 
   rconstruct :: from -> to
   default rconstruct :: Coercible from to => from -> to
@@ -30,10 +31,12 @@ class Refine from to | to -> from where
   default rdeconstruct :: Coercible to from => to -> from
   rdeconstruct = coerce @to @from
 
-refine :: forall from to . Refine from to => from -> Validated to
-refine fa = case rguard @from @to fa of
-  [] -> Success . rconstruct $ fa
-  es -> Failure es
+  refine :: from -> Validated to
+  refine fa = case rguard @from @to fa of
+    [] -> Success . rconstruct $ fa
+    es -> Failure es
+
+  {-# MINIMAL rguard | refine #-}
 
 (|>) :: Bool -> Text -> [Text]
 cond |> err = if cond then [err] else []

@@ -15,7 +15,7 @@
 - [x] show which fields are required and which aren't
 - [x] check that the secret santa date is in the future
 - [x] display a nicer success message
-- [ ] nonemptytext: strip whitespace
+- [x] nonemptytext: strip whitespace
 
 ** Allow hosts to update the config
 
