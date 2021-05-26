@@ -7,19 +7,18 @@ module Data.Time
   , validateTimeMaybe
   , validateDateTime
   , compareZonedTime
-  )
-where
+  ) where
 
 import           Control.Monad.Fail             ( fail )
 import qualified Data.Aeson                    as Aeson
+import qualified Data.Text                     as T
 import "time"    Data.Time                     as Export
                                          hiding ( getTimeZone
                                                 , getZonedTime
                                                 )
-import qualified Data.Text                     as T
+import           Data.Validate
 import qualified Text.Read                     as Read
 import qualified Text.Show                     as Show
-import           Data.Validate
 
 instance Aeson.FromJSON TimeZone where
   parseJSON = Aeson.withText "TimeZone" $ \t ->

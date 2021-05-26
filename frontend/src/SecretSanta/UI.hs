@@ -102,7 +102,7 @@ cCreateSecretSanta
            t
            ( SR.ReqResult
                ()
-               (S.Union '[S.WithStatus 200 (), InvalidDateTimeError])
+               (S.Union '[S.WithStatus 200 () , InvalidDateTimeError])
            )
        )
 

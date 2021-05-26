@@ -3,8 +3,7 @@
 module Servant.Server
   ( module SS
   , IsStatusCode(..)
-  )
-where
+  ) where
 
 import "servant-server" Servant.Server         as SS
 import "servant-server" Servant.Server.StaticFiles

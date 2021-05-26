@@ -44,4 +44,4 @@ for cmd in "${tmux_cmds[@]}"; do
 done 
 
 # run in nix shell
-nix-shell -A shells.ghc --run "tmux ${tmux_cmd[*]}"
+nix-shell --run "tmux ${tmux_cmd[*]}"

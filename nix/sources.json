@@ -1,4 +1,18 @@
 {
+    "brittany": {
+        "branch": "master",
+        "description": "haskell source code formatter",
+        "homepage": "",
+        "owner": "lspitzner",
+        "ref": "refs/tags/0.13.1.1",
+        "repo": "brittany",
+        "rev": "4d064db674203626fe5011d10874fcbc335ec9b1",
+        "sha256": "1sanc1n72s4jknnx6snryvynrccp1hvzlqfpfb3fy5gn6aapfwzi",
+        "type": "tarball",
+        "url": "https://github.com/lspitzner/brittany/archive/4d064db674203626fe5011d10874fcbc335ec9b1.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz",
+        "version": "0.13.1.1"
+    },
     "haskell-libraries": {
         "ref": "trunk",
         "repo": "https://github.com/NoRedInk/haskell-libraries.git",

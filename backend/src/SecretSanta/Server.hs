@@ -1,7 +1,6 @@
 module SecretSanta.Server
   ( secretSantaServer
-  )
-where
+  ) where
 
 
 import           Polysemy
@@ -57,7 +56,7 @@ secretSantaServer = do
   corsPolicy =
     CORS.simpleCorsResourcePolicy { CORS.corsRequestHeaders = ["content-type"] }
 
-type HandlerEffects = '[Match, Email, GetTime, Input Sender, Embed IO]
+type HandlerEffects = '[Match , Email , GetTime , Input Sender , Embed IO]
 
 runInHandler :: forall a . Opts -> Sem HandlerEffects a -> SS.Handler a
 runInHandler Opts {..} act =

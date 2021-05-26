@@ -11,14 +11,13 @@ module Data.Error
   , serverError
   , InternalError
   , throwInternalError
-  )
-where
+  ) where
 
 import           Control.Exception              ( throw )
 import qualified Data.Aeson                    as Aeson
-import           Data.Aeson                     ( (.=)
-                                                , (.:)
+import           Data.Aeson                     ( (.:)
                                                 , (.:?)
+                                                , (.=)
                                                 )
 import qualified Data.Text                     as T
 import qualified Servant.API                   as Servant

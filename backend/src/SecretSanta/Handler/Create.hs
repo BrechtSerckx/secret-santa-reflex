@@ -3,8 +3,7 @@
 module SecretSanta.Handler.Create
   ( createSecretSantaHandler
   , InvalidDateTimeError
-  )
-where
+  ) where
 
 import           Polysemy
 import           Polysemy.Error
@@ -31,8 +30,13 @@ import           SecretSanta.Effect.Time        ( GetTime )
 
 createSecretSantaHandler
   :: Members
-       '[Input Sender, GetTime, Match, Email, Embed IO, Error
-         InvalidDateTimeError]
+       '[ Input Sender
+        , GetTime
+        , Match
+        , Email
+        , Embed IO
+        , Error InvalidDateTimeError
+        ]
        r
   => Form
   -> Sem r ()

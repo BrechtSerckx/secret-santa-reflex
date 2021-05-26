@@ -17,6 +17,7 @@ type API = CreateSecretSantaEP
 api :: Proxy API
 api = Proxy @API
 
+-- brittany-disable-next-binding
 type CreateSecretSantaEP
   =  "api"
   :> "secret-santa"

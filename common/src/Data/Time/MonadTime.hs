@@ -1,8 +1,7 @@
 module Data.Time.MonadTime
   ( MonadTime(..)
   , getZonedTime
-  )
-where
+  ) where
 
 import "this"    Data.Time
 
