@@ -25,12 +25,7 @@ import           Data.Time
 import "common"  Text.EmailAddress
 import           Text.NonEmpty
 
-data SecretSantaDB f = SecretSantaDB
-  { _secretsantaForms :: f (TableEntity (WithPrimaryKeyT Int InfoT))
-  , _secretsantaParticipants :: f (TableEntity (WithPrimaryKeyT Int ParticipantT))
-  }
-  deriving Generic
-  deriving anyclass (Database be)
+
 
 deriving
   via Refined Text NonEmptyText
@@ -77,6 +72,13 @@ instance HasDefaultSqlDataType be Text => HasDefaultSqlDataType be [Char] where
 dbFile :: FilePath
 dbFile = "/home/brecht/code/secret-santa-reflex/secretsanta.db"
 
+data SecretSantaDB f = SecretSantaDB
+  { _secretsantaForms :: f (TableEntity (WithPrimaryKeyT IntT InfoT))
+  , _secretsantaParticipants :: f (TableEntity (WithPrimaryKeyT IntT ParticipantT))
+  }
+  deriving Generic
+  deriving anyclass (Database be)
+
 checkedSecretSantaDB :: CheckedDatabaseSettings Sqlite SecretSantaDB
 checkedSecretSantaDB = defaultMigratableDbSettings
 
@@ -111,26 +113,26 @@ insertInfo
   => DatabaseSettings be SecretSantaDB
   -> Int
   -> Info
-  -> SqlInsert be (WithPrimaryKeyT Int InfoT)
+  -> SqlInsert be (WithPrimaryKeyT IntT InfoT)
 insertInfo db id val =
-  insert (_secretsantaForms db) . insertValues . pure $ WithPrimaryKey id val
+  insert (_secretsantaForms db) . insertValues . pure $ WithPrimaryKey (IntT id) val
 
 insertParticipants
   :: DecentBeamBackend be
   => DatabaseSettings be SecretSantaDB
   -> Int
   -> Participants
-  -> SqlInsert be (WithPrimaryKeyT Int ParticipantT)
+  -> SqlInsert be (WithPrimaryKeyT IntT ParticipantT)
 insertParticipants db id ps =
-  insert (_secretsantaParticipants db) . insertValues $ WithPrimaryKey id <$> ps
+  insert (_secretsantaParticipants db) . insertValues $ WithPrimaryKey (IntT id) <$> ps
 
 
 type DecentBeamBackend be
   = ( BeamSqlBackend be
     , FieldsFulfillConstraint
         (BeamSqlBackendCanSerialize be)
-        (WithPrimaryKeyT Int InfoT)
+        (WithPrimaryKeyT IntT InfoT)
     , FieldsFulfillConstraint
         (BeamSqlBackendCanSerialize be)
-        (WithPrimaryKeyT Int ParticipantT)
+        (WithPrimaryKeyT IntT ParticipantT)
     )

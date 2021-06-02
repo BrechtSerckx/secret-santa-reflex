@@ -1,9 +1,11 @@
+{-# LANGUAGE RankNTypes #-}
 module SecretSanta.Data
   ( UnsafeSecretSantaT(..)
   , UnsafeSecretSanta
   , SecretSantaT(..)
   , SecretSanta
   , validateSecretSanta
+  , IntT(..)
   , InfoT(..)
   , Info
   , ParticipantsT
@@ -47,7 +49,7 @@ import           Database.Beam
 newtype Sender = Sender EmailAddress
 
 data WithPrimaryKeyT k t (f :: * -> *) = WithPrimaryKey
-  { key   :: Columnar f k
+  { key   :: k f
   , value :: t f
   }
   deriving stock Generic
@@ -119,10 +121,13 @@ deriving anyclass instance Aeson.FromJSON Info
 deriving anyclass instance Aeson.ToJSON Info
 
 
-instance Table (WithPrimaryKeyT Int InfoT) where
-  data PrimaryKey (WithPrimaryKeyT Int InfoT) f = InfoId (Columnar f Int)
+newtype IntT f = IntT (Columnar f Int)
+  deriving stock Generic
+  deriving anyclass Beamable
+instance Table (WithPrimaryKeyT IntT InfoT) where
+  data PrimaryKey (WithPrimaryKeyT IntT InfoT) f = InfoId (IntT f)
     deriving (Generic, Beamable)
-  primaryKey = InfoId . key
+  primaryKey (WithPrimaryKey key _val) = InfoId key
 
 -- * Secret santa participants
 
@@ -184,9 +189,9 @@ deriving stock instance Eq Participant
 deriving anyclass instance Aeson.FromJSON Participant
 deriving anyclass instance Aeson.ToJSON Participant
 
-instance Table (WithPrimaryKeyT Int ParticipantT) where
-  data PrimaryKey (WithPrimaryKeyT Int ParticipantT) f = ParticipantId
-    { piSecretSanta :: Columnar f Int
+instance Table (WithPrimaryKeyT IntT ParticipantT) where
+  data PrimaryKey (WithPrimaryKeyT IntT ParticipantT) f = ParticipantId
+    { piSecretSanta :: IntT f
     , piPName :: Columnar f PName
   
     }
