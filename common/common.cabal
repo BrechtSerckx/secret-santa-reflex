@@ -24,11 +24,11 @@ library
     Data.Time.MonadTime
     Data.Validate
     Data.Refine
+    Data.WithId
     Text.EmailAddress
     Text.NonEmpty
     SecretSanta.Data
     SecretSanta.API
-  -- other-extensions:
   build-depends:
       base-noprelude >=4.12 && <4.13
     , data-default-class

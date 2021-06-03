@@ -31,30 +31,19 @@ module SecretSanta.Data
   , validatePEmail
   , validatePEmailUnique
   , Sender(..)
-  , WithPrimaryKeyT(..)
-  , WithPrimaryKey
   ) where
 
 import qualified Data.Aeson                    as Aeson
 import qualified Data.List                     as L
+import           Data.Refine
 import qualified "this" Data.Time              as Time
+import           Data.Validate
+import           Database.Beam
 import           Text.EmailAddress
 import           Text.NonEmpty
 
-import           Data.Refine
-import           Data.Validate
-
-import           Database.Beam
-
 newtype Sender = Sender EmailAddress
 
-data WithPrimaryKeyT k t (f :: * -> *) = WithPrimaryKey
-  { key   :: k f
-  , value :: t f
-  }
-  deriving stock Generic
-  deriving anyclass Beamable
-type WithPrimaryKey k t = WithPrimaryKeyT k t Identity
 
 -- * Secret Santa
 
@@ -64,7 +53,6 @@ data UnsafeSecretSantaT f = UnsafeSecretSanta
   , secretsantaParticipants :: ParticipantsT f
   }
   deriving Generic
-  deriving anyclass Beamable
 type UnsafeSecretSanta = UnsafeSecretSantaT Identity
 
 deriving stock instance Show UnsafeSecretSanta
@@ -75,7 +63,6 @@ deriving anyclass instance Aeson.FromJSON UnsafeSecretSanta
 -- | Secret santa with checked participants
 newtype SecretSantaT f = SecretSanta { unSecretSanta :: UnsafeSecretSantaT f}
   deriving Generic
-  deriving anyclass Beamable
 type SecretSanta = SecretSantaT Identity
 
 deriving newtype instance Show SecretSanta
@@ -101,18 +88,17 @@ validateSecretSanta = refine
 -- * Secret santa information
 
 data InfoT f = Info
-  { iEventName   :: Columnar f EventName
-  , iHostName    :: Columnar f HostName
-  , iHostEmail   :: Columnar f HostEmail
-  , iTimeZone    :: Columnar f Time.TimeZone
-  , iDate        :: Columnar f (Maybe Time.Date)
-  , iTime        :: Columnar f (Maybe Time.Time)
-  , iLocation    :: Columnar f (Maybe Location)
-  , iPrice       :: Columnar f (Maybe Price)
-  , iDescription :: Columnar f Description
+  { iEventName   :: C f EventName
+  , iHostName    :: C f HostName
+  , iHostEmail   :: C f HostEmail
+  , iTimeZone    :: C f Time.TimeZone
+  , iDate        :: C f (Maybe Time.Date)
+  , iTime        :: C f (Maybe Time.Time)
+  , iLocation    :: C f (Maybe Location)
+  , iPrice       :: C f (Maybe Price)
+  , iDescription :: C f Description
   }
   deriving stock Generic
-  deriving anyclass Beamable
 type Info = InfoT Identity
 
 deriving stock instance Show Info
@@ -121,17 +107,12 @@ deriving anyclass instance Aeson.FromJSON Info
 deriving anyclass instance Aeson.ToJSON Info
 
 
-newtype IntT f = IntT (Columnar f Int)
+newtype IntT f = IntT (C f Int)
   deriving stock Generic
-  deriving anyclass Beamable
-instance Table (WithPrimaryKeyT IntT InfoT) where
-  data PrimaryKey (WithPrimaryKeyT IntT InfoT) f = InfoId (IntT f)
-    deriving (Generic, Beamable)
-  primaryKey (WithPrimaryKey key _val) = InfoId key
 
 -- * Secret santa participants
 
-type ParticipantsT f = Columnar f [Participant]
+type ParticipantsT f = C f [Participant]
 type Participants = ParticipantsT Identity
 
 
@@ -177,26 +158,16 @@ validateDescription = refine
 -- ** Participants
 
 data ParticipantT f = Participant
-  { pName  :: Columnar f PName
-  , pEmail :: Columnar f PEmail
+  { pName  :: C f PName
+  , pEmail :: C f PEmail
   }
   deriving stock Generic
-  deriving anyclass Beamable
 
 type Participant = ParticipantT Identity
 deriving stock instance Show Participant
 deriving stock instance Eq Participant
 deriving anyclass instance Aeson.FromJSON Participant
 deriving anyclass instance Aeson.ToJSON Participant
-
-instance Table (WithPrimaryKeyT IntT ParticipantT) where
-  data PrimaryKey (WithPrimaryKeyT IntT ParticipantT) f = ParticipantId
-    { piSecretSanta :: IntT f
-    , piPName :: Columnar f PName
-  
-    }
-    deriving (Generic, Beamable)
-  primaryKey (WithPrimaryKey key p) = ParticipantId key $ pName p
 
 type PName = NonEmptyText
 

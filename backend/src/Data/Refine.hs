@@ -7,7 +7,7 @@ import "common"  Data.Refine                   as Export
 import           Database.Beam.Backend          ( FromBackendRow(..)
                                                 , HasSqlValueSyntax(..)
                                                 )
-import           Database.Beam.Migrate
+import           Database.Beam.Migrate          ( HasDefaultSqlDataType(..) )
 
 instance (HasSqlValueSyntax be from, Refine from to) => HasSqlValueSyntax be (Refined from to) where
   sqlValueSyntax = sqlValueSyntax . rdeconstruct @from @to . unrefine

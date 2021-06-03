@@ -23,7 +23,11 @@ executable backend
   other-modules:
     Main
     Data.Refine
+    Data.Time
+    Data.WithId
+    Database.Beam.Orphans
     Polysemy.Input.Env
+    SecretSanta.Data
     SecretSanta.DB
     SecretSanta.Effect.Email
     SecretSanta.Effect.Match

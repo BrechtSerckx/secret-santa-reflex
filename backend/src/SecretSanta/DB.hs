@@ -1,5 +1,3 @@
-{-# OPTIONS_GHC -Wno-orphans #-}
-{-# LANGUAGE UndecidableInstances #-}
 module SecretSanta.DB
   ( SecretSantaDB(..)
   , secretSantaDB
@@ -7,77 +5,36 @@ module SecretSanta.DB
   , runInsertSecretSanta
   , withConn
   , createDB
-  )
-where
+  ) where
 
 
+import           Data.WithId
 import           Database.Beam
-import           Database.Beam.Migrate
-import           Database.Beam.Migrate.Simple
-import           Database.Beam.Sqlite
-import           Database.Beam.Sqlite.Migrate
-import           Database.Beam.Backend.SQL
-import           Database.Beam.Schema.Tables
-import           Database.SQLite.Simple
+import           Database.Beam.Backend          ( BeamSqlBackend
+                                                , BeamSqlBackendCanSerialize
+                                                )
+import           Database.Beam.Migrate          ( CheckedDatabaseSettings
+                                                , defaultMigratableDbSettings
+                                                , unCheckDatabase
+                                                )
+import           Database.Beam.Migrate.Simple   ( createSchema )
+import           Database.Beam.Schema.Tables    ( FieldsFulfillConstraint )
+import           Database.Beam.Sqlite           ( Sqlite
+                                                , runBeamSqliteDebug
+                                                )
+import           Database.Beam.Sqlite.Migrate   ( migrationBackend )
+import qualified Database.SQLite.Simple        as SQLite
 import           SecretSanta.Data
-import           Data.Refine
-import           Data.Time
-import "common"  Text.EmailAddress
-import           Text.NonEmpty
-
-
-
-deriving
-  via Refined Text NonEmptyText
-  instance HasSqlValueSyntax be Text => HasSqlValueSyntax be NonEmptyText
-deriving
-  via Refined Text NonEmptyText
-  instance HasDefaultSqlDataType be Text => HasDefaultSqlDataType be NonEmptyText
-deriving
-  via Refined Text EmailAddress
-  instance HasSqlValueSyntax be Text => HasSqlValueSyntax be EmailAddress
-deriving
-  via Refined Text EmailAddress
-  instance HasDefaultSqlDataType be Text => HasDefaultSqlDataType be EmailAddress
-deriving
-  via Refined Double Price
-  instance HasSqlValueSyntax be Double => HasSqlValueSyntax be Price
-deriving
-  via Refined Double Price
-  instance HasDefaultSqlDataType be Double => HasDefaultSqlDataType be Price
-
-deriving newtype
-  instance HasSqlValueSyntax be Day => HasSqlValueSyntax be Date
-
-instance HasDefaultSqlDataType be Day => HasDefaultSqlDataType be Date where
-  defaultSqlDataType Proxy proxy embedded =
-    defaultSqlDataType (Proxy @Day) proxy embedded
-
-instance HasSqlValueSyntax be [Char] => HasSqlValueSyntax be Time where
-  sqlValueSyntax = autoSqlValueSyntax
-instance HasDefaultSqlDataType be [Char] => HasDefaultSqlDataType be Time where
-  defaultSqlDataType Proxy proxy embedded =
-    defaultSqlDataType (Proxy @[Char]) proxy embedded
-
-instance HasSqlValueSyntax be [Char] => HasSqlValueSyntax be TimeZone where
-  sqlValueSyntax = autoSqlValueSyntax
-instance HasDefaultSqlDataType be [Char] => HasDefaultSqlDataType be TimeZone where
-  defaultSqlDataType Proxy proxy embedded =
-    defaultSqlDataType (Proxy @[Char]) proxy embedded
-
-instance HasDefaultSqlDataType be Text => HasDefaultSqlDataType be [Char] where
-  defaultSqlDataType Proxy proxy embedded =
-    defaultSqlDataType (Proxy @Text) proxy embedded
 
 dbFile :: FilePath
 dbFile = "/home/brecht/code/secret-santa-reflex/secretsanta.db"
 
 data SecretSantaDB f = SecretSantaDB
-  { _secretsantaForms :: f (TableEntity (WithPrimaryKeyT IntT InfoT))
-  , _secretsantaParticipants :: f (TableEntity (WithPrimaryKeyT IntT ParticipantT))
+  { _secretsantaForms        :: f (TableEntity (WithIdT IntT InfoT))
+  , _secretsantaParticipants :: f (TableEntity (WithIdT IntT ParticipantT))
   }
   deriving Generic
-  deriving anyclass (Database be)
+deriving anyclass instance Database be SecretSantaDB
 
 checkedSecretSantaDB :: CheckedDatabaseSettings Sqlite SecretSantaDB
 checkedSecretSantaDB = defaultMigratableDbSettings
@@ -86,14 +43,14 @@ secretSantaDB :: DatabaseSettings Sqlite SecretSantaDB
 secretSantaDB = unCheckDatabase checkedSecretSantaDB
 
 createDB :: IO ()
-createDB = bracket (open dbFile) close $ \conn ->
+createDB = bracket (SQLite.open dbFile) SQLite.close $ \conn ->
   runBeamSqliteDebug putStrLn conn
     $ createSchema migrationBackend checkedSecretSantaDB
 
-withConn :: (Connection -> IO ()) -> IO ()
-withConn = withConnection dbFile
+withConn :: (SQLite.Connection -> IO ()) -> IO ()
+withConn = SQLite.withConnection dbFile
 
-runInsertSecretSanta :: Connection -> Int -> SecretSanta -> IO ()
+runInsertSecretSanta :: SQLite.Connection -> Int -> SecretSanta -> IO ()
 runInsertSecretSanta conn id ss =
   let db = secretSantaDB
   in  runBeamSqliteDebug putStrLn conn $ insertSecretSanta db id ss
@@ -113,26 +70,27 @@ insertInfo
   => DatabaseSettings be SecretSantaDB
   -> Int
   -> Info
-  -> SqlInsert be (WithPrimaryKeyT IntT InfoT)
+  -> SqlInsert be (WithIdT IntT InfoT)
 insertInfo db id val =
-  insert (_secretsantaForms db) . insertValues . pure $ WithPrimaryKey (IntT id) val
+  insert (_secretsantaForms db) . insertValues . pure $ WithId (IntT id) val
 
 insertParticipants
   :: DecentBeamBackend be
   => DatabaseSettings be SecretSantaDB
   -> Int
   -> Participants
-  -> SqlInsert be (WithPrimaryKeyT IntT ParticipantT)
+  -> SqlInsert be (WithIdT IntT ParticipantT)
 insertParticipants db id ps =
-  insert (_secretsantaParticipants db) . insertValues $ WithPrimaryKey (IntT id) <$> ps
+  insert (_secretsantaParticipants db) . insertValues $ WithId (IntT id) <$> ps
 
 
+-- brittany-disable-next-binding
 type DecentBeamBackend be
   = ( BeamSqlBackend be
     , FieldsFulfillConstraint
         (BeamSqlBackendCanSerialize be)
-        (WithPrimaryKeyT IntT InfoT)
+        (WithIdT IntT InfoT)
     , FieldsFulfillConstraint
         (BeamSqlBackendCanSerialize be)
-        (WithPrimaryKeyT IntT ParticipantT)
+        (WithIdT IntT ParticipantT)
     )
