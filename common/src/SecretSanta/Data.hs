@@ -1,6 +1,7 @@
 {-# LANGUAGE RankNTypes #-}
 module SecretSanta.Data
-  ( UnsafeSecretSantaT(..)
+  ( SecretSantaId
+  , UnsafeSecretSantaT(..)
   , UnsafeSecretSanta
   , SecretSantaT(..)
   , SecretSanta
@@ -31,7 +32,8 @@ module SecretSanta.Data
   , validatePEmail
   , validatePEmailUnique
   , Sender(..)
-  ) where
+  )
+where
 
 import qualified Data.Aeson                    as Aeson
 import qualified Data.List                     as L
@@ -41,9 +43,11 @@ import           Data.Validate
 import           Database.Beam
 import           Text.EmailAddress
 import           Text.NonEmpty
+import           Data.UUID
 
 newtype Sender = Sender EmailAddress
 
+type SecretSantaId = UUID
 
 -- * Secret Santa
 

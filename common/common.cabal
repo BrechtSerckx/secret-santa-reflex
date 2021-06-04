@@ -41,6 +41,7 @@ library
     , emailaddress
     , extra
     , beam-core
+    , uuid
   ghc-options:         
     -Wall
   hs-source-dirs: src

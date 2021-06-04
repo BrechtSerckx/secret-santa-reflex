@@ -5,7 +5,8 @@ module SecretSanta.DB
   , runInsertSecretSanta
   , withConn
   , createDB
-  ) where
+  )
+where
 
 
 import           Data.WithId

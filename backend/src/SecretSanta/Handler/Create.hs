@@ -6,8 +6,8 @@ module SecretSanta.Handler.Create
   )
 where
 
-import           Polysemy
 import           Polysemy.Error
+import           Polysemy.Fresh
 import           Polysemy.Input
 import           Polysemy.Operators
 
@@ -24,15 +24,15 @@ import qualified Text.Blaze.Renderer.Text      as BlazeText
 import           Text.Hamlet
 
 import           SecretSanta.API
-import           SecretSanta.DB
 import           SecretSanta.Data
 import           SecretSanta.Effect.Email
 import           SecretSanta.Effect.Match
+import           SecretSanta.Effect.SecretSantaStore
 import           SecretSanta.Effect.Time        ( GetTime )
 
 createSecretSantaHandler
   :: SecretSanta
-  -> '[ Input Sender , GetTime , Match , Email , Embed IO , Error InvalidDateTimeError] >@> ()
+  -> '[ Fresh SecretSantaId, Input Sender , SecretSantaStore, GetTime , Match , Email , Error InvalidDateTimeError] >@> SecretSantaId
 createSecretSantaHandler ss@(SecretSanta UnsafeSecretSanta {..}) = do
   let Info {..}    = secretsantaInfo
       participants = secretsantaParticipants
@@ -45,8 +45,10 @@ createSecretSantaHandler ss@(SecretSanta UnsafeSecretSanta {..}) = do
   case mMatches of
     Nothing      -> throwInternalError $ noMatchesFound participants
     Just matches -> do
-      embed . withConn $ \conn -> runInsertSecretSanta conn 0 ss
+      id <- fresh
+      writeSecretSanta id ss
       forM_ matches $ sendEmail . mkMail sender secretsantaInfo
+      pure id
  where
   noMatchesFound ps =
     serverError ("No matches found: " <> show ps)

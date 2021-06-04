@@ -67,10 +67,11 @@ bodyWidget = Rx.elClass "section" "section" . Rx.elClass "div" "container" $ do
           `errWhen` "making secret-santa return widget"
           )
         . foldl' @[] (<|>) Nothing
-        $ [ S.matchUnion @(S.WithStatus 200 ()) u
-            $> ( Rx.elClass "div" "notification is-success"
-               $ Rx.text "Secret Santa successfully submitted!"
-               )
+        $ [ S.matchUnion @(S.WithStatus 200 SecretSantaId) u <&> \id ->
+            Rx.elClass "div" "notification is-success"
+              .  Rx.text
+              $  "Secret Santa successfully submitted! Id: "
+              <> show id
           , S.matchUnion @InvalidDateTimeError u <&> displayErr . errMessage
           ]
  where
@@ -102,7 +103,9 @@ cCreateSecretSanta
            t
            ( SR.ReqResult
                ()
-               (S.Union '[S.WithStatus 200 () , InvalidDateTimeError])
+               ( S.Union
+                   '[S.WithStatus 200 SecretSantaId, InvalidDateTimeError]
+               )
            )
        )
 

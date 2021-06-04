@@ -31,6 +31,7 @@ executable backend
     SecretSanta.DB
     SecretSanta.Effect.Email
     SecretSanta.Effect.Match
+    SecretSanta.Effect.SecretSantaStore
     SecretSanta.Effect.Time
     SecretSanta.Handler.Create
     SecretSanta.Opts
@@ -82,6 +83,7 @@ executable backend
     , emailaddress
     , bytestring
     , lens
+    , uuid
 
       -- database
     , beam-core

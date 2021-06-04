@@ -5,12 +5,16 @@ where
 
 import           Polysemy
 import           Polysemy.Error          hiding ( try )
+import           Polysemy.Fresh
 import           Polysemy.Input
 import           Polysemy.Input.Env
+import           Polysemy.Operators
 
 import           Control.Monad.Except           ( liftEither )
 import qualified Data.Aeson                    as Aeson
 import           Data.Error
+import           Data.UUID
+import qualified Data.UUID.V4                  as UUID
 import qualified Data.Text                     as T
 
 import qualified Network.Wai.Application.Static
@@ -33,6 +37,7 @@ import           SecretSanta.API
 import           SecretSanta.Data
 import           SecretSanta.Effect.Email
 import           SecretSanta.Effect.Match
+import           SecretSanta.Effect.SecretSantaStore
 import           SecretSanta.Effect.Time
 import           SecretSanta.Handler.Create
 import           SecretSanta.Opts
@@ -56,7 +61,9 @@ secretSantaServer = do
   corsPolicy =
     CORS.simpleCorsResourcePolicy { CORS.corsRequestHeaders = ["content-type"] }
 
-type HandlerEffects = '[Match, Email, GetTime, Input Sender, Embed IO]
+type HandlerEffects
+  = '[SecretSantaStore, Fresh UUID, Match, Email, GetTime, Input Sender, Embed
+    IO]
 
 runInHandler :: forall a . Opts -> Sem HandlerEffects a -> SS.Handler a
 runInHandler Opts {..} act =
@@ -78,8 +85,17 @@ runInHandler Opts {..} act =
           . runGetTime
           . runEmail
           . runMatch
+          . runFreshUuid
+          . fmap snd
+          . fmap (first traceShowId)
+
+          . runSecretSantaStorePurely mempty
           $ act
         liftEither eRes
+
+runFreshUuid :: Fresh UUID ': r @> a -> IO ~@ r @> a
+runFreshUuid = interpret $ \case
+  Fresh -> embed UUID.nextRandom
 
 apiServer :: Opts -> SS.ServerT API' (Sem HandlerEffects)
 apiServer opts =

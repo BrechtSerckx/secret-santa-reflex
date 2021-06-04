@@ -5,7 +5,8 @@ module SecretSanta.API
   , api
   , CreateSecretSantaEP
   , InvalidDateTimeError
-  ) where
+  )
+where
 
 import           Servant.API
 
@@ -23,7 +24,7 @@ type CreateSecretSantaEP
   :> "secret-santa"
   :> ReqBody '[JSON] SecretSanta
   :> UVerb 'POST '[JSON]
-     '[ WithStatus 200 ()
+     '[ WithStatus 200 SecretSantaId
       , InvalidDateTimeError
       ]
 type InvalidDateTimeError = ServerError 400 "INVALID_DATE_TIME"
