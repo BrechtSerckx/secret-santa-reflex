@@ -51,6 +51,31 @@
         "url": "https://github.com/NixOS/nixpkgs-channels/archive/75f4ba05c63be3f147bcc2f7bd4ba1f029cedcb1.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
+    "polysemy": {
+        "branch": "master",
+        "description": ":gemini: higher-order, no-boilerplate monads",
+        "homepage": "",
+        "owner": "polysemy-research",
+        "ref": "04642d090b1c683df476c9ec07c1017faa6134b5",
+        "repo": "polysemy",
+        "rev": "09c65bdae9c9ce50a55c7ee2ab9681916f09f4c3",
+        "sha256": "1slqqdksa82ngksjw1lhg76pym8j6pw5ifkb1avx82w9yms595sw",
+        "type": "tarball",
+        "url": "https://github.com/polysemy-research/polysemy/archive/09c65bdae9c9ce50a55c7ee2ab9681916f09f4c3.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "polysemy-zoo": {
+        "branch": "master",
+        "description": ":monkey::panda_face: Experimental, user-contributed effects and interpreters for polysemy",
+        "homepage": "",
+        "owner": "isovector",
+        "repo": "polysemy-zoo",
+        "rev": "eb0ce40e4d3b9757ede851a3450c05cc42949b49",
+        "sha256": "0qxxnwky36039wps5lgzs4pqfnl89n87cawf62fdv7sqwjlzyqdi",
+        "type": "tarball",
+        "url": "https://github.com/isovector/polysemy-zoo/archive/eb0ce40e4d3b9757ede851a3450c05cc42949b49.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
     "pretty-diff": {
         "ref": "master",
         "repo": "https://github.com/stoeffel/pretty-diff.git",

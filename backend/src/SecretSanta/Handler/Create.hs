@@ -3,11 +3,13 @@
 module SecretSanta.Handler.Create
   ( createSecretSantaHandler
   , InvalidDateTimeError
-  ) where
+  )
+where
 
 import           Polysemy
 import           Polysemy.Error
 import           Polysemy.Input
+import           Polysemy.Operators
 
 import           Data.Error
 import           Data.Refine
@@ -29,17 +31,8 @@ import           SecretSanta.Effect.Match
 import           SecretSanta.Effect.Time        ( GetTime )
 
 createSecretSantaHandler
-  :: Members
-       '[ Input Sender
-        , GetTime
-        , Match
-        , Email
-        , Embed IO
-        , Error InvalidDateTimeError
-        ]
-       r
-  => SecretSanta
-  -> Sem r ()
+  :: SecretSanta
+  -> '[ Input Sender , GetTime , Match , Email , Embed IO , Error InvalidDateTimeError] >@> ()
 createSecretSantaHandler ss@(SecretSanta UnsafeSecretSanta {..}) = do
   let Info {..}    = secretsantaInfo
       participants = secretsantaParticipants
@@ -62,7 +55,7 @@ createSecretSantaHandler ss@(SecretSanta UnsafeSecretSanta {..}) = do
 mkMail :: Sender -> Info -> (Participant, Participant) -> Mail
 mkMail (Sender sender) Info {..} (gifter, receiver) =
   let toAddress =
-        Address { addressName = Just gifterName, addressEmail = gifterEmail }
+          Address { addressName = Just gifterName, addressEmail = gifterEmail }
       fromAddress = Address { addressName  = Just "Secret Santa"
                             , addressEmail = rdeconstruct sender
                             }

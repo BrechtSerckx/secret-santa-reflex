@@ -59,6 +59,7 @@ executable backend
       -- polysemy
     , polysemy
     , polysemy-plugin
+    , polysemy-zoo
 
       -- emails
     , mime-mail

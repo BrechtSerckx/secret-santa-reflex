@@ -8,7 +8,8 @@ module SecretSanta.Effect.Email
   , GmailSettings(..)
   , runEmailGmail
   , gmailSettingsDecoder
-  ) where
+  )
+where
 
 import qualified Data.Text                     as T
 import qualified Data.Text.Encoding            as T
@@ -16,6 +17,7 @@ import           Text.Pretty.Simple
 
 import           Polysemy
 import           Polysemy.Input
+import           Polysemy.Operators
 
 import           Network.Mail.Mime
 import qualified Network.Mail.Mime.SES         as SES
@@ -30,7 +32,7 @@ data Email m a where
 
 makeSem ''Email
 
-runEmailPrint :: Member (Embed IO) r => Sem (Email ': r) a -> Sem r a
+runEmailPrint :: Email ': r @> a -> IO ~@ r @> a
 runEmailPrint = interpret $ \case
   SendEmail mail -> embed @IO $ do
     putStrLn @Text @IO $ "Sending email:"
@@ -42,8 +44,7 @@ data SESSettings = SESSettings
   , sesSessionToken :: Maybe ByteString
   , sesRegion       :: Text
   }
-runEmailSES
-  :: Member (Embed IO) r => Sem (Email ': r) a -> Sem (Input SESSettings ': r) a
+runEmailSES :: Email ': r @> a -> IO ~@ Input SESSettings ': r @> a
 runEmailSES = reinterpret $ \case
   SendEmail mail@Mail { mailFrom, mailTo } -> do
     SESSettings {..} <- input
@@ -75,10 +76,7 @@ data GmailSettings = GmailSettings
   , gmailHost     :: Text
   , gmailPort     :: Int
   }
-runEmailGmail
-  :: Member (Embed IO) r
-  => Sem (Email ': r) a
-  -> Sem (Input GmailSettings ': r) a
+runEmailGmail :: Email ': r @> a -> IO ~@ Input GmailSettings ': r @> a
 runEmailGmail = reinterpret $ \case
   SendEmail mail -> do
     GmailSettings {..} <- input

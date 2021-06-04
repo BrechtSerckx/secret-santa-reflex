@@ -33,8 +33,10 @@
     };
     useWarp = true;
     overrides = self: super: {
-      polysemy-plugin =
-        hlib.dontCheck (hlib.markUnbroken super.polysemy-plugin);
+      polysemy = self.callCabal2nixWithOptions "polysemy" sources.polysemy "--no-hpack" {};
+      polysemy-plugin = self.callCabal2nixWithOptions "polysemy-plugin" "${sources.polysemy}/polysemy-plugin" "--no-hpack" {};
+      polysemy-zoo = self.callCabal2nixWithOptions "polysemy-zoo" sources.polysemy-zoo "--no-hpack" {};
+
       smtp-mail = self.callCabal2nix "smtp-mail" sources.smtp-mail { };
 
       # override servant version

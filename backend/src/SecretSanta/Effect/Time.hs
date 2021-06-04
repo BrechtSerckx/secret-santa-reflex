@@ -5,12 +5,14 @@ module SecretSanta.Effect.Time
   , getTimeZone
   , getUTCTime
   , runGetTime
-  ) where
+  )
+where
 
 import qualified "common" Data.Time            as Time
 import qualified Data.Time.MonadTime           as Time
 
 import           Polysemy
+import           Polysemy.Operators
 
 data GetTime m a where
   GetTimeZone ::GetTime m Time.TimeZone
@@ -22,7 +24,7 @@ instance Member GetTime r => Time.MonadTime (Sem r) where
   getTimeZone = getTimeZone
   getUTCTime  = getUTCTime
 
-runGetTime :: Member (Embed IO) r => Sem (GetTime ': r) a -> Sem r a
+runGetTime :: GetTime ': r @> a -> IO ~@ r @> a
 runGetTime = interpret $ \case
   GetTimeZone -> embed @IO Time.getTimeZone
   GetUTCTime  -> embed @IO Time.getUTCTime
