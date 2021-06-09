@@ -11,6 +11,7 @@ import           Prelude                 hiding ( State )
 import           GHC.Err                        ( error )
 
 import           Polysemy
+import           Polysemy.Beam
 import           Polysemy.State
 import           Polysemy.KVStore
 import           Polysemy.Operators
@@ -35,17 +36,17 @@ runSecretSantaStorePurely
 runSecretSantaStorePurely = runKVStorePurely
 
 runSecretSantaStoreDB
-  :: (DecentBeamBackend be, MonadBeam be bm)
+  :: (BeamC be, MonadBeam be bm)
   => DatabaseSettings be SecretSantaDB
   -> SecretSantaStore ': r @> a
-  -> Transaction bm -@ r @> a
+  -> Transaction be bm -@ r @> a
 runSecretSantaStoreDB db = interpret $ \case
   UpdateKV k  (Just v) -> transact $ insertSecretSanta db k v
   UpdateKV _k Nothing  -> error "SecretSantaStoreDB: delete not implemented"
   LookupKV _k          -> error "SecretSantaStoreDB: lookup not implemented"
 
 insertSecretSanta
-  :: (DecentBeamBackend be, MonadBeam be m)
+  :: (BeamC be, MonadBeam be m)
   => DatabaseSettings be SecretSantaDB
   -> SecretSantaId
   -> SecretSanta
@@ -55,7 +56,7 @@ insertSecretSanta db id (SecretSanta UnsafeSecretSanta {..}) = do
   runInsert $ insertParticipants db id secretsantaParticipants
 
 insertInfo
-  :: DecentBeamBackend be
+  :: BeamC be
   => DatabaseSettings be SecretSantaDB
   -> SecretSantaId
   -> Info
@@ -64,7 +65,7 @@ insertInfo db id val =
   insert (_secretsantaInfo db) . insertValues . pure $ T2 (id, val)
 
 insertParticipants
-  :: DecentBeamBackend be
+  :: BeamC be
   => DatabaseSettings be SecretSantaDB
   -> SecretSantaId
   -> Participants

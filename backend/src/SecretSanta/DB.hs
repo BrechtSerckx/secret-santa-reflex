@@ -6,18 +6,13 @@ module SecretSanta.DB
   , withConn
   , createDB
   , recreateDB
-  , Transaction
-  , transact
-  , DecentBeamBackend
-  , runTransactionSqliteDebug
+  , BeamC
+  , Sqlite
   , SqliteM
   , SQLite.withConnection
   )
 where
 
-
-import           Polysemy
-import           Polysemy.Operators
 
 import "this"    Database.Beam
 import           Database.Beam.Sqlite           ( Sqlite
@@ -69,7 +64,7 @@ withConn :: (SQLite.Connection -> IO ()) -> IO ()
 withConn = SQLite.withConnection dbFile
 
 -- brittany-disable-next-binding
-type DecentBeamBackend be
+type BeamC be
   = ( BeamSqlBackend be
     , FieldsFulfillConstraint
         (BeamSqlBackendCanSerialize be)
@@ -79,11 +74,3 @@ type DecentBeamBackend be
         ParticipantTable
     )
 
-data Transaction bm m a where
-  Transact ::(DecentBeamBackend be, MonadBeam be bm) => bm a -> Transaction  bm m a
-makeSem ''Transaction
-
-runTransactionSqliteDebug
-  :: SQLite.Connection -> Transaction SqliteM ': r @> a -> IO ~@ r @> a
-runTransactionSqliteDebug conn = interpret $ \case
-  Transact act -> embed $ runBeamSqliteDebug putStrLn conn act

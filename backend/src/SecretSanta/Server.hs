@@ -4,6 +4,7 @@ module SecretSanta.Server
 where
 
 import           Polysemy
+import           Polysemy.Beam
 import           Polysemy.Error          hiding ( try )
 import           Polysemy.Fresh
 import           Polysemy.Input
@@ -62,7 +63,7 @@ secretSantaServer = do
     CORS.simpleCorsResourcePolicy { CORS.corsRequestHeaders = ["content-type"] }
 
 type HandlerEffects
-  = '[SecretSantaStore, Transaction SqliteM, Fresh SecretSantaId, Match, Email, GetTime, Input
+  = '[SecretSantaStore, Transaction Sqlite SqliteM, Fresh SecretSantaId, Match, Email, GetTime, Input
     Sender, Embed IO]
 
 runInHandler :: forall a . Opts -> Sem HandlerEffects a -> SS.Handler a

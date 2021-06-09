@@ -28,6 +28,7 @@ executable backend
     Database.Beam
     Database.Beam.T2
     Database.Beam.Orphans
+    Polysemy.Beam
     Polysemy.Input.Env
     SecretSanta.Data
     SecretSanta.DB
