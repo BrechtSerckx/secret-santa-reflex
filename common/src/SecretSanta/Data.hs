@@ -52,6 +52,7 @@ newtype SecretSantaIdT f = SecretSantaId { secretsantaId :: C f UUID }
 type SecretSantaId = SecretSantaIdT Identity
 deriving newtype instance Eq SecretSantaId
 deriving newtype instance Ord SecretSantaId
+deriving newtype instance Show SecretSantaId
 deriving newtype instance Aeson.ToJSON SecretSantaId
 deriving newtype instance Aeson.FromJSON SecretSantaId
 
