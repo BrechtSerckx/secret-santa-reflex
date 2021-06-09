@@ -2,7 +2,8 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 module Database.Beam.T2
   ( T2(..)
-  ) where
+  )
+where
 
 import           Database.Beam.Migrate          ( BeamMigrateSqlBackend
                                                 , FieldCheck
@@ -12,7 +13,6 @@ import           Database.Beam.Migrate.Generics.Tables
 import           Database.Beam.Schema.Tables    ( Beamable(..)
                                                 , ChooseSubTableStrategy
                                                 , Columnar'
-                                                , DefaultTableFieldSettings(..)
                                                 , Exposed
                                                 , FieldsFulfillConstraint
                                                 , GDefaultTableFieldSettings(..)
@@ -20,7 +20,6 @@ import           Database.Beam.Schema.Tables    ( Beamable(..)
                                                 , HasConstraint
                                                 , SubTableStrategyImpl
                                                 , TableField
-                                                , TableSettings
                                                 , TableSkeleton
                                                 , TagReducesTo
                                                 , namedSubTable
@@ -84,4 +83,4 @@ instance
     , to (gDefaultTblSettingsChecks be (Proxy @(Rep (v Identity))) embedded)
     )
 
-instance (Generic (TableSettings tbl), GDefaultTableFieldSettings (Rep (TableSettings tbl) ())) => DefaultTableFieldSettings tbl
+-- instance (Generic (TableSettings tbl), GDefaultTableFieldSettings (Rep (TableSettings tbl) ())) => DefaultTableFieldSettings tbl
