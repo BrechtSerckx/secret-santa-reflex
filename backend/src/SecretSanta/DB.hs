@@ -10,14 +10,13 @@ module SecretSanta.DB
   , Sqlite
   , SqliteM
   , SQLite.withConnection
-  )
-where
+  ) where
 
 
 import "this"    Database.Beam
 import           Database.Beam.Sqlite           ( Sqlite
-                                                , runBeamSqliteDebug
                                                 , SqliteM
+                                                , runBeamSqliteDebug
                                                 )
 import           Database.Beam.Sqlite.Migrate   ( migrationBackend )
 import qualified Database.SQLite.Simple        as SQLite

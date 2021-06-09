@@ -5,8 +5,7 @@ module SecretSanta.API
   , api
   , CreateSecretSantaEP
   , InvalidDateTimeError
-  )
-where
+  ) where
 
 import           Servant.API
 

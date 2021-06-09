@@ -1,13 +1,12 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 module Database.Beam.Orphans
-  ()
-where
+  () where
 
 import           Data.Refine
+import qualified "uuid" Data.UUID              as UUID
 import           Data.Validate
 import "common"  Text.EmailAddress
-import qualified "uuid" Data.UUID              as UUID
 import           Text.NonEmpty
 
 import           Database.Beam.Backend.SQL      ( HasSqlValueSyntax(..) )

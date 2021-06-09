@@ -3,8 +3,7 @@ module SecretSanta.Effect.Match
   , makeMatch
   , runMatchRandom
   , runMatchDet
-  )
-where
+  ) where
 
 import           Polysemy
 import           Polysemy.Operators

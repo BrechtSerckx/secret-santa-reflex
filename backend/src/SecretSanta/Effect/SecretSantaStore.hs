@@ -4,22 +4,21 @@ module SecretSanta.Effect.SecretSantaStore
   , runSecretSantaStorePurely
   , runSecretSantaStoreDB
   , writeSecretSanta
-  )
-where
+  ) where
 
-import           Prelude                 hiding ( State )
 import           GHC.Err                        ( error )
+import           Prelude                 hiding ( State )
 
 import           Polysemy
 import           Polysemy.Beam
-import           Polysemy.State
 import           Polysemy.KVStore
 import           Polysemy.Operators
+import           Polysemy.State
 
 import "this"    Database.Beam
 
-import           SecretSanta.Data
 import           SecretSanta.DB
+import           SecretSanta.Data
 
 type SecretSantaStore = KVStore SecretSantaId SecretSanta
 type SecretSantaMap = Map SecretSantaId SecretSanta

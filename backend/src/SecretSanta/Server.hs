@@ -1,7 +1,6 @@
 module SecretSanta.Server
   ( secretSantaServer
-  )
-where
+  ) where
 
 import           Polysemy
 import           Polysemy.Beam
@@ -14,8 +13,8 @@ import           Polysemy.Operators
 import           Control.Monad.Except           ( liftEither )
 import qualified Data.Aeson                    as Aeson
 import           Data.Error
-import qualified Data.UUID.V4                  as UUID
 import qualified Data.Text                     as T
+import qualified Data.UUID.V4                  as UUID
 
 import qualified Network.Wai.Application.Static
                                                as Static
@@ -63,8 +62,15 @@ secretSantaServer = do
     CORS.simpleCorsResourcePolicy { CORS.corsRequestHeaders = ["content-type"] }
 
 type HandlerEffects
-  = '[SecretSantaStore, Transaction Sqlite SqliteM, Fresh SecretSantaId, Match, Email, GetTime, Input
-    Sender, Embed IO]
+  = '[ SecretSantaStore
+     , Transaction Sqlite SqliteM
+     , Fresh SecretSantaId
+     , Match
+     , Email
+     , GetTime
+     , Input Sender
+     , Embed IO
+     ]
 
 runInHandler :: forall a . Opts -> Sem HandlerEffects a -> SS.Handler a
 runInHandler Opts {..} act =

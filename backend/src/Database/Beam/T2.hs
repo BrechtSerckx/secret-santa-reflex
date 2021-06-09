@@ -2,31 +2,30 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 module Database.Beam.T2
   ( T2(..)
-  )
-where
+  ) where
 
-import           GHC.Generics                   ( R )
-import           Database.Beam.Schema.Tables    ( Beamable(..)
-                                                , GDefaultTableFieldSettings(..)
-                                                , DefaultTableFieldSettings(..)
-                                                , GFieldsFulfillConstraint(..)
-                                                , FieldsFulfillConstraint
-                                                , Columnar'
-                                                , TableSkeleton
-                                                , ChooseSubTableStrategy
-                                                , SubTableStrategyImpl
-                                                , TagReducesTo
-                                                , TableField
-                                                , Exposed
-                                                , HasConstraint
-                                                , namedSubTable
-                                                , TableSettings
-                                                )
 import           Database.Beam.Migrate          ( BeamMigrateSqlBackend
                                                 , FieldCheck
                                                 )
 import           Database.Beam.Migrate.Generics.Tables
                                                 ( GMigratableTableSettings(..) )
+import           Database.Beam.Schema.Tables    ( Beamable(..)
+                                                , ChooseSubTableStrategy
+                                                , Columnar'
+                                                , DefaultTableFieldSettings(..)
+                                                , Exposed
+                                                , FieldsFulfillConstraint
+                                                , GDefaultTableFieldSettings(..)
+                                                , GFieldsFulfillConstraint(..)
+                                                , HasConstraint
+                                                , SubTableStrategyImpl
+                                                , TableField
+                                                , TableSettings
+                                                , TableSkeleton
+                                                , TagReducesTo
+                                                , namedSubTable
+                                                )
+import           GHC.Generics                   ( R )
 
 -- * MAGIC
 

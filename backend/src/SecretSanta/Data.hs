@@ -4,8 +4,7 @@ module SecretSanta.Data
   ( module Export
   , InfoTable
   , ParticipantTable
-  )
-where
+  ) where
 
 import           Data.Refine
 import           Data.Time                      ( )

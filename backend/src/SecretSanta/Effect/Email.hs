@@ -8,8 +8,7 @@ module SecretSanta.Effect.Email
   , GmailSettings(..)
   , runEmailGmail
   , gmailSettingsDecoder
-  )
-where
+  ) where
 
 import qualified Data.Text                     as T
 import qualified Data.Text.Encoding            as T

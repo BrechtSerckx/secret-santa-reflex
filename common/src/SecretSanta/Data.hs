@@ -32,8 +32,7 @@ module SecretSanta.Data
   , validatePEmail
   , validatePEmailUnique
   , Sender(..)
-  )
-where
+  ) where
 
 import qualified Data.Aeson                    as Aeson
 import qualified Data.List                     as L

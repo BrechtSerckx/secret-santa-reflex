@@ -2,8 +2,7 @@ module Database.Beam
   ( module Core
   , module Migrate
   , C'(..)
-  )
-where
+  ) where
 
 import "beam-core" Database.Beam               as Core
 import "beam-core" Database.Beam.Backend       as Core

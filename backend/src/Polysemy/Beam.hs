@@ -2,16 +2,15 @@ module Polysemy.Beam
   ( Transaction
   , transact
   , runTransactionSqliteDebug
-  )
-where
+  ) where
 
 import           Polysemy
 import           Polysemy.Operators
 
 import           Database.Beam
 import           Database.Beam.Sqlite           ( Sqlite
-                                                , runBeamSqliteDebug
                                                 , SqliteM
+                                                , runBeamSqliteDebug
                                                 )
 import qualified Database.SQLite.Simple        as SQLite
 
