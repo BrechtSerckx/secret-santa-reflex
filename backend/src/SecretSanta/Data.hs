@@ -4,13 +4,17 @@ module SecretSanta.Data
   ( module Export
   , InfoTable
   , ParticipantTable
-  ) where
+  )
+where
 
 import           Data.Refine
 import           Data.Time                      ( )
 import "common"  SecretSanta.Data              as Export
 
-import           Database.Beam                  ( Beamable )
+import           Database.Beam                  ( Beamable
+                                                , Table(..)
+                                                , C'(..)
+                                                )
 import           Database.Beam.Backend.SQL      ( HasSqlValueSyntax(..) )
 import           Database.Beam.Migrate          ( HasDefaultSqlDataType(..) )
 import           Database.Beam.Orphans          ( )
@@ -24,9 +28,18 @@ deriving
   instance HasDefaultSqlDataType be Double => HasDefaultSqlDataType be Price
 
 deriving anyclass instance Beamable SecretSantaIdT
+deriving anyclass instance Beamable InfoT
+deriving anyclass instance Beamable ParticipantT
 
 type InfoTable = T2 SecretSantaIdT InfoT
-deriving anyclass instance Beamable InfoT
+instance Table InfoTable where
+  data PrimaryKey InfoTable f = InfoId (SecretSantaIdT f)
+    deriving (Generic, Beamable)
+  primaryKey (T2 (k, _)) = InfoId k
+
 
 type ParticipantTable = T2 SecretSantaIdT ParticipantT
-deriving anyclass instance Beamable ParticipantT
+instance Table ParticipantTable where
+  data PrimaryKey ParticipantTable f = ParticipantId (T2 SecretSantaIdT (C' PName) f)
+    deriving (Generic, Beamable)
+  primaryKey (T2 (k, Participant {..})) = ParticipantId $ T2 (k, C' pName)

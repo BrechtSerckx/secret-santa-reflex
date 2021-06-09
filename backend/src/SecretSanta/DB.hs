@@ -1,4 +1,3 @@
-{-# OPTIONS_GHC -Wno-orphans #-}
 module SecretSanta.DB
   ( SecretSantaDB(..)
   , secretSantaDB
@@ -10,7 +9,8 @@ module SecretSanta.DB
   , Sqlite
   , SqliteM
   , SQLite.withConnection
-  ) where
+  )
+where
 
 
 import "this"    Database.Beam
@@ -25,18 +25,7 @@ import           System.Directory
 
 import           SecretSanta.Data
 
-dbFile :: FilePath
-dbFile = "/home/brecht/code/secret-santa-reflex/secretsanta.db"
-
-instance Table InfoTable where
-  data PrimaryKey InfoTable f = InfoId (SecretSantaIdT f)
-    deriving (Generic, Beamable)
-  primaryKey (T2 (k, _)) = InfoId k
-
-instance Table ParticipantTable where
-  data PrimaryKey ParticipantTable f = ParticipantId (T2 SecretSantaIdT (C' PName) f)
-    deriving (Generic, Beamable)
-  primaryKey (T2 (k, Participant {..})) = ParticipantId $ T2 (k, C' pName)
+-- * Database
 
 data SecretSantaDB f = SecretSantaDB
   { _secretsantaInfo         :: f (TableEntity InfoTable)
@@ -44,6 +33,22 @@ data SecretSantaDB f = SecretSantaDB
   }
   deriving Generic
 deriving anyclass instance Database be SecretSantaDB
+
+-- brittany-disable-next-binding
+type BeamC be
+  = ( BeamSqlBackend be
+    , FieldsFulfillConstraint
+        (BeamSqlBackendCanSerialize be)
+        InfoTable
+    , FieldsFulfillConstraint
+        (BeamSqlBackendCanSerialize be)
+        ParticipantTable
+    )
+
+-- ** Sqlite
+
+dbFile :: FilePath
+dbFile = "/home/brecht/code/secret-santa-reflex/secretsanta.db"
 
 checkedSecretSantaDB :: CheckedDatabaseSettings Sqlite SecretSantaDB
 checkedSecretSantaDB = defaultMigratableDbSettings
@@ -61,15 +66,4 @@ recreateDB = removeFile dbFile >> createDB
 
 withConn :: (SQLite.Connection -> IO ()) -> IO ()
 withConn = SQLite.withConnection dbFile
-
--- brittany-disable-next-binding
-type BeamC be
-  = ( BeamSqlBackend be
-    , FieldsFulfillConstraint
-        (BeamSqlBackendCanSerialize be)
-        InfoTable
-    , FieldsFulfillConstraint
-        (BeamSqlBackendCanSerialize be)
-        ParticipantTable
-    )
 
