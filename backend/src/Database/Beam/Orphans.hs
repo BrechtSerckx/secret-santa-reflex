@@ -1,10 +1,13 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 module Database.Beam.Orphans
-  () where
+  ()
+where
 
 import           Data.Refine
+import           Data.Validate
 import "common"  Text.EmailAddress
+import qualified "uuid" Data.UUID              as UUID
 import           Text.NonEmpty
 
 import           Database.Beam.Backend.SQL      ( HasSqlValueSyntax(..) )
@@ -20,6 +23,7 @@ deriving
 deriving
   via Refined Text NonEmptyText
   instance HasDefaultSqlDataType be Text => HasDefaultSqlDataType be NonEmptyText
+
 deriving
   via Refined Text EmailAddress
   instance HasSqlValueSyntax be Text => HasSqlValueSyntax be EmailAddress
@@ -27,4 +31,17 @@ deriving
   via Refined Text EmailAddress
   instance HasDefaultSqlDataType be Text => HasDefaultSqlDataType be EmailAddress
 
+instance Refine Text UUID.UUID where
+  refine t = case UUID.fromText t of
+    Just uuid -> success uuid
+    Nothing   -> failure "UUID parser failed"
+  rconstruct   = undefined
+  rdeconstruct = UUID.toText
+
+deriving
+  via Refined Text UUID.UUID
+  instance HasSqlValueSyntax be Text => HasSqlValueSyntax be UUID.UUID
+deriving
+  via Refined Text UUID.UUID
+  instance HasDefaultSqlDataType be Text => HasDefaultSqlDataType be UUID.UUID
 

@@ -13,7 +13,6 @@ import           Polysemy.Operators
 import           Control.Monad.Except           ( liftEither )
 import qualified Data.Aeson                    as Aeson
 import           Data.Error
-import           Data.UUID
 import qualified Data.UUID.V4                  as UUID
 import qualified Data.Text                     as T
 
@@ -34,6 +33,7 @@ import qualified WaiAppStatic.Types            as Static
                                                 ( unsafeToPiece )
 
 import           SecretSanta.API
+import           SecretSanta.DB
 import           SecretSanta.Data
 import           SecretSanta.Effect.Email
 import           SecretSanta.Effect.Match
@@ -62,8 +62,8 @@ secretSantaServer = do
     CORS.simpleCorsResourcePolicy { CORS.corsRequestHeaders = ["content-type"] }
 
 type HandlerEffects
-  = '[SecretSantaStore, Fresh UUID, Match, Email, GetTime, Input Sender, Embed
-    IO]
+  = '[SecretSantaStore, Transaction SqliteM, Fresh SecretSantaId, Match, Email, GetTime, Input
+    Sender, Embed IO]
 
 runInHandler :: forall a . Opts -> Sem HandlerEffects a -> SS.Handler a
 runInHandler Opts {..} act =
@@ -73,29 +73,27 @@ runInHandler Opts {..} act =
         GMail -> runInputEnv gmailSettingsDecoder . runEmailGmail
         SES   -> runInputEnv sesSettingsDecoder . runEmailSES
   in  do
-        eRes <-
-          liftIO
-          . fmap (first toServantError)
-          . fmap join
-          . fmap (first $ serverError . T.pack . displayException)
-          . try @SomeException
-          . try @InternalError
-          . runM
-          . runInputConst (Sender oEmailSender)
-          . runGetTime
-          . runEmail
-          . runMatch
-          . runFreshUuid
-          . fmap snd
-          . fmap (first traceShowId)
-
-          . runSecretSantaStorePurely mempty
-          $ act
+        eRes <- liftIO . withConnection dbFile $ \conn ->
+          fmap (first toServantError)
+            . fmap join
+            . fmap (first $ serverError . T.pack . displayException)
+            . try @SomeException
+            . try @InternalError
+            . runM
+            . runInputConst (Sender oEmailSender)
+            . runGetTime
+            . runEmail
+            . runMatch
+            . runFreshSecretSantaId
+            . runTransactionSqliteDebug conn
+            . runSecretSantaStoreDB secretSantaDB
+          -- . runSecretSantaStorePurely mempty
+            $ act
         liftEither eRes
 
-runFreshUuid :: Fresh UUID ': r @> a -> IO ~@ r @> a
-runFreshUuid = interpret $ \case
-  Fresh -> embed UUID.nextRandom
+runFreshSecretSantaId :: Fresh SecretSantaId ': r @> a -> IO ~@ r @> a
+runFreshSecretSantaId = interpret $ \case
+  Fresh -> SecretSantaId <$> embed UUID.nextRandom
 
 apiServer :: Opts -> SS.ServerT API' (Sem HandlerEffects)
 apiServer opts =

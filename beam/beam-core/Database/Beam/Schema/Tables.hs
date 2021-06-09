@@ -48,11 +48,14 @@ module Database.Beam.Schema.Tables
     , TagReducesTo(..), ReplaceBaseTag
     , withConstrainedFields, withConstraints
     , withNullableConstrainedFields, withNullableConstraints
+    , GDefaultTableFieldSettings(..)
+    , DefaultTableFieldSettings(..)
+    , ChooseSubTableStrategy
+    , SubTableStrategyImpl(..)
 
     -- * Tables
     , Table(..), Beamable(..)
     , Retaggable(..), (:*:)(..) -- Reexported for use with 'alongsideTable'
-    , defTblFieldSettings
     , tableValuesNeeded
     , pk
     , allBeamValues, changeBeamRep
@@ -314,8 +317,8 @@ instance Beamable tbl => IsDatabaseEntity be (TableEntity tbl) where
        , dbTableSettings    :: TableSettings tbl }
       -> DatabaseEntityDescriptor be (TableEntity tbl)
   type DatabaseEntityDefaultRequirements be (TableEntity tbl) =
-    ( GDefaultTableFieldSettings (Rep (TableSettings tbl) ())
-    , Generic (TableSettings tbl), Table tbl, Beamable tbl )
+    ( 
+    Table tbl, Beamable tbl, DefaultTableFieldSettings tbl )
   type DatabaseEntityRegularRequirements be (TableEntity tbl) =
     ( Table tbl, Beamable tbl )
 
@@ -345,7 +348,7 @@ instance Beamable tbl => IsDatabaseEntity be (ViewEntity tbl) where
       -> DatabaseEntityDescriptor be (ViewEntity tbl)
   type DatabaseEntityDefaultRequirements be (ViewEntity tbl) =
     ( GDefaultTableFieldSettings (Rep (TableSettings tbl) ())
-    , Generic (TableSettings tbl), Beamable tbl )
+    , Generic (TableSettings tbl), Beamable tbl, DefaultTableFieldSettings tbl )
   type DatabaseEntityRegularRequirements be (ViewEntity tbl) =
     (  Beamable tbl )
 
@@ -766,16 +769,16 @@ type FieldsFulfillConstraintNullable (c :: Type -> Constraint) t =
 pk :: Table t => t f -> PrimaryKey t f
 pk = primaryKey
 
--- | Return a 'TableSettings' for the appropriate 'table' type where each column
---   has been given its default name. See the
---   [manual](https://haskell-beam.github.io/beam/user-guide/models) for
---   information on the default naming convention.
-defTblFieldSettings :: ( Generic (TableSettings table)
-                       , GDefaultTableFieldSettings (Rep (TableSettings table) ())) =>
-                       TableSettings table
-defTblFieldSettings = withProxy $ \proxy -> to' (gDefTblFieldSettings proxy)
-    where withProxy :: (Proxy (Rep (TableSettings table) ()) -> TableSettings table) -> TableSettings table
-          withProxy f = f Proxy
+-- -- | Return a 'TableSettings' for the appropriate 'table' type where each column
+-- --   has been given its default name. See the
+-- --   [manual](https://haskell-beam.github.io/beam/user-guide/models) for
+-- --   information on the default naming convention.
+-- defTblFieldSettings :: ( Generic (TableSettings table)
+--                        , GDefaultTableFieldSettings (Rep (TableSettings table) ())) =>
+--                        TableSettings table
+-- defTblFieldSettings = withProxy $ \proxy -> to' (gDefTblFieldSettings proxy)
+--     where withProxy :: (Proxy (Rep (TableSettings table) ()) -> TableSettings table) -> TableSettings table
+--           withProxy f = f Proxy
 
 class GZipTables f g h (exposedRep :: Type -> Type) fRep gRep hRep where
     gZipTables :: Applicative m => Proxy exposedRep
@@ -833,6 +836,13 @@ instance  ( Beamable tbl
 
         toNullable   :: Columnar' w (Maybe a) -> Columnar' (Nullable w) a
         toNullable ~(Columnar' x) = Columnar' x
+
+class DefaultTableFieldSettings (table :: (* -> *) -> *) where
+    defTblFieldSettings :: TableSettings table
+    default defTblFieldSettings :: (Generic (TableSettings table), GDefaultTableFieldSettings (Rep (TableSettings table) ())) => TableSettings table
+    defTblFieldSettings = withProxy $ \proxy -> to' (gDefTblFieldSettings proxy)
+      where withProxy :: (Proxy (Rep (TableSettings table) ()) -> TableSettings table) -> TableSettings table
+            withProxy f = f Proxy
 
 class GDefaultTableFieldSettings x where
     gDefTblFieldSettings :: Proxy x -> x

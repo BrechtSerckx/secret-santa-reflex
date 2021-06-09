@@ -25,6 +25,7 @@ executable backend
     Data.Refine
     Data.Time
     Data.WithId
+    Database.Beam.T2
     Database.Beam.Orphans
     Polysemy.Input.Env
     SecretSanta.Data
@@ -75,6 +76,7 @@ executable backend
     , optparse-applicative
     , nri-env-parser
     , mtl
+    , random
 
       -- data
     , aeson

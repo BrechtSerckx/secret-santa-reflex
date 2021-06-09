@@ -1,12 +1,12 @@
 {-# LANGUAGE RankNTypes #-}
 module SecretSanta.Data
-  ( SecretSantaId
+  ( SecretSantaIdT(..)
+  , SecretSantaId
   , UnsafeSecretSantaT(..)
   , UnsafeSecretSanta
   , SecretSantaT(..)
   , SecretSanta
   , validateSecretSanta
-  , IntT(..)
   , InfoT(..)
   , Info
   , ParticipantsT
@@ -39,15 +39,21 @@ import qualified Data.Aeson                    as Aeson
 import qualified Data.List                     as L
 import           Data.Refine
 import qualified "this" Data.Time              as Time
+import           Data.UUID
 import           Data.Validate
 import           Database.Beam
 import           Text.EmailAddress
 import           Text.NonEmpty
-import           Data.UUID
 
 newtype Sender = Sender EmailAddress
 
-type SecretSantaId = UUID
+newtype SecretSantaIdT f = SecretSantaId { secretsantaId :: C f UUID }
+  deriving stock Generic
+type SecretSantaId = SecretSantaIdT Identity
+deriving newtype instance Eq SecretSantaId
+deriving newtype instance Ord SecretSantaId
+deriving newtype instance Aeson.ToJSON SecretSantaId
+deriving newtype instance Aeson.FromJSON SecretSantaId
 
 -- * Secret Santa
 
@@ -109,10 +115,6 @@ deriving stock instance Show Info
 deriving stock instance Eq Info
 deriving anyclass instance Aeson.FromJSON Info
 deriving anyclass instance Aeson.ToJSON Info
-
-
-newtype IntT f = IntT (C f Int)
-  deriving stock Generic
 
 -- * Secret santa participants
 

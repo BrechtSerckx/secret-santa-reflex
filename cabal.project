@@ -6,3 +6,6 @@ packages:
   base-noprelude/
   emailaddress/
   servant-reflex/
+  beam/beam-core/
+  beam/beam-migrate/
+  beam/beam-sqlite/

@@ -12,6 +12,9 @@
       base-noprelude = ./base-noprelude;
       emailaddress = ./emailaddress;
       servant-reflex = ./servant-reflex;
+      beam-core = ./beam/beam-core;
+      beam-migrate = ./beam/beam-migrate;
+      beam-sqlite = ./beam/beam-sqlite;
     };
 
     shells = {
@@ -22,6 +25,9 @@
         "base-noprelude"
         "emailaddress"
         "servant-reflex"
+        "beam-core"
+        "beam-migrate"
+        "beam-sqlite"
       ];
       ghcjs = [
         "common"
@@ -57,7 +63,10 @@
         self.callCabal2nix "tasty-test-reporter" sources.tasty-test-reporter
         { };
       brittany = self.callCabal2nix "brittany" sources.brittany {};
-      beam-migrate = hlib.doJailbreak super.beam-migrate;
+      # beam-migrate = hlib.doJailbreak super.beam-migrate;
+      # beam-core = self.callCabal2nix "beam-core" /home/brecht/code/beam/beam-core {};
+      # beam-migrate = hlib.doJailbreak (self.callCabal2nix "beam-migrate" /home/brecht/code/beam/beam-migrate {});
+      # beam-sqlite = self.callCabal2nix "beam-sqlite" /home/brecht/code/beam/beam-sqlite {};
     };
     shellToolOverrides = ghc: super: {
       inherit (ghc) brittany hlint;
