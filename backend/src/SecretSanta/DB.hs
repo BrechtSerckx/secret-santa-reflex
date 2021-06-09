@@ -19,22 +19,12 @@ where
 import           Polysemy
 import           Polysemy.Operators
 
-import           Database.Beam
-import           Database.Beam.Backend          ( BeamSqlBackend
-                                                , BeamSqlBackendCanSerialize
-                                                )
-import           Database.Beam.Migrate          ( CheckedDatabaseSettings
-                                                , defaultMigratableDbSettings
-                                                , unCheckDatabase
-                                                )
-import           Database.Beam.Migrate.Simple   ( createSchema )
-import           Database.Beam.Schema.Tables    ( FieldsFulfillConstraint )
+import "this"    Database.Beam
 import           Database.Beam.Sqlite           ( Sqlite
                                                 , runBeamSqliteDebug
                                                 , SqliteM
                                                 )
 import           Database.Beam.Sqlite.Migrate   ( migrationBackend )
-import           Database.Beam.T2               ( T2(..) )
 import qualified Database.SQLite.Simple        as SQLite
 
 import           System.Directory
@@ -43,10 +33,6 @@ import           SecretSanta.Data
 
 dbFile :: FilePath
 dbFile = "/home/brecht/code/secret-santa-reflex/secretsanta.db"
-
-newtype C' a f = C' (C f a)
-  deriving stock Generic
-  deriving anyclass Beamable
 
 instance Table InfoTable where
   data PrimaryKey InfoTable f = InfoId (SecretSantaIdT f)

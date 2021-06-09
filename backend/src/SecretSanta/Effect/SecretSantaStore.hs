@@ -15,8 +15,7 @@ import           Polysemy.State
 import           Polysemy.KVStore
 import           Polysemy.Operators
 
-import           Database.Beam
-import           Database.Beam.T2
+import "this"    Database.Beam
 
 import           SecretSanta.Data
 import           SecretSanta.DB

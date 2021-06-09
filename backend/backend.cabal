@@ -25,6 +25,7 @@ executable backend
     Data.Refine
     Data.Time
     Data.WithId
+    Database.Beam
     Database.Beam.T2
     Database.Beam.Orphans
     Polysemy.Input.Env
