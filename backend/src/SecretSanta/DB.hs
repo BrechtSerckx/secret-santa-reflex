@@ -3,8 +3,6 @@ module SecretSanta.DB
   ( SecretSantaDB(..)
   , secretSantaDB
   , dbFile
-  , runInsertSecretSanta
-  , insertSecretSanta'
   , withConn
   , createDB
   , Transaction
@@ -96,45 +94,3 @@ runTransactionSqliteDebug
   :: SQLite.Connection -> Transaction SqliteM ': r @> a -> IO ~@ r @> a
 runTransactionSqliteDebug conn = interpret $ \case
   Transact act -> embed $ runBeamSqliteDebug putStrLn conn act
-
-runInsertSecretSanta
-  :: SQLite.Connection -> SecretSantaId -> SecretSanta -> IO ()
-runInsertSecretSanta conn id ss =
-  let db = secretSantaDB
-  in  runBeamSqliteDebug putStrLn conn $ insertSecretSanta db id ss
-
-insertSecretSanta
-  :: (DecentBeamBackend be, MonadBeam be m)
-  => DatabaseSettings be SecretSantaDB
-  -> SecretSantaId
-  -> SecretSanta
-  -> m ()
-insertSecretSanta db id (SecretSanta UnsafeSecretSanta {..}) = do
-  runInsert $ insertInfo db id secretsantaInfo
-  runInsert $ insertParticipants db id secretsantaParticipants
-
-insertSecretSanta'
-  :: (DecentBeamBackend be, MonadBeam be bm)
-  => DatabaseSettings be SecretSantaDB
-  -> SecretSantaId
-  -> SecretSanta
-  -> Transaction bm -@> ()
-insertSecretSanta' db id ss = transact $ insertSecretSanta db id ss
-
-insertInfo
-  :: DecentBeamBackend be
-  => DatabaseSettings be SecretSantaDB
-  -> SecretSantaId
-  -> Info
-  -> SqlInsert be InfoTable
-insertInfo db id val =
-  insert (_secretsantaInfo db) . insertValues . pure $ T2 (id, val)
-
-insertParticipants
-  :: DecentBeamBackend be
-  => DatabaseSettings be SecretSantaDB
-  -> SecretSantaId
-  -> Participants
-  -> SqlInsert be ParticipantTable
-insertParticipants db id ps =
-  insert (_secretsantaParticipants db) . insertValues $ fmap T2 $ (id, ) <$> ps
