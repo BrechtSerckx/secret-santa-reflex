@@ -5,6 +5,7 @@ module SecretSanta.DB
   , dbFile
   , withConn
   , createDB
+  , recreateDB
   , Transaction
   , transact
   , DecentBeamBackend
@@ -35,6 +36,9 @@ import           Database.Beam.Sqlite           ( Sqlite
 import           Database.Beam.Sqlite.Migrate   ( migrationBackend )
 import           Database.Beam.T2               ( T2(..) )
 import qualified Database.SQLite.Simple        as SQLite
+
+import           System.Directory
+
 import           SecretSanta.Data
 
 dbFile :: FilePath
@@ -71,6 +75,9 @@ createDB :: IO ()
 createDB = bracket (SQLite.open dbFile) SQLite.close $ \conn ->
   runBeamSqliteDebug putStrLn conn
     $ createSchema migrationBackend checkedSecretSantaDB
+
+recreateDB :: IO ()
+recreateDB = removeFile dbFile >> createDB
 
 withConn :: (SQLite.Connection -> IO ()) -> IO ()
 withConn = SQLite.withConnection dbFile
