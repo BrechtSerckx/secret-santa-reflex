@@ -10,15 +10,15 @@ import           Database.Beam.Backend          ( FromBackendRow(..)
                                                 )
 import           Database.Beam.Migrate          ( HasDefaultSqlDataType(..) )
 
-instance (HasSqlValueSyntax be from, Refine from to) => HasSqlValueSyntax be (Refined from to) where
-  sqlValueSyntax = sqlValueSyntax . unrefine @from @to . unRefined
+instance (HasSqlValueSyntax be from, Refine from to) => HasSqlValueSyntax be (Refinable from to) where
+  sqlValueSyntax = sqlValueSyntax . unrefine @from @to . unRefinable
 
-instance (FromBackendRow be from, Refine from to) => FromBackendRow be (Refined from to) where
+instance (FromBackendRow be from, Refine from to) => FromBackendRow be (Refinable from to) where
   fromBackendRow =
-    UnsafeRefined . unsafeRefine "fromBackendRow" <$> fromBackendRow
+    UnsafeRefinable . unsafeRefine "fromBackendRow" <$> fromBackendRow
 
 instance
   (HasDefaultSqlDataType be from, Refine from to)
-  => HasDefaultSqlDataType be (Refined from to) where
+  => HasDefaultSqlDataType be (Refinable from to) where
   defaultSqlDataType Proxy proxy embedded =
     defaultSqlDataType (Proxy @from) proxy embedded

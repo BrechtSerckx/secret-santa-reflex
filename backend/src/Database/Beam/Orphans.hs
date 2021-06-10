@@ -17,17 +17,17 @@ instance HasDefaultSqlDataType be Text => HasDefaultSqlDataType be [Char] where
     defaultSqlDataType (Proxy @Text) proxy embedded
 
 deriving
-  via Refined Text NonEmptyText
+  via Refinable Text NonEmptyText
   instance HasSqlValueSyntax be Text => HasSqlValueSyntax be NonEmptyText
 deriving
-  via Refined Text NonEmptyText
+  via Refinable Text NonEmptyText
   instance HasDefaultSqlDataType be Text => HasDefaultSqlDataType be NonEmptyText
 
 deriving
-  via Refined Text EmailAddress
+  via Refinable Text EmailAddress
   instance HasSqlValueSyntax be Text => HasSqlValueSyntax be EmailAddress
 deriving
-  via Refined Text EmailAddress
+  via Refinable Text EmailAddress
   instance HasDefaultSqlDataType be Text => HasDefaultSqlDataType be EmailAddress
 
 instance Refine Text UUID.UUID where
@@ -35,9 +35,9 @@ instance Refine Text UUID.UUID where
   unrefine = UUID.toText
 
 deriving
-  via Refined Text UUID.UUID
+  via Refinable Text UUID.UUID
   instance HasSqlValueSyntax be Text => HasSqlValueSyntax be UUID.UUID
 deriving
-  via Refined Text UUID.UUID
+  via Refinable Text UUID.UUID
   instance HasDefaultSqlDataType be Text => HasDefaultSqlDataType be UUID.UUID
 

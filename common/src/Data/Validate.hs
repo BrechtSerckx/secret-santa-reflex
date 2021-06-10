@@ -1,64 +1,60 @@
 module Data.Validate
-  ( Validated
-  , success
-  , failure
-  , failures
-  , getFailures
-  , hasFailures
+  ( module Export
+  , getSuccess
+  , getFailure
+  , isSuccess
+  , isFailure
   , allSuccesses
   , allFailures
-  , isSuccess
+  , validationToMaybe
   , readValidation
   , readValidationMaybe
   , bindValidation
-  , module Export
-  ) where
+  )
+where
 
 import           Data.Either.Validation        as Export
                                                 ( Validation(..) )
 import qualified Data.Text                     as T
+import           Data.String                    ( IsString(..) )
 
-type Validated a = Validation [Text] a
-
-success :: a -> Validated a
-success = Success
-failure :: Text -> Validated a
-failure = Failure . pure
-failures :: [Text] -> Validated a
-failures = Failure
-getFailures :: Validated a -> [Text]
-getFailures = \case
-  Success _  -> []
-  Failure es -> es
-hasFailures :: Validated a -> Bool
-hasFailures = null . getFailures
-isSuccess :: Validated a -> Bool
-isSuccess = not . hasFailures
-
-validationToMaybe :: Validated a -> Maybe a
-validationToMaybe = \case
+getSuccess :: Validation e a -> Maybe a
+getSuccess = \case
   Success a -> Just a
   Failure _ -> Nothing
 
-allSuccesses :: [Validated a] -> [a]
-allSuccesses = mapMaybe validationToMaybe
+getFailure :: Validation e a -> Maybe e
+getFailure = \case
+  Success _  -> Nothing
+  Failure es -> Just es
 
-allFailures :: [Validated a] -> [Text]
-allFailures = concatMap getFailures
+isFailure :: Validation e a -> Bool
+isFailure = isJust . getFailure
+isSuccess :: Validation e a -> Bool
+isSuccess = not . isFailure
 
-readValidation :: Read a => Text -> Validated a
+allSuccesses :: [Validation e a] -> [a]
+allSuccesses = mapMaybe getSuccess
+
+validationToMaybe :: Validation e a -> Maybe a
+validationToMaybe = getSuccess
+
+allFailures :: [Validation e a] -> [e]
+allFailures = mapMaybe getFailure
+
+readValidation :: (Read a, IsString e) => Text -> Validation e a
 readValidation t = case readMaybe . T.unpack $ t of
-  Nothing -> failure "Cannot read value."
-  Just a  -> success a
+  Nothing -> Failure $ fromString "Cannot read value."
+  Just a  -> Success a
 
-readValidationMaybe :: Read a => Text -> Validated (Maybe a)
+readValidationMaybe :: (Read a, IsString e) => Text -> Validation e (Maybe a)
 readValidationMaybe t
-  | T.null t = success Nothing
+  | T.null t = Success Nothing
   | otherwise = fmap Just $ case readMaybe . T.unpack $ t of
-    Nothing -> failure "Cannot read value."
-    Just a  -> success a
+    Nothing -> Failure "Cannot read value."
+    Just a  -> Success a
 
-bindValidation :: Validated a -> (a -> Validated b) -> Validated b
+bindValidation :: Validation e a -> (a -> Validation e b) -> Validation e b
 bindValidation va f = case va of
-  Failure es -> failures es
-  Success a  -> f a
+  Failure e -> Failure e
+  Success a -> f a

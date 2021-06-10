@@ -11,7 +11,7 @@ import qualified Data.Text                     as T
 
 newtype NonEmptyText = NonEmptyText { unNonEmptyText :: Text}
   deriving newtype (Show, Eq)
-  deriving (Aeson.ToJSON, Aeson.FromJSON) via (Refined Text NonEmptyText)
+  deriving (Aeson.ToJSON, Aeson.FromJSON) via (Refinable Text NonEmptyText)
 
 instance Refine Text NonEmptyText where
   refine t =

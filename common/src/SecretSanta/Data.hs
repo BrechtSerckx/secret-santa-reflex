@@ -78,8 +78,8 @@ type SecretSanta = SecretSantaT Identity
 
 deriving newtype instance Show SecretSanta
 deriving newtype instance Eq SecretSanta
-deriving via Refined UnsafeSecretSanta SecretSanta instance Aeson.ToJSON SecretSanta
-deriving via Refined UnsafeSecretSanta SecretSanta instance Aeson.FromJSON SecretSanta
+deriving via Refinable UnsafeSecretSanta SecretSanta instance Aeson.ToJSON SecretSanta
+deriving via Refinable UnsafeSecretSanta SecretSanta instance Aeson.FromJSON SecretSanta
 
 instance Refine UnsafeSecretSanta SecretSanta where
   refine ss@UnsafeSecretSanta {..} = do
@@ -92,7 +92,7 @@ instance Refine UnsafeSecretSanta SecretSanta where
     pure $ SecretSanta ss
     where unique l = length l == length (L.nub l)
 
-validateSecretSanta :: UnsafeSecretSanta -> Validated SecretSanta
+validateSecretSanta :: UnsafeSecretSanta -> Refined SecretSanta
 validateSecretSanta = refine
 
 -- * Secret santa information
@@ -127,38 +127,38 @@ type Participants = ParticipantsT Identity
 
 type EventName = NonEmptyText
 
-validateEventName :: Text -> Validated EventName
+validateEventName :: Text -> Refined EventName
 validateEventName = refine
 
 type HostName = NonEmptyText
 
-validateHostName :: Text -> Validated HostName
+validateHostName :: Text -> Refined HostName
 validateHostName = refine
 
 type HostEmail = EmailAddress
 
-validateHostEmail :: Text -> Validated HostEmail
+validateHostEmail :: Text -> Refined HostEmail
 validateHostEmail = refine
 
 type Location = NonEmptyText
 
-validateLocationMaybe :: Text -> Validated (Maybe Location)
+validateLocationMaybe :: Text -> Refined (Maybe Location)
 validateLocationMaybe = refineTextMaybe
 
 newtype Price = Price Double
   deriving newtype (Show, Eq)
-  deriving (Aeson.ToJSON, Aeson.FromJSON) via Refined Double Price
+  deriving (Aeson.ToJSON, Aeson.FromJSON) via Refinable Double Price
 
 instance Refine Double Price where
   refine g = (g < 0) |> "Price can not be negative." $> Price g
 
-validatePriceMaybe :: Text -> Validated (Maybe Price)
+validatePriceMaybe :: Text -> Refined (Maybe Price)
 validatePriceMaybe = refineTextReadMaybe
 
 
 type Description = NonEmptyText
 
-validateDescription :: Text -> Validated Description
+validateDescription :: Text -> Refined Description
 validateDescription = refine
 
 -- ** Participants
@@ -177,21 +177,19 @@ deriving anyclass instance Aeson.ToJSON Participant
 
 type PName = NonEmptyText
 
-validatePName :: Text -> Validated PName
+validatePName :: Text -> Refined PName
 validatePName = refine
 
-validatePNameUnique :: PName -> [Validated PName] -> [Text]
-validatePNameUnique name names = if notElem name $ allSuccesses names
-  then mempty
-  else pure "Name must be unique"
+validatePNameUnique :: PName -> [Refined PName] -> Maybe RefineErrors
+validatePNameUnique name names =
+  getFailure $ (name `elem` allSuccesses names) |> "Name must be unique"
 
 type PEmail = EmailAddress
 
-validatePEmail :: Text -> Validated PEmail
+validatePEmail :: Text -> Refined PEmail
 validatePEmail = refine
 
 
-validatePEmailUnique :: PEmail -> [Validated PEmail] -> [Text]
-validatePEmailUnique email emails = if notElem email $ allSuccesses emails
-  then mempty
-  else pure "Email must be unique"
+validatePEmailUnique :: PEmail -> [Refined PEmail] -> Maybe RefineErrors
+validatePEmailUnique email emails =
+  getFailure $ (email `elem` allSuccesses emails) |> "Email must be unique"

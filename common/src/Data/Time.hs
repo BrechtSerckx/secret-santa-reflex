@@ -10,7 +10,8 @@ module Data.Time
   , validateTimeMaybe
   , validateDateTime
   , compareZonedTime
-  ) where
+  )
+where
 
 import           Control.Monad.Fail             ( fail )
 import qualified Data.Aeson                    as Aeson
@@ -23,6 +24,7 @@ import "time"    Data.Time                     as Export
                                                 , utcToZonedTime
                                                 )
 import qualified "time" Data.Time              as Time
+import           Data.Refine
 import           Data.Validate
 import qualified Text.Read                     as Read
 import qualified Text.Show                     as Show
@@ -55,7 +57,7 @@ utcToZonedTime (TimeZone timeZone) utcTime =
 
 newtype Date = Date { unDate :: Time.Day }
   deriving newtype (Show, Read, Eq, Aeson.ToJSON, Aeson.FromJSON)
-validateDateMaybe :: Text -> Validated (Maybe Date)
+validateDateMaybe :: Text -> Refined (Maybe Date)
 validateDateMaybe = readValidationMaybe
 
 newtype Time = Time { unTime :: Time.TimeOfDay }
@@ -81,11 +83,15 @@ instance Aeson.FromJSON Time where
 instance Aeson.ToJSON Time where
   toJSON = Aeson.String . show
 
-validateTimeMaybe :: Text -> Validated (Maybe Time)
-validateTimeMaybe = readValidationMaybe
+instance Refine Text Time where
+  refine   = readValidation
+  unrefine = show
+
+validateTimeMaybe :: Text -> Refined (Maybe Time)
+validateTimeMaybe = refineTextMaybe
 
 validateDateTime
-  :: Time.ZonedTime -> TimeZone -> Maybe Date -> Maybe Time -> Validated ()
+  :: Time.ZonedTime -> TimeZone -> Maybe Date -> Maybe Time -> Refined ()
 validateDateTime serverTime (TimeZone zonedTimeZone) mDate mTime =
   case mDate of
     Nothing -> pure ()
@@ -102,7 +108,7 @@ validateDateTime serverTime (TimeZone zonedTimeZone) mDate mTime =
               in  Time.ZonedTime { .. }
       in  case compareZonedTime serverTime clientTime of
             LT -> pure ()
-            _  -> failure "Must be in future" -- TODO: decent errors
+            _  -> Failure "Must be in future" -- TODO: decent errors
 
 compareZonedTime :: Time.ZonedTime -> Time.ZonedTime -> Ordering
 compareZonedTime zt1 zt2 = comparing Time.zonedTimeToUTC zt1 zt2

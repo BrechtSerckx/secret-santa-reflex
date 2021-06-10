@@ -3,7 +3,8 @@
 module SecretSanta.UI.Form
   ( formWidget
   , participantsWidget
-  ) where
+  )
+where
 
 import           Control.Lens
 import           Control.Monad.Fix
@@ -12,6 +13,7 @@ import qualified Data.Map                      as Map
 import qualified Data.Text                     as T
 import "common"  Data.Time
 import           Data.Time.MonadTime
+import           Data.Refine
 import           Data.Validate
 
 import qualified Reflex                        as Rx
@@ -58,7 +60,7 @@ formWidget = do
               $   validateDateTime clientTime iTimeZone
               <$> Compose bDate
               <*> Compose bTime
-          eDateTimeErrs = getFailures <$> Rx.tag bDateTimeErrs eSubmit
+          eDateTimeErrs = getFailure <$> Rx.tag bDateTimeErrs eSubmit
 
 
     -- Location
@@ -92,10 +94,14 @@ formWidget = do
 
     -- Errors
       Rx.widgetHold_ Rx.blank
-        . Rx.ffor (Rx.mergeWith (<>) [getFailures <$> eForm, eDateTimeErrs])
+        . Rx.ffor
+            (Rx.mergeWith mappendMaybeErrors
+                          [getFailure <$> eForm, eDateTimeErrs]
+            )
         $ \case
-            [] -> Rx.blank
-            es -> forM_ es $ Rx.elClass "p" "help is-danger" . Rx.text
+            Nothing -> Rx.blank
+            Just (RefineErrors es) ->
+              forM_ es $ Rx.elClass "p" "help is-danger" . Rx.text
 
       let
       -- TODO: ideally we would provide better feedback here.
@@ -122,8 +128,9 @@ formWidget = do
       Failure _ -> Nothing
       Success f -> Just f
  where
-  withFieldLabel :: Text -> Validated a -> Validated a
-  withFieldLabel t = first . fmap $ \e -> t <> ": " <> e
+  withFieldLabel :: Text -> Refined a -> Refined a
+  withFieldLabel t =
+    first $ \(RefineErrors es) -> RefineErrors $ es <&> \e -> t <> ": " <> e
   layoutParticipant (wPName', wPEmail', wPDelete') = fieldHorizontal $ do
     label "Participant*"
     fieldBody $ do
@@ -136,7 +143,7 @@ eventNameWidget
   :: forall t m
    . Rx.MonadWidget t m
   => Rx.Event t Submit
-  -> m (Rx.Behavior t (Validated EventName))
+  -> m (Rx.Behavior t (Refined EventName))
 eventNameWidget eSubmit = do
   let defaultAttrs = mconcat
         [ "placeholder" =: "My Secret Santa"
@@ -155,17 +162,17 @@ eventNameWidget eSubmit = do
                 .  Rx.elementConfig_modifyAttributes
                 .~ setValidationAttrs defaultAttrs
                 )
-      (setValidationAttrs, dValidatedInput) <- mkSimpleValidation
+      (setValidationAttrs, dRefinedInput) <- mkSimpleValidation
         eSubmit
         wUnvalidatedInput
         validateEventName
-  pure . Rx.current $ dValidatedInput
+  pure . Rx.current $ dRefinedInput
 
 hostNameWidget
   :: forall t m
    . Rx.MonadWidget t m
   => Rx.Event t Submit
-  -> m (Rx.Behavior t (Validated PName))
+  -> m (Rx.Behavior t (Refined PName))
 hostNameWidget eSubmit = do
   let defaultAttrs = mconcat
         [ "placeholder" =: "Your name"
@@ -184,17 +191,17 @@ hostNameWidget eSubmit = do
                 .  Rx.elementConfig_modifyAttributes
                 .~ setValidationAttrs defaultAttrs
                 )
-      (setValidationAttrs, dValidatedInput) <- mkSimpleValidation
+      (setValidationAttrs, dRefinedInput) <- mkSimpleValidation
         eSubmit
         wUnvalidatedInput
         validateHostName
-  pure . Rx.current $ dValidatedInput
+  pure . Rx.current $ dRefinedInput
 
 hostEmailWidget
   :: forall t m
    . Rx.MonadWidget t m
   => Rx.Event t Submit
-  -> m (Rx.Behavior t (Validated PEmail))
+  -> m (Rx.Behavior t (Refined PEmail))
 hostEmailWidget eSubmit = do
   let defaultAttrs = mconcat
         [ "placeholder" =: "Your email"
@@ -213,16 +220,16 @@ hostEmailWidget eSubmit = do
                 .  Rx.elementConfig_modifyAttributes
                 .~ setValidationAttrs defaultAttrs
                 )
-      (setValidationAttrs, dValidatedInput) <- mkSimpleValidation
+      (setValidationAttrs, dRefinedInput) <- mkSimpleValidation
         eSubmit
         wUnvalidatedInput
         validateHostEmail
-  pure . Rx.current $ dValidatedInput
+  pure . Rx.current $ dRefinedInput
 
 dateWidget
   :: Rx.MonadWidget t m
   => Rx.Event t Submit
-  -> m (Rx.Behavior t (Validated (Maybe Date)))
+  -> m (Rx.Behavior t (Refined (Maybe Date)))
 dateWidget eSubmit = do
   let defaultAttrs = mconcat ["class" =: "input", "type" =: "date"]
   rec let wUnvalidatedInput =
@@ -236,17 +243,17 @@ dateWidget eSubmit = do
                 .  Rx.elementConfig_modifyAttributes
                 .~ setValidationAttrs defaultAttrs
                 )
-      (setValidationAttrs, dValidatedInput) <- mkSimpleValidation
+      (setValidationAttrs, dRefinedInput) <- mkSimpleValidation
         eSubmit
         wUnvalidatedInput
         validateDateMaybe
-  pure . Rx.current $ dValidatedInput
+  pure . Rx.current $ dRefinedInput
  where
 
 timeWidget
   :: Rx.MonadWidget t m
   => Rx.Event t Submit
-  -> m (Rx.Behavior t (Validated (Maybe Time)))
+  -> m (Rx.Behavior t (Refined (Maybe Time)))
 timeWidget eSubmit = do
   let defaultAttrs = mconcat ["class" =: "input", "type" =: "time"]
   rec let wUnvalidatedInput =
@@ -260,16 +267,16 @@ timeWidget eSubmit = do
                 .  Rx.elementConfig_modifyAttributes
                 .~ setValidationAttrs defaultAttrs
                 )
-      (setValidationAttrs, dValidatedInput) <- mkSimpleValidation
+      (setValidationAttrs, dRefinedInput) <- mkSimpleValidation
         eSubmit
         wUnvalidatedInput
         validateTimeMaybe
-  pure . Rx.current $ dValidatedInput
+  pure . Rx.current $ dRefinedInput
 
 locationWidget
   :: Rx.MonadWidget t m
   => Rx.Event t Submit
-  -> m (Rx.Behavior t (Validated (Maybe Location)))
+  -> m (Rx.Behavior t (Refined (Maybe Location)))
 locationWidget eSubmit = do
   let defaultAttrs = mconcat
         [ "placeholder" =: "Location of the event"
@@ -287,16 +294,16 @@ locationWidget eSubmit = do
                 .  Rx.elementConfig_modifyAttributes
                 .~ setValidationAttrs defaultAttrs
                 )
-      (setValidationAttrs, dValidatedInput) <- mkSimpleValidation
+      (setValidationAttrs, dRefinedInput) <- mkSimpleValidation
         eSubmit
         wUnvalidatedInput
         validateLocationMaybe
-  pure . Rx.current $ dValidatedInput
+  pure . Rx.current $ dRefinedInput
 
 priceWidget
   :: Rx.MonadWidget t m
   => Rx.Event t Submit
-  -> m (Rx.Behavior t (Validated (Maybe Price)))
+  -> m (Rx.Behavior t (Refined (Maybe Price)))
 priceWidget eSubmit = do
   let defaultAttrs = mconcat
         [ "placeholder" =: "Price of the event"
@@ -314,16 +321,16 @@ priceWidget eSubmit = do
                 .  Rx.elementConfig_modifyAttributes
                 .~ setValidationAttrs defaultAttrs
                 )
-      (setValidationAttrs, dValidatedInput) <- mkSimpleValidation
+      (setValidationAttrs, dRefinedInput) <- mkSimpleValidation
         eSubmit
         wUnvalidatedInput
         validatePriceMaybe
-  pure . Rx.current $ dValidatedInput
+  pure . Rx.current $ dRefinedInput
 
 descriptionWidget
   :: Rx.MonadWidget t m
   => Rx.Event t Submit
-  -> m (Rx.Behavior t (Validated Description))
+  -> m (Rx.Behavior t (Refined Description))
 descriptionWidget eSubmit = do
   let defaultAttrs = mconcat
         [ "placeholder" =: "Description of the event"
@@ -343,11 +350,11 @@ descriptionWidget eSubmit = do
                 .  Rx.elementConfig_modifyAttributes
                 .~ setValidationAttrs defaultAttrs
                 )
-      (setValidationAttrs, dValidatedInput) <- mkSimpleValidation
+      (setValidationAttrs, dRefinedInput) <- mkSimpleValidation
         eSubmit
         wUnvalidatedInput
         validateDescription
-  pure . Rx.current $ dValidatedInput
+  pure . Rx.current $ dRefinedInput
 
 data AddParticipant = AddParticipant
 
@@ -365,13 +372,12 @@ newParticipantWidget = fieldHorizontal . control $ do
   pure $ Rx.domEvent Rx.Click e $> AddParticipant
 
 type ParticipantMap = Map Int Participant'
-type Participant' = (Validated PName, Validated PEmail)
+type Participant' = (Refined PName, Refined PEmail)
 initialParticipants :: ParticipantMap
 initialParticipants = Map.fromList [ (i, emptyParticipant) | i <- [0 .. 2] ]
 
 emptyParticipant :: Participant'
-emptyParticipant =
-  (Failure . pure $ "empty participant", Failure . pure $ "empty participant")
+emptyParticipant = (Failure "empty participant", Failure "empty participant")
 
 addNewParticipant :: ParticipantMap -> ParticipantMap
 addNewParticipant m = case Map.maxViewWithKey m of
@@ -379,21 +385,21 @@ addNewParticipant m = case Map.maxViewWithKey m of
   Just ((k, _), _) -> Map.insert (succ k) emptyParticipant m
 
 updateParticipantName
-  :: Int -> Validated PName -> ParticipantMap -> ParticipantMap
+  :: Int -> Refined PName -> ParticipantMap -> ParticipantMap
 updateParticipantName i name = Map.adjust (\(_name, email) -> (name, email)) i
 updateParticipantEmail
-  :: Int -> Validated PEmail -> ParticipantMap -> ParticipantMap
+  :: Int -> Refined PEmail -> ParticipantMap -> ParticipantMap
 updateParticipantEmail i email =
   Map.adjust (\(name, _email) -> (name, email)) i
 
 type ParticipantLayout t m
-  =  ( m (Rx.Dynamic t (Validated PName))
-    , m (Rx.Dynamic t (Validated PEmail))
+  =  ( m (Rx.Dynamic t (Refined PName))
+    , m (Rx.Dynamic t (Refined PEmail))
     , m (Rx.Event t DeleteParticipant)
     )
   -> m
-       ( (Rx.Dynamic t (Validated PName))
-       , (Rx.Dynamic t (Validated PEmail))
+       ( (Rx.Dynamic t (Refined PName))
+       , (Rx.Dynamic t (Refined PEmail))
        , (Rx.Event t DeleteParticipant)
        )
 participantsWidget
@@ -402,7 +408,7 @@ participantsWidget
   => Rx.Event t AddParticipant
   -> ParticipantLayout t m
   -> Rx.Event t Submit
-  -> m (Rx.Behavior t (Validated [Participant]))
+  -> m (Rx.Behavior t (Refined [Participant]))
 participantsWidget eAddNewParticipant layout eSubmit = do
   rec dParticipantMap :: Rx.Dynamic t ParticipantMap <-
         Rx.foldDyn ($) initialParticipants
@@ -447,18 +453,18 @@ participantsWidget eAddNewParticipant layout eSubmit = do
     overParticipants (\(UpdatePEmail i email) -> updateParticipantEmail i email)
       $   map thd3
       <$> dParticipantMap
-  mkParticipant :: Participant' -> Validated Participant
+  mkParticipant :: Participant' -> Refined Participant
   mkParticipant (pName, pEmail) = Participant <$> pName <*> pEmail
 
 data DeleteParticipant = DeleteParticipant Int
-data UpdatePName = UpdatePName Int (Validated PName)
-data UpdatePEmail = UpdatePEmail Int (Validated PEmail)
+data UpdatePName = UpdatePName Int (Refined PName)
+data UpdatePEmail = UpdatePEmail Int (Refined PEmail)
 
 wPName
   :: Rx.MonadWidget t m
   => Rx.Event t Submit
-  -> Rx.Dynamic t [Validated PName]
-  -> m (Rx.Dynamic t (Validated PName))
+  -> Rx.Dynamic t [Refined PName]
+  -> m (Rx.Dynamic t (Refined PName))
 wPName eSubmit dPNames = do
   let defaultAttrs = mconcat
         [ "placeholder" =: "Participant name"
@@ -477,18 +483,18 @@ wPName eSubmit dPNames = do
                 .  Rx.elementConfig_modifyAttributes
                 .~ (modifyClass defaultAttrs <$> eValidationAttrs)
                 )
-      (eValidationAttrs, dValidatedInput) <- mkPValidation wUnvalidatedInput
-                                                           eSubmit
-                                                           validatePName
-                                                           validatePNameUnique
-                                                           dPNames
-  pure dValidatedInput
+      (eValidationAttrs, dRefinedInput) <- mkPValidation wUnvalidatedInput
+                                                         eSubmit
+                                                         validatePName
+                                                         validatePNameUnique
+                                                         dPNames
+  pure dRefinedInput
 
 wPEmail
   :: Rx.MonadWidget t m
   => Rx.Event t Submit
-  -> Rx.Dynamic t [Validated PEmail]
-  -> m (Rx.Dynamic t (Validated PEmail))
+  -> Rx.Dynamic t [Refined PEmail]
+  -> m (Rx.Dynamic t (Refined PEmail))
 wPEmail eSubmit dPEmails = do
   let defaultAttrs = mconcat
         [ "placeholder" =: "john.doe@email.com"
@@ -507,13 +513,12 @@ wPEmail eSubmit dPEmails = do
                 .  Rx.elementConfig_modifyAttributes
                 .~ (modifyClass defaultAttrs <$> eValidationAttrs)
                 )
-      (eValidationAttrs, dValidatedInput) <- mkPValidation
-        wUnvalidatedInput
-        eSubmit
-        validatePEmail
-        validatePEmailUnique
-        dPEmails
-  pure dValidatedInput
+      (eValidationAttrs, dRefinedInput) <- mkPValidation wUnvalidatedInput
+                                                         eSubmit
+                                                         validatePEmail
+                                                         validatePEmailUnique
+                                                         dPEmails
+  pure dRefinedInput
 wPDelete :: Rx.MonadWidget t m => Int -> m (Rx.Event t DeleteParticipant)
 wPDelete k =
   fmap (fmap (const (DeleteParticipant k)) . Rx.domEvent Rx.Click)
@@ -573,18 +578,16 @@ mkSimpleValidation
      )
   => Rx.Event t Submit
   -> m elem
-  -> (val -> Validated a)
+  -> (val -> Refined a)
   -> m
        (  Map Rx.AttributeName Text
        -> Rx.Event t (Map Rx.AttributeName (Maybe Text))
-       ,  Rx.Dynamic t (Validated a)
+       ,  Rx.Dynamic t (Refined a)
        )
 mkSimpleValidation eSubmit wInput validate = do
   let construct' = fmap validate . Rx.value
       validate' e d =
-        Rx.tagPromptlyDyn d (Rx.leftmost [e, void eSubmit]) <&> \case
-          Success _  -> []
-          Failure es -> es
+        getFailure <$> Rx.tagPromptlyDyn d (Rx.leftmost [e, void eSubmit])
   (eValidationAttrs, dRes) <- mkValidation wInput construct' validate'
   let eModifyAttrs defAttrs = modifyClass defAttrs <$> eValidationAttrs
   pure (eModifyAttrs, dRes)
@@ -600,25 +603,25 @@ mkPValidation
      )
   => m elem
   -> Rx.Event t Submit
-  -> (val -> Validated a)
-  -> (a -> [Validated a] -> [Text])
-  -> Rx.Dynamic t [Validated a]
-  -> m (Rx.Event t [Text], Rx.Dynamic t (Validated a))
+  -> (val -> Refined a)
+  -> (a -> [Refined a] -> Maybe RefineErrors)
+  -> Rx.Dynamic t [Refined a]
+  -> m (Rx.Event t [Text], Rx.Dynamic t (Refined a))
 mkPValidation wInput eSubmit validateLocal validateGlobal dGlobal = do
   let
     eGlobal   = void $ Rx.updated dGlobal
     construct = fmap validateLocal . Rx.value
     validate eDoneEditing d =
       let
-        eLocalErrs = Rx.tagPromptlyDyn (getFailures <$> d)
+        eLocalErrs = Rx.tagPromptlyDyn (getFailure <$> d)
           $ Rx.leftmost [void eSubmit, eDoneEditing]
-        mkGlobalErrs (Failure _es) _      = []
+        mkGlobalErrs (Failure _es) _      = Nothing
         mkGlobalErrs (Success a  ) global = validateGlobal a global
         eGlobalErrs =
           Rx.tagPromptlyDyn (mkGlobalErrs <$> d <*> dGlobal) $ Rx.leftmost
             [ void eSubmit
             , eDoneEditing
-            , Rx.gate (hasFailures <$> Rx.current d) eGlobal
+            , Rx.gate (isFailure <$> Rx.current d) eGlobal
             ]
       in
         Rx.mergeWith (<>) [eLocalErrs, eGlobalErrs]
@@ -641,7 +644,10 @@ mkValidation
      )
   => m elem -- ^ the widget
   -> (elem -> Rx.Dynamic t res) -- ^ constructs the resulting value from the widget
-  -> (Rx.Event t () -> Rx.Dynamic t res -> Rx.Event t [Text]) -- ^ validates the widget value on an event
+  -> (  Rx.Event t ()
+     -> Rx.Dynamic t res
+     -> Rx.Event t (Maybe RefineErrors)
+     ) -- ^ validates the widget value on an event
   -> m (Rx.Event t [Text], Rx.Dynamic t res)
 mkValidation wInput construct validate = do
   input <- wInput
@@ -650,9 +656,10 @@ mkValidation wInput construct validate = do
       dRes  = construct input
       eErrs = validate eOnChange dRes
   Rx.widgetHold_ Rx.blank . Rx.ffor eErrs $ \case
-    [] -> Rx.blank
-    es -> forM_ es $ Rx.elClass "p" "help is-danger" . Rx.text
+    Nothing -> Rx.blank
+    Just (RefineErrors es) ->
+      forM_ es $ Rx.elClass "p" "help is-danger" . Rx.text
   let eValidationAttrs = Rx.ffor eErrs $ \case
-        [] -> pure "is-success"
-        _  -> pure "is-danger"
+        Nothing -> pure "is-success"
+        Just _  -> pure "is-danger"
   pure (eValidationAttrs, dRes)

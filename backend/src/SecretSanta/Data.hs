@@ -21,10 +21,10 @@ import           Database.Beam.Orphans          ( )
 import           Database.Beam.T2               ( T2(..) )
 
 deriving
-  via Refined Double Price
+  via Refinable Double Price
   instance HasSqlValueSyntax be Double => HasSqlValueSyntax be Price
 deriving
-  via Refined Double Price
+  via Refinable Double Price
   instance HasDefaultSqlDataType be Double => HasDefaultSqlDataType be Price
 
 deriving anyclass instance Beamable SecretSantaIdT
