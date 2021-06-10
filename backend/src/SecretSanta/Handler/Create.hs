@@ -3,7 +3,8 @@
 module SecretSanta.Handler.Create
   ( createSecretSantaHandler
   , InvalidDateTimeError
-  ) where
+  )
+where
 
 import           Polysemy.Error
 import           Polysemy.Fresh
@@ -56,9 +57,9 @@ createSecretSantaHandler ss@(SecretSanta UnsafeSecretSanta {..}) = do
 mkMail :: Sender -> Info -> (Participant, Participant) -> Mail
 mkMail (Sender sender) Info {..} (gifter, receiver) =
   let toAddress =
-        Address { addressName = Just gifterName, addressEmail = gifterEmail }
+          Address { addressName = Just gifterName, addressEmail = gifterEmail }
       fromAddress = Address { addressName  = Just "Secret Santa"
-                            , addressEmail = rdeconstruct sender
+                            , addressEmail = unrefine sender
                             }
       subject = "Secret Santa"
       html :: Html = [shamlet|
@@ -88,12 +89,12 @@ mkMail (Sender sender) Info {..} (gifter, receiver) =
  where
   eventName            = unNonEmptyText iEventName
   hostName             = unNonEmptyText iHostName
-  hostEmail            = rdeconstruct iHostEmail
+  hostEmail            = unrefine iHostEmail
   mDate :: Maybe Text  = show <$> iDate
   mTime :: Maybe Text  = show <$> iTime
   mLocation            = unNonEmptyText <$> iLocation
   mPrice :: Maybe Text = show <$> iPrice
   description          = unNonEmptyText iDescription
   gifterName           = unNonEmptyText . pName $ gifter
-  gifterEmail          = rdeconstruct . pEmail $ gifter
+  gifterEmail          = unrefine . pEmail $ gifter
   receiverName         = unNonEmptyText . pName $ receiver

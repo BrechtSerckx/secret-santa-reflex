@@ -5,10 +5,13 @@ module Data.Refine
   ( Refine(..)
   , Refined(..)
   , (|>)
+  , (|>?)
   , refineTextMaybe
   , refineTextReadMaybe
   , unsafeRefine
-  ) where
+  , withEither
+  )
+where
 
 import           Prelude                 hiding ( from
                                                 , to
@@ -25,33 +28,32 @@ import           Data.Validate
 
 class Refine from to | to -> from where
 
-  rguard :: from -> [Text]
-  rguard = getFailures . refine @from @to
-
-  rconstruct :: from -> to
-  default rconstruct :: Coercible from to => from -> to
-  rconstruct = coerce @from @to
-
-  rdeconstruct :: to -> from
-  default rdeconstruct :: Coercible to from => to -> from
-  rdeconstruct = coerce @to @from
-
   refine :: from -> Validated to
-  refine fa = case rguard @from @to fa of
-    [] -> Success . rconstruct $ fa
-    es -> Failure es
 
-  {-# MINIMAL rguard | refine #-}
+  unrefine :: to -> from
+  default unrefine :: Coercible to from => to -> from
+  unrefine = coerce @to @from
 
-(|>) :: Bool -> Text -> [Text]
-cond |> err = if cond then [err] else []
-infixl 0 |>
+(|>) :: Bool -> Text -> Validated ()
+b |> err = if b then failure err else success ()
+infixl 5 |>
 
-newtype Refined from to = UnsafeRefined { unrefine :: to }
+(|>?) :: (from -> Maybe to) -> Text -> from -> Validated to
+(|>?) validateMaybe err from = case validateMaybe from of
+  Just to -> success to
+  Nothing -> failure err
+infixl 5 |>?
+
+withEither :: (from -> Either Text to) -> from -> Validated to
+withEither validateEither from = case validateEither from of
+  Right to  -> success to
+  Left  err -> failure err
+
+newtype Refined from to = UnsafeRefined { unRefined :: to }
   deriving newtype (Eq, Show)
 
 instance (Aeson.ToJSON from, Refine from to) => Aeson.ToJSON (Refined from to) where
-  toJSON = Aeson.toJSON . rdeconstruct @from @to . unrefine
+  toJSON = Aeson.toJSON . unrefine @from @to . unRefined
 
 instance (Aeson.FromJSON from, Refine from to) => Aeson.FromJSON (Refined from to) where
   parseJSON v = Aeson.parseJSON v >>= \a -> case refine @from @to a of

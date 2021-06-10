@@ -1,13 +1,13 @@
 module Text.NonEmpty
   ( NonEmptyText
   , unNonEmptyText
-  ) where
+  )
+where
 
 
 import qualified Data.Aeson                    as Aeson
 import           Data.Refine
 import qualified Data.Text                     as T
-import           Data.Validate
 
 newtype NonEmptyText = NonEmptyText { unNonEmptyText :: Text}
   deriving newtype (Show, Eq)
@@ -15,7 +15,4 @@ newtype NonEmptyText = NonEmptyText { unNonEmptyText :: Text}
 
 instance Refine Text NonEmptyText where
   refine t =
-    let t' = T.strip t
-    in  if T.null t'
-          then failure "Cannot be empty."
-          else pure . NonEmptyText $ t'
+    let t' = T.strip t in T.null t' |> "Cannot be empty." $> NonEmptyText t'

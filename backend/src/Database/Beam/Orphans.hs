@@ -1,11 +1,11 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 module Database.Beam.Orphans
-  () where
+  ()
+where
 
 import           Data.Refine
 import qualified "uuid" Data.UUID              as UUID
-import           Data.Validate
 import "common"  Text.EmailAddress
 import           Text.NonEmpty
 
@@ -31,11 +31,8 @@ deriving
   instance HasDefaultSqlDataType be Text => HasDefaultSqlDataType be EmailAddress
 
 instance Refine Text UUID.UUID where
-  refine t = case UUID.fromText t of
-    Just uuid -> success uuid
-    Nothing   -> failure "UUID parser failed"
-  rconstruct   = undefined
-  rdeconstruct = UUID.toText
+  refine   = UUID.fromText |>? "UUID parser failed"
+  unrefine = UUID.toText
 
 deriving
   via Refined Text UUID.UUID

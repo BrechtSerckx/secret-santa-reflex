@@ -32,7 +32,8 @@ module SecretSanta.Data
   , validatePEmail
   , validatePEmailUnique
   , Sender(..)
-  ) where
+  )
+where
 
 import qualified Data.Aeson                    as Aeson
 import qualified Data.List                     as L
@@ -81,15 +82,14 @@ deriving via Refined UnsafeSecretSanta SecretSanta instance Aeson.ToJSON SecretS
 deriving via Refined UnsafeSecretSanta SecretSanta instance Aeson.FromJSON SecretSanta
 
 instance Refine UnsafeSecretSanta SecretSanta where
-  rguard UnsafeSecretSanta {..} = mconcat
-    [ not (unique $ pName <$> secretsantaParticipants)
+  refine ss@UnsafeSecretSanta {..} = do
+    not (unique $ pName <$> secretsantaParticipants)
       |> "Participant names must be unique."
-    , not (unique $ pEmail <$> secretsantaParticipants)
+    not (unique $ pEmail <$> secretsantaParticipants)
       |> "Participant emails must be unique."
-    , length secretsantaParticipants
-    <  3
-    |> "There must be at least 3 participants to ensure random matches."
-    ]
+    (length secretsantaParticipants < 3)
+      |> "There must be at least 3 participants to ensure random matches."
+    pure $ SecretSanta ss
     where unique l = length l == length (L.nub l)
 
 validateSecretSanta :: UnsafeSecretSanta -> Validated SecretSanta
@@ -150,7 +150,7 @@ newtype Price = Price Double
   deriving (Aeson.ToJSON, Aeson.FromJSON) via Refined Double Price
 
 instance Refine Double Price where
-  rguard g = g < 0 |> "Price can not be negative."
+  refine g = (g < 0) |> "Price can not be negative." $> Price g
 
 validatePriceMaybe :: Text -> Validated (Maybe Price)
 validatePriceMaybe = refineTextReadMaybe

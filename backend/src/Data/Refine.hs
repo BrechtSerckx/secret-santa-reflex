@@ -1,7 +1,8 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 module Data.Refine
   ( module Export
-  ) where
+  )
+where
 
 import "common"  Data.Refine                   as Export
 import           Database.Beam.Backend          ( FromBackendRow(..)
@@ -10,7 +11,7 @@ import           Database.Beam.Backend          ( FromBackendRow(..)
 import           Database.Beam.Migrate          ( HasDefaultSqlDataType(..) )
 
 instance (HasSqlValueSyntax be from, Refine from to) => HasSqlValueSyntax be (Refined from to) where
-  sqlValueSyntax = sqlValueSyntax . rdeconstruct @from @to . unrefine
+  sqlValueSyntax = sqlValueSyntax . unrefine @from @to . unRefined
 
 instance (FromBackendRow be from, Refine from to) => FromBackendRow be (Refined from to) where
   fromBackendRow =
