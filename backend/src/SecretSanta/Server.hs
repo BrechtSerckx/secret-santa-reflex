@@ -1,6 +1,7 @@
 module SecretSanta.Server
   ( secretSantaServer
-  ) where
+  )
+where
 
 import           Polysemy
 import           Polysemy.Beam
@@ -15,6 +16,7 @@ import qualified Data.Aeson                    as Aeson
 import           Data.Error
 import qualified Data.Text                     as T
 import qualified Data.UUID.V4                  as UUID
+import qualified Database.SQLite.Simple        as SQLite
 
 import qualified Network.Wai.Application.Static
                                                as Static
@@ -62,15 +64,8 @@ secretSantaServer = do
     CORS.simpleCorsResourcePolicy { CORS.corsRequestHeaders = ["content-type"] }
 
 type HandlerEffects
-  = '[ SecretSantaStore
-     , Transaction Sqlite SqliteM
-     , Fresh SecretSantaId
-     , Match
-     , Email
-     , GetTime
-     , Input Sender
-     , Embed IO
-     ]
+  = '[SecretSantaStore, Transaction Sqlite SqliteM, Fresh SecretSantaId, Match, Email, GetTime, Input
+    Sender, Embed IO]
 
 runInHandler :: forall a . Opts -> Sem HandlerEffects a -> SS.Handler a
 runInHandler Opts {..} act =
@@ -80,7 +75,8 @@ runInHandler Opts {..} act =
         GMail -> runInputEnv gmailSettingsDecoder . runEmailGmail
         SES   -> runInputEnv sesSettingsDecoder . runEmailSES
   in  do
-        eRes <- liftIO . withConnection dbFile $ \conn ->
+        eRes <- liftIO . withConnection dbFile $ \conn -> do
+          SQLite.setTrace conn (Just putStrLn)
           fmap (first toServantError)
             . fmap join
             . fmap (first $ serverError . T.pack . displayException)

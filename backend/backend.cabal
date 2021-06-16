@@ -129,3 +129,61 @@ executable backend
     TypeOperators
     TypeFamilies
     ViewPatterns
+
+test-suite backend-test
+
+  build-depends: 
+      base-noprelude >=4.12 && <4.13
+    , common
+    , QuickCheck
+    , hspec
+
+      -- polysemy
+    , polysemy
+    , polysemy-plugin
+    , polysemy-zoo
+
+      -- data
+    , text
+
+  default-extensions:
+    ApplicativeDo
+    BlockArguments
+    ConstraintKinds
+    DataKinds
+    DeriveAnyClass
+    DeriveGeneric
+    DerivingVia
+    FlexibleContexts
+    FlexibleInstances
+    GADTs
+    GeneralizedNewtypeDeriving
+    InstanceSigs
+    LambdaCase
+    MultiParamTypeClasses
+    MultiWayIf
+    NamedFieldPuns
+    OverloadedStrings
+    PackageImports
+    PatternSynonyms
+    PolyKinds
+    RankNTypes
+    RecordWildCards
+    RecursiveDo
+    ScopedTypeVariables
+    StandaloneDeriving
+    StrictData
+    TemplateHaskell
+    TupleSections
+    TypeApplications
+    TypeOperators
+    TypeFamilies
+    ViewPatterns
+
+  other-modules: 
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs 
+  hs-source-dirs: 
+      test
+  -- needed for discovery of test suites.
+  -- build-tool-depends: hspec-discover:hspec-discover == 2.*

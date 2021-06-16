@@ -2,7 +2,8 @@ module Polysemy.Beam
   ( Transaction
   , transact
   , runTransactionSqliteDebug
-  ) where
+  )
+where
 
 import           Polysemy
 import           Polysemy.Operators
@@ -10,7 +11,8 @@ import           Polysemy.Operators
 import           Database.Beam
 import           Database.Beam.Sqlite           ( Sqlite
                                                 , SqliteM
-                                                , runBeamSqliteDebug
+                                                -- , runBeamSqliteDebug
+                                                , runBeamSqlite
                                                 )
 import qualified Database.SQLite.Simple        as SQLite
 
@@ -21,4 +23,6 @@ makeSem ''Transaction
 runTransactionSqliteDebug
   :: SQLite.Connection -> Transaction Sqlite SqliteM ': r @> a -> IO ~@ r @> a
 runTransactionSqliteDebug conn = interpret $ \case
-  Transact act -> embed $ runBeamSqliteDebug putStrLn conn act
+  Transact act ->
+    -- embed . SQLite.withTransaction conn $ runBeamSqliteDebug putStrLn conn act
+    embed . SQLite.withTransaction conn $ runBeamSqlite conn act
