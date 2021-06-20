@@ -180,6 +180,12 @@ test-suite backend-test
     TypeFamilies
     ViewPatterns
 
+  ghc-options:
+    -O2
+    -flate-specialise
+    -fspecialise-aggressively
+    -fplugin=Polysemy.Plugin
+
   other-modules: 
   type: exitcode-stdio-1.0
   main-is: Spec.hs 
