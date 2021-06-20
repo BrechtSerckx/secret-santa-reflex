@@ -91,33 +91,26 @@ runTransactionError act = do
   endTransaction conn
   pure res
 
--- runTransactionErrors
---   :: forall es r
---    . Members '[Embed IO , Final IO] r
---   => Conn
---   -> Transaction ': (es :++ r) @> ()
---   -> r @> (Conn, Either MyError ())
--- runTransactionErrors conn act = atomicStateToIO conn $ do
---   embed $ startTransaction conn
---   let act' :: AtomicState Conn ': (es :++ r) @> ()
---       act' = runTransactionState act
---       act'' :: (AtomicState Conn ': r) @> Either MyError ()
---       act'' = runErrors @es act'
---   eRes <- act''
---   case eRes of
---     Right ()  -> pure ()
---     Left  err -> embed $ rollbackTransaction conn
---   embed $ endTransaction conn
---   pure eRes
+runTransactionErrors
+  :: forall es f r
+   . ( Members '[Embed IO , Final IO] r
+     , Members '[Embed IO , Final IO] (es :++ r)
+     )
+  => ((Input Conn : (es :++ r)) @> () -> Input Conn ': r @> f ())
+  -> (f () -> Bool)
+  -> Transaction ': (es :++ r) @> ()
+  -> Input Conn ': r @> f ()
+runTransactionErrors runErrors hasErrors act = do
+  conn <- input
+  startTransaction conn
+  eRes <- runErrors . runTransaction' conn $ act
+  if hasErrors eRes then rollbackTransaction conn else endTransaction conn
+  pure eRes
 
--- runErrors
---   :: forall es r a
---    . Members '[Embed IO , Final IO] r
---   => AtomicState Conn ': (es :++ r) @> ()
---   -> (AtomicState Conn ': r) @> Either MyError ()
--- runErrors = undefined
+newtype F a = F (Either MyError2 (Either MyError a))
+  deriving newtype (Eq, Show)
 
-type family (:++) as bs where
+type family (:++) (as ::[k]) (bs ::[k]) :: [k] where
   '[] :++ bs = bs
   (a ': as) :++ bs = a ': (as :++ bs)
 infixr 4 :++
@@ -218,28 +211,68 @@ spec = describe "Polysemy" $ do
       res `shouldBe` [["start", "insert 1", "rollback"], [], []]
       eErr `shouldBe` Left (MyError "error 1")
 
-  -- it "rolls back transaction on errors" $ do
-  --   conn <- liftIO $ newIORef []
-  --   let
-  --     act
-  --       :: '[  Error MyError, Error MyError2, Transaction , Embed IO, Final IO ] @> ()
-  --     act = do
-  --       insertSomething "insert 1"
-  --       throw $ MyError "error 1"
-  --       insertSomething "insert 2"
-  --       throw $ MyError2 "error 2"
-  --       insertSomething "insert 3"
-  --     act' :: '[  Embed IO, Final IO ] @> (Conn, Either MyError ())
-  --     act' = runTransactionErrors @'[Error MyError, Error MyError2] conn act
-  --     act'' :: '[  Final IO ] @> (Conn, Either MyError ())
-  --     act'' = embedToFinal act'
-  --     act''' :: IO (Conn, Either MyError ())
-  --     act''' = runFinal act''
-  --   eErr' :: (Conn, Either MyError ()) <- liftIO act'''
-  --   let eErr :: Either MyError () = snd eErr'
-  --   res <- liftIO $ readIORef conn
-  --   res `shouldBe` ["start", "insert 1", "rollback"]
-  --   eErr `shouldBe` Left (MyError "error 1")
+    it "rolls back transaction on errors" $ do
+      let
+        act
+          :: '[  Transaction , Error MyError, Error MyError2, Embed IO, Final IO ] @> ()
+        act = do
+          insertSomething "insert 1"
+          throw $ MyError "error 1"
+          insertSomething "insert 2"
+          throw $ MyError2 "error 2"
+          insertSomething "insert 3"
+
+        runErrors
+          :: (  (Input Conn : ('[Error MyError, Error MyError2] :++ r)) @> ()
+             -> Input Conn ': r @> F ()
+             )
+        runErrors = fmap F . runError . runError . rotateEffects3L
+        hasErrors :: F () -> Bool
+        hasErrors = \case
+          F (Right (Right _)) -> False
+          _                   -> True
+
+      (res, eErr) :: ([Text], F ()) <-
+        liftIO
+        . runFinal
+        . embedToFinal
+        . runConn
+        . runTransactionErrors @'[Error MyError , Error MyError2] runErrors
+                                                                  hasErrors
+        $ act
+      res `shouldBe` ["start", "insert 1", "rollback"]
+      eErr `shouldBe` F (Right (Left (MyError "error 1")))
+
+    it "rolls back transaction on errors 2" $ do
+      let
+        act
+          :: '[  Transaction , Error MyError, Error MyError2, Embed IO, Final IO ] @> ()
+        act = do
+          insertSomething "insert 1"
+          insertSomething "insert 2"
+          throw $ MyError2 "error 2"
+          insertSomething "insert 3"
+
+        runErrors
+          :: (  (Input Conn : ('[Error MyError, Error MyError2] :++ r)) @> ()
+             -> Input Conn ': r @> F ()
+             )
+        runErrors = fmap F . runError . runError . rotateEffects3L
+        hasErrors :: F () -> Bool
+        hasErrors = \case
+          F (Right (Right _)) -> False
+          _                   -> True
+
+      (res, eErr) :: ([Text], F ()) <-
+        liftIO
+        . runFinal
+        . embedToFinal
+        . runConn
+        . runTransactionErrors @'[Error MyError , Error MyError2] runErrors
+                                                                  hasErrors
+        $ act
+      res `shouldBe` ["start", "insert 1", "insert 2", "rollback"]
+      eErr `shouldBe` F (Left (MyError2 "error 2"))
 
 main :: IO ()
 main = hspec spec
