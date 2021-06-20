@@ -14,6 +14,7 @@ import           Data.IORef
 import           Data.Maybe                     ( fromJust )
 import           Polysemy
 import           Polysemy.Error
+import           Polysemy.Extra
 import           Polysemy.Input
 import           Polysemy.Operators
 import           Polysemy.State
@@ -35,18 +36,20 @@ endTransaction (Conn conn) = embed $ modifyIORef' conn (<> ["end"])
 rollbackTransaction :: Conn -> IO ~@> ()
 rollbackTransaction (Conn conn) = embed $ modifyIORef' conn (<> ["rollback"])
 
-runConn :: Input Conn ': r @> a -> IO ~@ r @> [Text]
+runConn :: Input Conn ': r @> a -> IO ~@ r @> ([Text], a)
 runConn act = do
   conn <- embed $ newIORef []
-  _    <- runInputConst (Conn conn) act
-  embed $ readIORef conn
+  a    <- runInputConst (Conn conn) act
+  s    <- embed $ readIORef conn
+  pure (s, a)
 
-runConnPool :: Int -> Input Conn ': r @> a -> IO ~@ r @> [[Text]]
+runConnPool :: Int -> Input Conn ': r @> a -> IO ~@ r @> ([[Text]], a)
 runConnPool n act = do
   cs :: [IORef [Text]] <- embed . replicateM n $ newIORef []
   let conns = Conn <$> cs
-  _ <- runInputList' conns act
-  embed $ traverse readIORef cs
+  a <- runInputList' conns act
+  s <- embed $ traverse readIORef cs
+  pure (s, a)
 
 newtype MyError = MyError Text
   deriving stock (Eq, Show)
@@ -56,43 +59,37 @@ newtype MyError2 = MyError2 Text
   deriving stock (Eq, Show)
   deriving anyclass Exception
 
+runTransaction'
+  :: Member (Embed IO) r
+  => Conn
+  -> Transaction ': r @> a
+  -> Input Conn ': r @> a
+runTransaction' conn = reinterpret $ \case
+  Transact f -> embed $ f conn
+
 runTransaction
-  :: forall r a
-   . Member (Embed IO) r
+  :: Member (Embed IO) r => Transaction ': r @> a -> Input Conn ': r @> a
+runTransaction act = do
+  conn <- input
+  startTransaction conn
+  res <- runTransaction' conn act
+  endTransaction conn
+  pure res
+
+runTransactionError
+  :: Members '[Error MyError , Embed IO , Final IO] r
   => Transaction ': r @> a
   -> Input Conn ': r @> a
-runTransaction act =
-  let runTransaction' :: Conn -> Transaction ': r @> a -> Input Conn ': r @> a
-      runTransaction' conn = reinterpret $ \case
-        Transact f -> embed $ f conn
-  in  do
-        conn <- input
-        startTransaction conn
-        res <- runTransaction' conn act
-        endTransaction conn
-        pure res
-
--- runTransaction
---   :: Member (Embed IO) r => Transaction ': r @> () -> Input Conn ': r @> ()
--- runTransaction act = do
---   conn <- input
---   fmap snd . atomicStateToIO conn $ do
---     embed $ startTransaction conn
---     runTransactionState act
---     embed $ endTransaction conn
-
--- runTransactionError
---   :: Members '[Error MyError , Embed IO , Final IO] r
---   => Conn
---   -> Transaction ': r @> ()
---   -> r @> (Conn, ())
--- runTransactionError conn act = atomicStateToIO conn $ do
---   embed $ startTransaction conn
---   (fromExceptionSem @MyError $ runTransactionState act)
---     `catch` \err@(MyError msg) -> do
---               embed $ rollbackTransaction conn
---               throw err
---   embed $ endTransaction conn
+runTransactionError act = do
+  conn <- input
+  startTransaction conn
+  res <-
+    (fromExceptionSem @MyError $ runTransaction' conn act)
+      `catch` \err@(MyError msg) -> do
+                rollbackTransaction conn
+                throw err
+  endTransaction conn
+  pure res
 
 -- runTransactionErrors
 --   :: forall es r
@@ -132,78 +129,94 @@ spec = describe "Polysemy" $ do
       res <- liftIO . runM . runConn . runTransaction $ do
         insertSomething "insert 1"
         insertSomething "insert 2"
-      res `shouldBe` ["start", "insert 1", "insert 2", "end"]
+      fst res `shouldBe` ["start", "insert 1", "insert 2", "end"]
 
     it "separates transactions" $ do
       res1 <- liftIO . runM . runConn . runTransaction $ insertSomething
         "insert 1"
       res2 <- liftIO . runM . runConn . runTransaction $ insertSomething
         "insert 2"
-      res1 `shouldBe` ["start", "insert 1", "end"]
-      res2 `shouldBe` ["start", "insert 2", "end"]
+      fst res1 `shouldBe` ["start", "insert 1", "end"]
+      fst res2 `shouldBe` ["start", "insert 2", "end"]
+
+    it "rolls back transaction on error" $ do
+      let act :: '[  Transaction , Error MyError, Embed IO, Final IO ] @> ()
+          act = do
+            insertSomething "insert 1"
+            throw $ MyError "error 1"
+            insertSomething "insert 2"
+      (res, eErr) <-
+        liftIO
+        . runFinal
+        . embedToFinal
+        . runConn
+        . runError
+        . rotateEffects2
+        . runTransactionError
+        $ act
+      res `shouldBe` ["start", "insert 1", "rollback"]
+      eErr `shouldBe` Left (MyError "error 1")
 
   describe "runConnPool . runTransaction" $ do
     it "wraps transactions altogether" $ do
       res <- liftIO . runM . runConnPool 3 . runTransaction $ do
         insertSomething "insert 1"
         insertSomething "insert 2"
-      res `shouldBe` [["start", "insert 1", "insert 2", "end"], [], []]
+      fst res `shouldBe` [["start", "insert 1", "insert 2", "end"], [], []]
 
     it "separates transactions with different pools" $ do
       res1 <- liftIO . runM . runConnPool 3 . runTransaction $ insertSomething
         "insert 1"
       res2 <- liftIO . runM . runConnPool 3 . runTransaction $ insertSomething
         "insert 2"
-      res1 `shouldBe` [["start", "insert 1", "end"], [], []]
-      res2 `shouldBe` [["start", "insert 2", "end"], [], []]
+      fst res1 `shouldBe` [["start", "insert 1", "end"], [], []]
+      fst res2 `shouldBe` [["start", "insert 2", "end"], [], []]
 
-    it "separates transactions withing pool" $ do
+    it "separates transactions within a pool" $ do
       res <- liftIO . runM . runConnPool 3 $ do
         runTransaction $ insertSomething "insert 1"
         runTransaction $ insertSomething "insert 2"
-      res
+      fst res
         `shouldBe` [ ["start", "insert 1", "end"]
                    , ["start", "insert 2", "end"]
                    , []
                    ]
 
-  -- it "rolls back transaction on error" $ do
-  --   conn <- liftIO $ newIORef []
-  --   let act :: '[  Transaction , Error MyError, Embed IO, Final IO ] @> ()
-  --       act = do
-  --         insertSomething "insert 1"
-  --         throw $ MyError "error 1"
-  --         insertSomething "insert 2"
-  --   eErr' <-
-  --     liftIO
-  --     . runFinal
-  --     . embedToFinal
-  --     . runError
-  --     . runTransactionError conn
-  --     $ act
-  --   let eErr :: Either MyError () = second snd eErr'
-  --   res <- liftIO $ readIORef conn
-  --   res `shouldBe` ["start", "insert 1", "rollback"]
-  --   eErr `shouldBe` Left (MyError "error 1")
+    it "rolls back transaction on error" $ do
+      let act :: '[  Transaction , Error MyError, Embed IO, Final IO ] @> ()
+          act = do
+            insertSomething "insert 1"
+            throw $ MyError "error 1"
+            insertSomething "insert 2"
+      (res, eErr) <-
+        liftIO
+        . runFinal
+        . embedToFinal
+        . runConnPool 3
+        . runError
+        . rotateEffects2
+        . runTransactionError
+        $ act
+      res `shouldBe` [["start", "insert 1", "rollback"], [], []]
+      eErr `shouldBe` Left (MyError "error 1")
 
-  -- it "rolls back transaction on exception" $ do
-  --   conn <- liftIO $ newIORef []
-  --   let act :: '[  Transaction , Error MyError, Embed IO, Final IO ] @> ()
-  --       act = do
-  --         insertSomething "insert 1"
-  --         throwIO $ MyError "error 1"
-  --         insertSomething "insert 2"
-  --   eErr' <-
-  --     liftIO
-  --     . runFinal
-  --     . embedToFinal
-  --     . runError
-  --     . runTransactionError conn
-  --     $ act
-  --   let eErr :: Either MyError () = second snd eErr'
-  --   res <- liftIO $ readIORef conn
-  --   res `shouldBe` ["start", "insert 1", "rollback"]
-  --   eErr `shouldBe` Left (MyError "error 1")
+    it "rolls back transaction on exception" $ do
+      let act :: '[  Transaction , Error MyError, Embed IO, Final IO ] @> ()
+          act = do
+            insertSomething "insert 1"
+            throwIO $ MyError "error 1"
+            insertSomething "insert 2"
+      (res, eErr) <-
+        liftIO
+        . runFinal
+        . embedToFinal
+        . runConnPool 3
+        . runError
+        . rotateEffects2
+        . runTransactionError
+        $ act
+      res `shouldBe` [["start", "insert 1", "rollback"], [], []]
+      eErr `shouldBe` Left (MyError "error 1")
 
   -- it "rolls back transaction on errors" $ do
   --   conn <- liftIO $ newIORef []

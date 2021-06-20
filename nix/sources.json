@@ -64,6 +64,12 @@
         "url": "https://github.com/polysemy-research/polysemy/archive/09c65bdae9c9ce50a55c7ee2ab9681916f09f4c3.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
+    "polysemy-extra": {
+        "ref": "master",
+        "repo": "https://gitlab.com/homotopic-tech/polysemy-extra.git",
+        "rev": "63378fe26153bf516521873f41681823c75a6214",
+        "type": "git"
+    },
     "polysemy-zoo": {
         "branch": "master",
         "description": ":monkey::panda_face: Experimental, user-contributed effects and interpreters for polysemy",
