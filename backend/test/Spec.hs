@@ -19,20 +19,21 @@ import           Polysemy.Input
 import           Polysemy.Operators
 import           Polysemy.State
 
--- * Connections
+-- * Connection class
+
+class Connection c where
+  startTransaction :: c -> IO ~@> ()
+  endTransaction :: c -> IO ~@> ()
+  rollbackTransaction :: c -> IO ~@> ()
+
+-- * Dummy Connections
 
 newtype Conn = Conn { unConn :: IORef [Text] }
 
--- ** Actions
-
-startTransaction :: Conn -> IO ~@> ()
-startTransaction (Conn conn) = embed $ modifyIORef' conn (<> ["start"])
-
-endTransaction :: Conn -> IO ~@> ()
-endTransaction (Conn conn) = embed $ modifyIORef' conn (<> ["end"])
-
-rollbackTransaction :: Conn -> IO ~@> ()
-rollbackTransaction (Conn conn) = embed $ modifyIORef' conn (<> ["rollback"])
+instance Connection Conn where
+  startTransaction (Conn conn) = embed $ modifyIORef' conn (<> ["start"])
+  endTransaction (Conn conn) = embed $ modifyIORef' conn (<> ["end"])
+  rollbackTransaction (Conn conn) = embed $ modifyIORef' conn (<> ["rollback"])
 
 -- ** Interpretations
 
@@ -75,40 +76,41 @@ newtype F a = F (Either MyError2 (Either MyError a))
 
 -- * Transactions
 
-data Transaction m a where
-  Transact ::(Conn -> IO a) -> Transaction m a
+data Transaction c m a where
+  Transact ::(c -> IO a) -> Transaction c m a
 makeSem ''Transaction
 
 -- ** Actions
 
-insertSomething :: Text -> '[Transaction] >@> ()
+insertSomething :: Text -> '[Transaction Conn] >@> ()
 insertSomething msg = transact $ \(Conn conn) -> modifyIORef' conn (<> [msg])
 
 -- ** Interpretations
 
 runTransaction'
-  :: Member (Embed IO) r
-  => Conn
-  -> Transaction ': r @> a
-  -> Input Conn ': r @> a
+  :: Member (Embed IO) r => c -> Transaction c ': r @> a -> Input c ': r @> a
 runTransaction' conn = reinterpret $ \case
   Transact f -> embed $ f conn
 
 runTransaction
-  :: Member (Embed IO) r => Transaction ': r @> a -> Input Conn ': r @> a
+  :: forall c r a
+   . (Member (Embed IO) r, Connection c)
+  => Transaction c ': r @> a
+  -> Input c ': r @> a
 runTransaction act = do
-  conn <- input
+  conn <- input @c
   startTransaction conn
   res <- runTransaction' conn act
   endTransaction conn
   pure res
 
 runTransactionError
-  :: Members '[Error MyError , Embed IO , Final IO] r
-  => Transaction ': r @> a
-  -> Input Conn ': r @> a
+  :: forall c r a
+   . (Members '[Error MyError , Embed IO , Final IO] r, Connection c)
+  => Transaction c ': r @> a
+  -> Input c ': r @> a
 runTransactionError act = do
-  conn <- input
+  conn <- input @c
   startTransaction conn
   res <-
     (fromExceptionSem @MyError $ runTransaction' conn act)
@@ -119,14 +121,15 @@ runTransactionError act = do
   pure res
 
 runTransactionErrors
-  :: forall es f r
+  :: forall es f r c
    . ( Members '[Embed IO , Final IO] r
      , Members '[Embed IO , Final IO] (es :++ r)
+     , Connection c
      )
-  => ((Input Conn : (es :++ r)) @> () -> Input Conn ': r @> f ())
+  => ((Input c : (es :++ r)) @> () -> Input c ': r @> f ())
   -> (f () -> Bool)
-  -> Transaction ': (es :++ r) @> ()
-  -> Input Conn ': r @> f ()
+  -> Transaction c ': (es :++ r) @> ()
+  -> Input c ': r @> f ()
 runTransactionErrors runErrors hasErrors act = do
   conn <- input
   startTransaction conn
@@ -186,7 +189,7 @@ rollbackErrorTransactionSpec
   -> SpecWith (Arg (IO ()))
 rollbackErrorTransactionSpec runConn' runRes =
   it "rolls back transaction on error" $ do
-    let act :: '[  Transaction , Error MyError, Embed IO, Final IO ] @> ()
+    let act :: '[  Transaction Conn , Error MyError, Embed IO, Final IO ] @> ()
         act = do
           insertSomething "insert 1"
           throw $ MyError "error 1"
@@ -209,7 +212,7 @@ rollbackExceptionTransactionSpec
   -> SpecWith (Arg (IO ()))
 rollbackExceptionTransactionSpec runConn' runRes =
   it "rolls back transaction on exception" $ do
-    let act :: '[  Transaction , Error MyError, Embed IO, Final IO ] @> ()
+    let act :: '[  Transaction Conn , Error MyError, Embed IO, Final IO ] @> ()
         act = do
           insertSomething "insert 1"
           throwIO $ MyError "error 1"
@@ -281,7 +284,7 @@ spec = describe "Polysemy" $ do
     it "rolls back transaction on errors" $ do
       let
         act
-          :: '[  Transaction , Error MyError, Error MyError2, Embed IO, Final IO ] @> ()
+          :: '[  Transaction Conn , Error MyError, Error MyError2, Embed IO, Final IO ] @> ()
         act = do
           insertSomething "insert 1"
           throw $ MyError "error 1"
@@ -290,8 +293,8 @@ spec = describe "Polysemy" $ do
           insertSomething "insert 3"
 
         runErrors
-          :: (  (Input Conn : ('[Error MyError, Error MyError2] :++ r)) @> ()
-             -> Input Conn ': r @> F ()
+          :: (  (Input c : ('[Error MyError, Error MyError2] :++ r)) @> ()
+             -> Input c ': r @> F ()
              )
         runErrors = fmap F . runError . runError . rotateEffects3L
         hasErrors :: F () -> Bool
@@ -313,7 +316,7 @@ spec = describe "Polysemy" $ do
     it "rolls back transaction on errors 2" $ do
       let
         act
-          :: '[  Transaction , Error MyError, Error MyError2, Embed IO, Final IO ] @> ()
+          :: '[  Transaction Conn, Error MyError, Error MyError2, Embed IO, Final IO ] @> ()
         act = do
           insertSomething "insert 1"
           insertSomething "insert 2"
