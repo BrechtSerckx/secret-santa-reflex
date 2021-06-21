@@ -19,13 +19,11 @@ import           Polysemy.Input
 import           Polysemy.Operators
 import           Polysemy.State
 
-newtype Conn = Conn { unConn :: IORef [Text] }
-data Transaction m a where
-  Transact ::(Conn -> IO a) -> Transaction m a
-makeSem ''Transaction
+-- * Connections
 
-insertSomething :: Text -> '[Transaction] >@> ()
-insertSomething msg = transact $ \(Conn conn) -> modifyIORef' conn (<> [msg])
+newtype Conn = Conn { unConn :: IORef [Text] }
+
+-- ** Actions
 
 startTransaction :: Conn -> IO ~@> ()
 startTransaction (Conn conn) = embed $ modifyIORef' conn (<> ["start"])
@@ -35,6 +33,8 @@ endTransaction (Conn conn) = embed $ modifyIORef' conn (<> ["end"])
 
 rollbackTransaction :: Conn -> IO ~@> ()
 rollbackTransaction (Conn conn) = embed $ modifyIORef' conn (<> ["rollback"])
+
+-- ** Interpretations
 
 runConn :: Input Conn ': r @> a -> IO ~@ r @> ([Text], a)
 runConn act = do
@@ -50,6 +50,17 @@ runConnPool n act = do
   a <- runInputList' conns act
   s <- embed $ traverse readIORef cs
   pure (s, a)
+ where
+  runInputList' :: [i] -> Sem (Input i ': r) a -> Sem r a
+  runInputList' is = fmap snd . runState (cycle is) . reinterpret
+    (\case
+      Input -> do
+        s <- gets $ fromJust . uncons
+        put $ snd s
+        pure $ fst s
+    )
+
+-- * Errors
 
 newtype MyError = MyError Text
   deriving stock (Eq, Show)
@@ -58,6 +69,22 @@ newtype MyError = MyError Text
 newtype MyError2 = MyError2 Text
   deriving stock (Eq, Show)
   deriving anyclass Exception
+
+newtype F a = F (Either MyError2 (Either MyError a))
+  deriving newtype (Eq, Show)
+
+-- * Transactions
+
+data Transaction m a where
+  Transact ::(Conn -> IO a) -> Transaction m a
+makeSem ''Transaction
+
+-- ** Actions
+
+insertSomething :: Text -> '[Transaction] >@> ()
+insertSomething msg = transact $ \(Conn conn) -> modifyIORef' conn (<> [msg])
+
+-- ** Interpretations
 
 runTransaction'
   :: Member (Embed IO) r
@@ -107,13 +134,14 @@ runTransactionErrors runErrors hasErrors act = do
   if hasErrors eRes then rollbackTransaction conn else endTransaction conn
   pure eRes
 
-newtype F a = F (Either MyError2 (Either MyError a))
-  deriving newtype (Eq, Show)
+-- * Misc
 
 type family (:++) (as ::[k]) (bs ::[k]) :: [k] where
   '[] :++ bs = bs
   (a ': as) :++ bs = a ': (as :++ bs)
 infixr 4 :++
+
+-- * Spec
 
 spec :: Spec
 spec = describe "Polysemy" $ do
@@ -278,11 +306,3 @@ main :: IO ()
 main = hspec spec
 
 
-runInputList' :: [i] -> Sem (Input i ': r) a -> Sem r a
-runInputList' is = fmap snd . runState (cycle is) . reinterpret
-  (\case
-    Input -> do
-      s <- gets $ fromJust . uncons
-      put $ snd s
-      pure $ fst s
-  )
