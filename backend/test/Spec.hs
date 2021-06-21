@@ -143,101 +143,140 @@ infixr 4 :++
 
 -- * Spec
 
+wrapTransactionSpec
+  :: (r ~ '[Embed IO], a ~ ())
+  => (Input Conn ': r @> a -> r @> (c, a))
+  -> (c -> IO ())
+  -> SpecWith (Arg (IO ()))
+wrapTransactionSpec runConn' runRes = it "wraps transactions altogether" $ do
+  res <- liftIO . runM . runConn' . runTransaction $ do
+    insertSomething "insert 1"
+    insertSomething "insert 2"
+  runRes $ fst res
+
+separateConnTransactionSpec
+  :: (r ~ '[Embed IO], a ~ ())
+  => (Input Conn ': r @> a -> r @> (c, a))
+  -> ((c, c) -> IO ())
+  -> SpecWith (Arg (IO ()))
+separateConnTransactionSpec runConn' runRes =
+  it "separates transactions with different conns" $ do
+    res1 <- liftIO . runM . runConn' . runTransaction $ insertSomething
+      "insert 1"
+    res2 <- liftIO . runM . runConn' . runTransaction $ insertSomething
+      "insert 2"
+    runRes (fst res1, fst res2)
+
+separateTransactionSpec
+  :: (r ~ '[Embed IO], a ~ ())
+  => (Input Conn ': r @> a -> r @> (c, a))
+  -> (c -> IO ())
+  -> SpecWith (Arg (IO ()))
+separateTransactionSpec runConn' runRes =
+  it "separates transactions within same conn" $ do
+    res <- liftIO . runM . runConn' $ do
+      runTransaction $ insertSomething "insert 1"
+      runTransaction $ insertSomething "insert 2"
+    runRes $ fst res
+
+rollbackErrorTransactionSpec
+  :: (r ~ '[Embed IO, Final IO], a ~ Either MyError ())
+  => (Input Conn ': r @> a -> r @> (c, a))
+  -> ((c, a) -> IO ())
+  -> SpecWith (Arg (IO ()))
+rollbackErrorTransactionSpec runConn' runRes =
+  it "rolls back transaction on error" $ do
+    let act :: '[  Transaction , Error MyError, Embed IO, Final IO ] @> ()
+        act = do
+          insertSomething "insert 1"
+          throw $ MyError "error 1"
+          insertSomething "insert 2"
+    (res, eErr) :: (res, Either MyError ()) <-
+      liftIO
+      . runFinal
+      . embedToFinal
+      . runConn'
+      . runError
+      . rotateEffects2
+      . runTransactionError
+      $ act
+    runRes $ (res, eErr)
+
+rollbackExceptionTransactionSpec
+  :: (r ~ '[Embed IO, Final IO], a ~ Either MyError ())
+  => (Input Conn ': r @> a -> r @> (c, a))
+  -> ((c, a) -> IO ())
+  -> SpecWith (Arg (IO ()))
+rollbackExceptionTransactionSpec runConn' runRes =
+  it "rolls back transaction on exception" $ do
+    let act :: '[  Transaction , Error MyError, Embed IO, Final IO ] @> ()
+        act = do
+          insertSomething "insert 1"
+          throwIO $ MyError "error 1"
+          insertSomething "insert 2"
+    (res, eErr) :: (res, Either MyError ()) <-
+      liftIO
+      . runFinal
+      . embedToFinal
+      . runConn'
+      . runError
+      . rotateEffects2
+      . runTransactionError
+      $ act
+    runRes $ (res, eErr)
+
 spec :: Spec
 spec = describe "Polysemy" $ do
+
+  -- * simple connection
+
   describe "runConn . runTransaction" $ do
-    it "wraps transactions altogether" $ do
-      res <- liftIO . runM . runConn . runTransaction $ do
-        insertSomething "insert 1"
-        insertSomething "insert 2"
-      fst res `shouldBe` ["start", "insert 1", "insert 2", "end"]
+    wrapTransactionSpec runConn
+      $ \conn -> conn `shouldBe` ["start", "insert 1", "insert 2", "end"]
 
-    it "separates transactions" $ do
-      res1 <- liftIO . runM . runConn . runTransaction $ insertSomething
-        "insert 1"
-      res2 <- liftIO . runM . runConn . runTransaction $ insertSomething
-        "insert 2"
-      fst res1 `shouldBe` ["start", "insert 1", "end"]
-      fst res2 `shouldBe` ["start", "insert 2", "end"]
+    separateConnTransactionSpec runConn $ \(c1, c2) -> do
+      c1 `shouldBe` ["start", "insert 1", "end"]
+      c2 `shouldBe` ["start", "insert 2", "end"]
 
-    it "rolls back transaction on error" $ do
-      let act :: '[  Transaction , Error MyError, Embed IO, Final IO ] @> ()
-          act = do
-            insertSomething "insert 1"
-            throw $ MyError "error 1"
-            insertSomething "insert 2"
-      (res, eErr) <-
-        liftIO
-        . runFinal
-        . embedToFinal
-        . runConn
-        . runError
-        . rotateEffects2
-        . runTransactionError
-        $ act
+    separateTransactionSpec runConn $ \c -> do
+      c `shouldBe` ["start", "insert 1", "end", "start", "insert 2", "end"]
+
+    rollbackErrorTransactionSpec runConn $ \(res, eErr) -> do
       res `shouldBe` ["start", "insert 1", "rollback"]
       eErr `shouldBe` Left (MyError "error 1")
 
+    rollbackExceptionTransactionSpec runConn $ \(res, eErr) -> do
+      res `shouldBe` ["start", "insert 1", "rollback"]
+      eErr `shouldBe` Left (MyError "error 1")
+
+  -- * connection pool
+
   describe "runConnPool . runTransaction" $ do
-    it "wraps transactions altogether" $ do
-      res <- liftIO . runM . runConnPool 3 . runTransaction $ do
-        insertSomething "insert 1"
-        insertSomething "insert 2"
-      fst res `shouldBe` [["start", "insert 1", "insert 2", "end"], [], []]
+    wrapTransactionSpec (runConnPool 3) $ \res ->
+      res `shouldBe` [["start", "insert 1", "insert 2", "end"], [], []]
 
-    it "separates transactions with different pools" $ do
-      res1 <- liftIO . runM . runConnPool 3 . runTransaction $ insertSomething
-        "insert 1"
-      res2 <- liftIO . runM . runConnPool 3 . runTransaction $ insertSomething
-        "insert 2"
-      fst res1 `shouldBe` [["start", "insert 1", "end"], [], []]
-      fst res2 `shouldBe` [["start", "insert 2", "end"], [], []]
+    separateConnTransactionSpec (runConnPool 3) $ \(c1, c2) -> do
+      c1 `shouldBe` [["start", "insert 1", "end"], [], []]
+      c2 `shouldBe` [["start", "insert 2", "end"], [], []]
 
-    it "separates transactions within a pool" $ do
-      res <- liftIO . runM . runConnPool 3 $ do
-        runTransaction $ insertSomething "insert 1"
-        runTransaction $ insertSomething "insert 2"
-      fst res
+    separateTransactionSpec (runConnPool 3) $ \c -> do
+      c
         `shouldBe` [ ["start", "insert 1", "end"]
                    , ["start", "insert 2", "end"]
                    , []
                    ]
 
-    it "rolls back transaction on error" $ do
-      let act :: '[  Transaction , Error MyError, Embed IO, Final IO ] @> ()
-          act = do
-            insertSomething "insert 1"
-            throw $ MyError "error 1"
-            insertSomething "insert 2"
-      (res, eErr) <-
-        liftIO
-        . runFinal
-        . embedToFinal
-        . runConnPool 3
-        . runError
-        . rotateEffects2
-        . runTransactionError
-        $ act
+    rollbackErrorTransactionSpec (runConnPool 3) $ \(res, eErr) -> do
       res `shouldBe` [["start", "insert 1", "rollback"], [], []]
       eErr `shouldBe` Left (MyError "error 1")
 
-    it "rolls back transaction on exception" $ do
-      let act :: '[  Transaction , Error MyError, Embed IO, Final IO ] @> ()
-          act = do
-            insertSomething "insert 1"
-            throwIO $ MyError "error 1"
-            insertSomething "insert 2"
-      (res, eErr) <-
-        liftIO
-        . runFinal
-        . embedToFinal
-        . runConnPool 3
-        . runError
-        . rotateEffects2
-        . runTransactionError
-        $ act
+    rollbackExceptionTransactionSpec (runConnPool 3) $ \(res, eErr) -> do
       res `shouldBe` [["start", "insert 1", "rollback"], [], []]
       eErr `shouldBe` Left (MyError "error 1")
+
+  -- * multiple errors
+
+  describe "multiple errors" $ do
 
     it "rolls back transaction on errors" $ do
       let
