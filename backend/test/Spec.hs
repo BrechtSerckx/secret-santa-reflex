@@ -1,4 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-missing-export-lists #-}
 {-# OPTIONS_GHC -Wno-deprecations #-}
 
@@ -10,6 +11,7 @@ import           Prelude                 hiding ( catch
                                                 )
 import           Test.Hspec
 
+import           Data.Functor.Compose
 import           Data.IORef
 import           Data.Maybe                     ( fromJust )
 import           Polysemy
@@ -137,12 +139,69 @@ runTransactionErrors runErrors hasErrors act = do
   if hasErrors eRes then rollbackTransaction conn else endTransaction conn
   pure eRes
 
+type family Errors es where
+  Errors '[] = '[]
+  Errors (e ': es) = Error e ': Errors es
+
+type family Eithers es a where
+  Eithers '[] a = a
+  Eithers (e ': es) a = Eithers es (Either e a)
+
+class RunErrors es where
+  runErrors :: Input c ': Errors es :++ r @> a -> Input c ': r @> Eithers es a
+instance RunErrors '[] where
+  runErrors
+    :: Input c ': Errors '[] :++ r @> a -> Input c ': r @> Eithers '[] a
+  runErrors = identity
+instance RunErrors es => RunErrors ((e :: *) ': es) where
+  runErrors
+    :: forall r a c
+     . Input c ': Errors (e ': es) :++ r @> a
+    -> Input c ': r @> Eithers (e ': es) a
+  runErrors = runErrors @es . runError @e . rotateEffects2
+
+class HasErrors' es a where
+  hasErrors' :: a -> Bool
+instance HasErrors' '[] a where
+  hasErrors' :: a -> Bool
+  hasErrors' _ = False
+instance HasErrors' es a => HasErrors' (e ': es) (Either e a) where
+  hasErrors' :: Either e a -> Bool
+  hasErrors' = \case
+    Left  _ -> True
+    Right a -> hasErrors' @es @a a
+
+type HasErrors es a = HasErrors' (Reverse es) a
+hasErrors :: forall es a . HasErrors es a => a -> Bool
+hasErrors = hasErrors' @(Reverse es)
+
+runTransactionErrors'
+  :: forall es r c
+   . ( Members '[Embed IO , Final IO] r
+     , Members '[Embed IO , Final IO] (Errors es :++ r)
+     , Connection c
+     , RunErrors es
+     , HasErrors es (Eithers es ())
+     )
+  => Transaction c ': (Errors es :++ r) @> ()
+  -> Input c ': r @> (Eithers es ())
+runTransactionErrors' act = do
+  conn <- input
+  startTransaction conn
+  eRes <- runErrors @es . runTransaction' conn $ act
+  if hasErrors @es eRes then rollbackTransaction conn else endTransaction conn
+  pure eRes
 -- * Misc
 
 type family (:++) (as ::[k]) (bs ::[k]) :: [k] where
   '[] :++ bs = bs
   (a ': as) :++ bs = a ': (as :++ bs)
 infixr 4 :++
+
+type Reverse (xs :: [k]) = Reverse' xs '[]
+type family Reverse' (xs::[k]) ( ys ::[k] ) :: [k] where
+  Reverse' '[] ys = ys
+  Reverse' (x ': xs) ys = Reverse' xs (x ': ys)
 
 -- * Spec
 
@@ -343,6 +402,52 @@ spec = describe "Polysemy" $ do
         $ act
       res `shouldBe` ["start", "insert 1", "insert 2", "rollback"]
       eErr `shouldBe` F (Left (MyError2 "error 2"))
+
+  -- * multiple errors but better
+
+  describe "multiple errors but better" $ do
+
+
+    it "rolls back transaction on errors" $ do
+      let
+        act
+          :: '[  Transaction Conn , Error MyError, Error MyError2, Embed IO, Final IO ] @> ()
+        act = do
+          insertSomething "insert 1"
+          throw $ MyError "error 1"
+          insertSomething "insert 2"
+          throw $ MyError2 "error 2"
+          insertSomething "insert 3"
+
+      (res, eErr) <-
+        liftIO
+        . runFinal
+        . embedToFinal
+        . runConn
+        . runTransactionErrors' @'[MyError , MyError2]
+        $ act
+      res `shouldBe` ["start", "insert 1", "rollback"]
+      eErr `shouldBe` Right (Left (MyError "error 1"))
+
+    it "rolls back transaction on errors 2" $ do
+      let
+        act
+          :: '[  Transaction Conn, Error MyError, Error MyError2, Embed IO, Final IO ] @> ()
+        act = do
+          insertSomething "insert 1"
+          insertSomething "insert 2"
+          throw $ MyError2 "error 2"
+          insertSomething "insert 3"
+
+      (res, eErr) <-
+        liftIO
+        . runFinal
+        . embedToFinal
+        . runConn
+        . runTransactionErrors' @'[MyError , MyError2]
+        $ act
+      res `shouldBe` ["start", "insert 1", "insert 2", "rollback"]
+      eErr `shouldBe` Left (MyError2 "error 2")
 
 main :: IO ()
 main = hspec spec
