@@ -146,6 +146,9 @@ test-suite backend-test
 
       -- data
     , text
+    , sop-core
+
+    , servant
 
   default-extensions:
     ApplicativeDo

@@ -14,12 +14,20 @@ import           Test.Hspec
 import           Data.Functor.Compose
 import           Data.IORef
 import           Data.Maybe                     ( fromJust )
+import           Data.SOP                       ( I(..)
+                                                , NS(..)
+                                                )
 import           Polysemy
 import           Polysemy.Error
 import           Polysemy.Extra
 import           Polysemy.Input
 import           Polysemy.Operators
 import           Polysemy.State
+import           Servant.API.UVerb.Union        ( IsMember
+                                                , Union
+                                                , inject
+                                                , matchUnion
+                                                )
 
 -- * Connection class
 
@@ -191,6 +199,61 @@ runTransactionErrors' act = do
   eRes <- runErrors @es . runTransaction' conn $ act
   if hasErrors @es eRes then rollbackTransaction conn else endTransaction conn
   pure eRes
+
+runTransactionErrorsU
+  :: forall es u r c
+   . ( Members '[Embed IO , Final IO] r
+     , Members '[Embed IO , Final IO] (Errors es :++ r)
+     , Connection c
+     , RunErrorsU es es
+     )
+  => Transaction c ': (Errors es :++ r) @> ()
+  -> Input c ': r @> Envelope es ()
+runTransactionErrorsU act = do
+  conn <- input
+  startTransaction conn
+  eRes <- runErrorsU @es . runTransaction' conn $ act
+  if hasErrorsU @es eRes then rollbackTransaction conn else endTransaction conn
+  pure eRes
+
+type Envelope u a = Either (Union u) a
+
+class RunErrorsU es u where
+  runErrorsU'
+    :: Input c ': Errors es :++ r @> Envelope u a
+    -> Input c ': r @> Envelope u a
+instance RunErrorsU '[] u where
+  runErrorsU'
+    :: Input c ': Errors '[] :++ r @> Envelope u a
+    -> Input c ': r @> Envelope u a
+  runErrorsU' = identity
+instance
+  ( RunErrorsU es u
+  , IsMember e u
+  ) => RunErrorsU ((e :: *) ': es) u where
+  runErrorsU'
+    :: forall r a c
+     . Input c ': Errors (e ': es) :++ r @> Envelope u a
+    -> Input c ': r @> Envelope u a
+  runErrorsU' act = runErrorsU' @es $ do
+    eEnv <- runError @e $ rotateEffects2 act
+    let env' :: Envelope u a
+        env' = case eEnv of
+          Left  e         -> Left . inject $ I e
+          Right (Left  e) -> Left e
+          Right (Right a) -> Right a
+    pure env'
+
+runErrorsU
+  :: forall es u c r a
+   . RunErrorsU es u
+  => Input c ': Errors es :++ r @> a
+  -> Input c ': r @> Envelope u a
+runErrorsU = runErrorsU' @es @u . fmap Right
+
+hasErrorsU :: forall es r a . Envelope es a -> Bool
+hasErrorsU = isLeft
+
 -- * Misc
 
 type family (:++) (as ::[k]) (bs ::[k]) :: [k] where
@@ -448,6 +511,55 @@ spec = describe "Polysemy" $ do
         $ act
       res `shouldBe` ["start", "insert 1", "insert 2", "rollback"]
       eErr `shouldBe` Left (MyError2 "error 2")
+
+  -- * multiple errors with uverb
+
+  describe "multiple errors with uverb" $ do
+
+    it "rolls back transaction on errors" $ do
+      let
+        act
+          :: '[  Transaction Conn , Error MyError, Error MyError2, Embed IO, Final IO ] @> ()
+        act = do
+          insertSomething "insert 1"
+          throw $ MyError "error 1"
+          insertSomething "insert 2"
+          throw $ MyError2 "error 2"
+          insertSomething "insert 3"
+
+      (res, eErr) <-
+        liftIO
+        . runFinal
+        . embedToFinal
+        . runConn
+        . runTransactionErrorsU @'[MyError , MyError2]
+        $ act
+      res `shouldBe` ["start", "insert 1", "rollback"]
+      case eErr of
+        Right a   -> "Right" `shouldBe` "Left"
+        Left  env -> env `shouldBe` Z (I (MyError "error 1"))
+
+    it "rolls back transaction on errors 2" $ do
+      let
+        act
+          :: '[  Transaction Conn, Error MyError, Error MyError2, Embed IO, Final IO ] @> ()
+        act = do
+          insertSomething "insert 1"
+          insertSomething "insert 2"
+          throw $ MyError2 "error 2"
+          insertSomething "insert 3"
+
+      (res, eErr) <-
+        liftIO
+        . runFinal
+        . embedToFinal
+        . runConn
+        . runTransactionErrorsU @'[MyError , MyError2]
+        $ act
+      res `shouldBe` ["start", "insert 1", "insert 2", "rollback"]
+      case eErr of
+        Right a   -> "Right" `shouldBe` "Left"
+        Left  env -> env `shouldBe` S (Z (I (MyError2 "error 2")))
 
 main :: IO ()
 main = hspec spec
