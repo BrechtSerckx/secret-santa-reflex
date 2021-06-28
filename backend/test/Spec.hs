@@ -350,6 +350,56 @@ rollbackExceptionTransactionSpec runConn' runRes =
       $ act
     runRes $ (res, eErr)
 
+rollbackErrorsTransactionSpec
+  :: (r ~ '[Embed IO, Final IO], env ~ a)
+  => (Input Conn ': r @> a -> r @> (c, a))
+  -> (  Transaction Conn ': Error MyError ': Error MyError2 ': r @> ()
+     -> Input Conn ': r @> env
+     )
+  -> ((c, a) -> IO ())
+  -> SpecWith (Arg (IO ()))
+rollbackErrorsTransactionSpec runConn' runTE runRes =
+  it "rolls back transaction on error"
+    $ let act = do
+            insertSomething "insert 1"
+            throw $ MyError "error 1"
+            insertSomething "insert 2"
+            throw $ MyError2 "error 2"
+            insertSomething "insert 3"
+      in  rollbackErrorsTransactionSpec' runConn' runTE runRes act
+
+rollbackErrors2TransactionSpec
+  :: (r ~ '[Embed IO, Final IO], env ~ a)
+  => (Input Conn ': r @> a -> r @> (c, a))
+  -> (  Transaction Conn ': Error MyError ': Error MyError2 ': r @> ()
+     -> Input Conn ': r @> env
+     )
+  -> ((c, a) -> IO ())
+  -> SpecWith (Arg (IO ()))
+rollbackErrors2TransactionSpec runConn' runTE runRes =
+  it "rolls back transaction on error 2"
+    $ let act = do
+            insertSomething "insert 1"
+            insertSomething "insert 2"
+            throw $ MyError2 "error 2"
+            insertSomething "insert 3"
+      in  rollbackErrorsTransactionSpec' runConn' runTE runRes act
+
+rollbackErrorsTransactionSpec'
+  :: (r ~ '[Embed IO, Final IO], env ~ a)
+  => (Input Conn ': r @> a -> r @> (c, a))
+  -> (  Transaction Conn ': Error MyError ': Error MyError2 ': r @> ()
+     -> Input Conn ': r @> env
+     )
+  -> ((c, a) -> IO ())
+  -> '[  Transaction Conn , Error MyError, Error MyError2, Embed IO, Final IO ] @> ()
+  -> IO ()
+rollbackErrorsTransactionSpec' runConn' runTE runRes act = do
+  (res, eErr) :: (res, env) <-
+    liftIO . runFinal . embedToFinal . runConn' . runTE $ act
+  runRes $ (res, eErr)
+
+
 spec :: Spec
 spec = describe "Polysemy" $ do
 
@@ -403,66 +453,23 @@ spec = describe "Polysemy" $ do
 
   describe "multiple errors" $ do
 
-    it "rolls back transaction on errors" $ do
-      let
-        act
-          :: '[  Transaction Conn , Error MyError, Error MyError2, Embed IO, Final IO ] @> ()
-        act = do
-          insertSomething "insert 1"
-          throw $ MyError "error 1"
-          insertSomething "insert 2"
-          throw $ MyError2 "error 2"
-          insertSomething "insert 3"
-
+    let
+      runErrors
+        :: (  (Input c : ('[Error MyError, Error MyError2] :++ r)) @> ()
+           -> Input c ': r @> F ()
+           )
+      runErrors = fmap F . runError . runError . rotateEffects3L
+      hasErrors :: F () -> Bool
+      hasErrors = \case
+        F (Right (Right _)) -> False
+        _                   -> True
+      runTE = runTransactionErrors @'[Error MyError , Error MyError2]
         runErrors
-          :: (  (Input c : ('[Error MyError, Error MyError2] :++ r)) @> ()
-             -> Input c ': r @> F ()
-             )
-        runErrors = fmap F . runError . runError . rotateEffects3L
-        hasErrors :: F () -> Bool
-        hasErrors = \case
-          F (Right (Right _)) -> False
-          _                   -> True
-
-      (res, eErr) :: ([Text], F ()) <-
-        liftIO
-        . runFinal
-        . embedToFinal
-        . runConn
-        . runTransactionErrors @'[Error MyError , Error MyError2] runErrors
-                                                                  hasErrors
-        $ act
+        hasErrors
+    rollbackErrorsTransactionSpec runConn runTE $ \(res, eErr) -> do
       res `shouldBe` ["start", "insert 1", "rollback"]
       eErr `shouldBe` F (Right (Left (MyError "error 1")))
-
-    it "rolls back transaction on errors 2" $ do
-      let
-        act
-          :: '[  Transaction Conn, Error MyError, Error MyError2, Embed IO, Final IO ] @> ()
-        act = do
-          insertSomething "insert 1"
-          insertSomething "insert 2"
-          throw $ MyError2 "error 2"
-          insertSomething "insert 3"
-
-        runErrors
-          :: (  (Input Conn : ('[Error MyError, Error MyError2] :++ r)) @> ()
-             -> Input Conn ': r @> F ()
-             )
-        runErrors = fmap F . runError . runError . rotateEffects3L
-        hasErrors :: F () -> Bool
-        hasErrors = \case
-          F (Right (Right _)) -> False
-          _                   -> True
-
-      (res, eErr) :: ([Text], F ()) <-
-        liftIO
-        . runFinal
-        . embedToFinal
-        . runConn
-        . runTransactionErrors @'[Error MyError , Error MyError2] runErrors
-                                                                  hasErrors
-        $ act
+    rollbackErrors2TransactionSpec runConn runTE $ \(res, eErr) -> do
       res `shouldBe` ["start", "insert 1", "insert 2", "rollback"]
       eErr `shouldBe` F (Left (MyError2 "error 2"))
 
@@ -470,45 +477,11 @@ spec = describe "Polysemy" $ do
 
   describe "multiple errors but better" $ do
 
-
-    it "rolls back transaction on errors" $ do
-      let
-        act
-          :: '[  Transaction Conn , Error MyError, Error MyError2, Embed IO, Final IO ] @> ()
-        act = do
-          insertSomething "insert 1"
-          throw $ MyError "error 1"
-          insertSomething "insert 2"
-          throw $ MyError2 "error 2"
-          insertSomething "insert 3"
-
-      (res, eErr) <-
-        liftIO
-        . runFinal
-        . embedToFinal
-        . runConn
-        . runTransactionErrors' @'[MyError , MyError2]
-        $ act
+    let runTE = runTransactionErrors' @'[MyError , MyError2]
+    rollbackErrorsTransactionSpec runConn runTE $ \(res, eErr) -> do
       res `shouldBe` ["start", "insert 1", "rollback"]
       eErr `shouldBe` Right (Left (MyError "error 1"))
-
-    it "rolls back transaction on errors 2" $ do
-      let
-        act
-          :: '[  Transaction Conn, Error MyError, Error MyError2, Embed IO, Final IO ] @> ()
-        act = do
-          insertSomething "insert 1"
-          insertSomething "insert 2"
-          throw $ MyError2 "error 2"
-          insertSomething "insert 3"
-
-      (res, eErr) <-
-        liftIO
-        . runFinal
-        . embedToFinal
-        . runConn
-        . runTransactionErrors' @'[MyError , MyError2]
-        $ act
+    rollbackErrors2TransactionSpec runConn runTE $ \(res, eErr) -> do
       res `shouldBe` ["start", "insert 1", "insert 2", "rollback"]
       eErr `shouldBe` Left (MyError2 "error 2")
 
@@ -516,50 +489,13 @@ spec = describe "Polysemy" $ do
 
   describe "multiple errors with uverb" $ do
 
-    it "rolls back transaction on errors" $ do
-      let
-        act
-          :: '[  Transaction Conn , Error MyError, Error MyError2, Embed IO, Final IO ] @> ()
-        act = do
-          insertSomething "insert 1"
-          throw $ MyError "error 1"
-          insertSomething "insert 2"
-          throw $ MyError2 "error 2"
-          insertSomething "insert 3"
-
-      (res, eErr) <-
-        liftIO
-        . runFinal
-        . embedToFinal
-        . runConn
-        . runTransactionErrorsU @'[MyError , MyError2]
-        $ act
+    let runTE = runTransactionErrorsU @'[MyError , MyError2]
+    rollbackErrorsTransactionSpec runConn runTE $ \(res, eErr) -> do
       res `shouldBe` ["start", "insert 1", "rollback"]
-      case eErr of
-        Right a   -> "Right" `shouldBe` "Left"
-        Left  env -> env `shouldBe` Z (I (MyError "error 1"))
-
-    it "rolls back transaction on errors 2" $ do
-      let
-        act
-          :: '[  Transaction Conn, Error MyError, Error MyError2, Embed IO, Final IO ] @> ()
-        act = do
-          insertSomething "insert 1"
-          insertSomething "insert 2"
-          throw $ MyError2 "error 2"
-          insertSomething "insert 3"
-
-      (res, eErr) <-
-        liftIO
-        . runFinal
-        . embedToFinal
-        . runConn
-        . runTransactionErrorsU @'[MyError , MyError2]
-        $ act
+      eErr `shouldBe` Left (Z (I (MyError "error 1")))
+    rollbackErrors2TransactionSpec runConn runTE $ \(res, eErr) -> do
       res `shouldBe` ["start", "insert 1", "insert 2", "rollback"]
-      case eErr of
-        Right a   -> "Right" `shouldBe` "Left"
-        Left  env -> env `shouldBe` S (Z (I (MyError2 "error 2")))
+      eErr `shouldBe` Left (S (Z (I (MyError2 "error 2"))))
 
 main :: IO ()
 main = hspec spec
