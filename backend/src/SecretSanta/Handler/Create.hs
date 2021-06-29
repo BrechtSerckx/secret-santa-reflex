@@ -6,11 +6,11 @@ module SecretSanta.Handler.Create
   ) where
 
 import           Polysemy
-import           Polysemy.Beam
 import           Polysemy.Error
 import           Polysemy.Fresh
 import           Polysemy.Input
 import           Polysemy.Operators
+import           Polysemy.Transaction.Beam
 
 import qualified Database.SQLite.Simple        as SQLite
 

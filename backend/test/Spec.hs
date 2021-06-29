@@ -17,12 +17,12 @@ import           Data.SOP                       ( I(..)
                                                 , NS(..)
                                                 )
 import           Polysemy
-import           Polysemy.Beam
 import           Polysemy.Error
 import           Polysemy.Extra
 import           Polysemy.Input
 import           Polysemy.Operators
 import           Polysemy.State
+import           Polysemy.Transaction
 
 -- * Dummy Connections
 

@@ -1,6 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE UndecidableInstances #-}
-module Polysemy.Beam
+module Polysemy.Transaction
   ( -- * Utils
     Errors
   , (:++)
@@ -13,9 +13,6 @@ module Polysemy.Beam
   , RunErrorsU(..)
   , runErrorsU
   , hasErrorsU
-  , BeamTransaction(..)
-  , beamTransact
-  , runBeamTransactionSqlite
   ) where
 
 import           Polysemy
@@ -25,14 +22,7 @@ import           Polysemy.Input
 import           Polysemy.Operators
 
 import           Data.SOP                       ( I(..) )
-
-import           Database.Beam
-import           Database.Beam.Sqlite           ( Sqlite
-                                                , SqliteM
-                                                , runBeamSqlite
-                                                )
 import qualified Database.SQLite.Simple        as SQLite
-
 import           Servant.API.UVerb.Union        ( IsMember
                                                 , Union
                                                 , inject
@@ -126,15 +116,3 @@ runErrorsU = runErrorsU' @es @u . fmap Right
 
 hasErrorsU :: forall es a . Envelope es a -> Bool
 hasErrorsU = isLeft
-
--- * Beam Transactions
-
-data BeamTransaction be bm m a where
-  BeamTransact ::(BeamSqlBackend be, MonadBeam be bm) => bm a -> BeamTransaction be bm m a
-makeSem ''BeamTransaction
-
-runBeamTransactionSqlite
-  :: BeamTransaction Sqlite SqliteM ': r @> a
-  -> Transaction SQLite.Connection ': r @> a
-runBeamTransactionSqlite = reinterpret $ \case
-  BeamTransact act -> transact $ \conn -> runBeamSqlite conn act

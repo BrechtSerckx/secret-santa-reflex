@@ -10,10 +10,10 @@ import           GHC.Err                        ( error )
 import           Prelude                 hiding ( State )
 
 import           Polysemy
-import           Polysemy.Beam
 import           Polysemy.KVStore
 import           Polysemy.Operators
 import           Polysemy.State
+import           Polysemy.Transaction.Beam
 
 import "this"    Database.Beam
 
