@@ -3,18 +3,23 @@
 module SecretSanta.Handler.Create
   ( createSecretSantaHandler
   , InvalidDateTimeError
-  )
-where
+  ) where
 
+import           Polysemy
+import           Polysemy.Beam
 import           Polysemy.Error
 import           Polysemy.Fresh
 import           Polysemy.Input
 import           Polysemy.Operators
 
+import qualified Database.SQLite.Simple        as SQLite
+
 import           Data.Error
 import           Data.Refine
+import           Data.SOP
 import           Data.Time
 import           Data.Time.MonadTime
+import qualified Data.UUID.V4                  as UUID
 import           Data.Validate
 import           Text.NonEmpty
 
@@ -24,16 +29,40 @@ import qualified Text.Blaze.Renderer.Text      as BlazeText
 import           Text.Hamlet
 
 import           SecretSanta.API
+import           SecretSanta.DB
 import           SecretSanta.Data
 import           SecretSanta.Effect.Email
 import           SecretSanta.Effect.Match
 import           SecretSanta.Effect.SecretSantaStore
 import           SecretSanta.Effect.Time        ( GetTime )
 
+import           Servant.API.UVerb
+import qualified Servant.Server                as SS
+
 createSecretSantaHandler
+  :: Members '[Final IO , Embed IO , Input Sender , Email , GetTime] r
+  => SecretSanta
+  -> Input SQLite.Connection ': r @> Union '[WithStatus 200 SecretSantaId, InvalidDateTimeError]
+createSecretSantaHandler ss = do
+  env :: Envelope '[InvalidDateTimeError] SecretSantaId <-
+    runTransactionErrorsU @'[InvalidDateTimeError]
+    . runBeamTransactionSqlite
+    . runSecretSantaStoreDB secretSantaDB
+    . runFreshSecretSantaId
+    . runMatchRandom
+    $ createSecretSanta ss
+  case env of
+    Left  e -> pure $ S e
+    Right r -> SS.respond $ WithStatus @200 r
+
+runFreshSecretSantaId :: Fresh SecretSantaId ': r @> a -> IO ~@ r @> a
+runFreshSecretSantaId = interpret $ \case
+  Fresh -> SecretSantaId <$> embed UUID.nextRandom
+
+createSecretSanta
   :: SecretSanta
-  -> '[ Fresh SecretSantaId, Input Sender , SecretSantaStore, GetTime , Match , Email , Error InvalidDateTimeError] >@> SecretSantaId
-createSecretSantaHandler ss@(SecretSanta UnsafeSecretSanta {..}) = do
+  -> '[Input Sender, Error InvalidDateTimeError, Match, Fresh SecretSantaId, Email, GetTime, SecretSantaStore ] >@> SecretSantaId
+createSecretSanta ss@(SecretSanta UnsafeSecretSanta {..}) = do
   let Info {..}    = secretsantaInfo
       participants = secretsantaParticipants
   sender     <- input @Sender
@@ -57,7 +86,7 @@ createSecretSantaHandler ss@(SecretSanta UnsafeSecretSanta {..}) = do
 mkMail :: Sender -> Info -> (Participant, Participant) -> Mail
 mkMail (Sender sender) Info {..} (gifter, receiver) =
   let toAddress =
-          Address { addressName = Just gifterName, addressEmail = gifterEmail }
+        Address { addressName = Just gifterName, addressEmail = gifterEmail }
       fromAddress = Address { addressName  = Just "Secret Santa"
                             , addressEmail = unrefine sender
                             }

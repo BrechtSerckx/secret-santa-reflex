@@ -38,9 +38,9 @@ runSecretSantaStoreDB
   :: (BeamC be, MonadBeam be bm)
   => DatabaseSettings be SecretSantaDB
   -> SecretSantaStore ': r @> a
-  -> Transaction be bm -@ r @> a
+  -> BeamTransaction be bm -@ r @> a
 runSecretSantaStoreDB db = interpret $ \case
-  UpdateKV k  (Just v) -> transact $ insertSecretSanta db k v
+  UpdateKV k  (Just v) -> beamTransact $ insertSecretSanta db k v
   UpdateKV _k Nothing  -> error "SecretSantaStoreDB: delete not implemented"
   LookupKV _k          -> error "SecretSantaStoreDB: lookup not implemented"
 
@@ -70,4 +70,4 @@ insertParticipants
   -> Participants
   -> SqlInsert be ParticipantTable
 insertParticipants db id ps =
-  insert (_secretsantaParticipants db) . insertValues $ fmap T2 $ (id, ) <$> ps
+  insert (_secretsantaParticipants db) . insertValues . fmap T2 $ (id, ) <$> ps

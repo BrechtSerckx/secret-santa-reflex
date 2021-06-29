@@ -1,21 +1,15 @@
 module SecretSanta.Server
   ( secretSantaServer
-  )
-where
+  ) where
 
 import           Polysemy
-import           Polysemy.Beam
-import           Polysemy.Error          hiding ( try )
-import           Polysemy.Fresh
 import           Polysemy.Input
 import           Polysemy.Input.Env
-import           Polysemy.Operators
 
 import           Control.Monad.Except           ( liftEither )
 import qualified Data.Aeson                    as Aeson
 import           Data.Error
 import qualified Data.Text                     as T
-import qualified Data.UUID.V4                  as UUID
 import qualified Database.SQLite.Simple        as SQLite
 
 import qualified Network.Wai.Application.Static
@@ -29,7 +23,6 @@ import qualified Network.Wai.Middleware.Servant.Options
 import           Servant.API                    ( (:<|>)(..)
                                                 , Raw
                                                 )
-import           Servant.API.UVerb
 import qualified Servant.Server                as SS
 import qualified WaiAppStatic.Types            as Static
                                                 ( unsafeToPiece )
@@ -38,8 +31,6 @@ import           SecretSanta.API
 import           SecretSanta.DB
 import           SecretSanta.Data
 import           SecretSanta.Effect.Email
-import           SecretSanta.Effect.Match
-import           SecretSanta.Effect.SecretSantaStore
 import           SecretSanta.Effect.Time
 import           SecretSanta.Handler.Create
 import           SecretSanta.Opts
@@ -64,13 +55,17 @@ secretSantaServer = do
     CORS.simpleCorsResourcePolicy { CORS.corsRequestHeaders = ["content-type"] }
 
 type HandlerEffects
-  = '[SecretSantaStore, Transaction Sqlite SqliteM, Fresh SecretSantaId, Match, Email, GetTime, Input
-    Sender, Embed IO]
+  = '[ Input SQLite.Connection
+     , Email
+     , GetTime
+     , Input Sender
+     , Embed IO
+     , Final IO
+     ]
 
 runInHandler :: forall a . Opts -> Sem HandlerEffects a -> SS.Handler a
 runInHandler Opts {..} act =
-  let runMatch = runMatchRandom
-      runEmail = case oEmailBackend of
+  let runEmail = case oEmailBackend of
         None  -> runEmailPrint
         GMail -> runInputEnv gmailSettingsDecoder . runEmailGmail
         SES   -> runInputEnv sesSettingsDecoder . runEmailSES
@@ -82,29 +77,17 @@ runInHandler Opts {..} act =
             . fmap (first $ serverError . T.pack . displayException)
             . try @SomeException
             . try @InternalError
-            . runM
+            . runFinal
+            . embedToFinal
             . runInputConst (Sender oEmailSender)
             . runGetTime
             . runEmail
-            . runMatch
-            . runFreshSecretSantaId
-            . runTransactionSqliteDebug conn
-            . runSecretSantaStoreDB secretSantaDB
-          -- . runSecretSantaStorePurely mempty
+            . runInputConst conn
             $ act
         liftEither eRes
 
-runFreshSecretSantaId :: Fresh SecretSantaId ': r @> a -> IO ~@ r @> a
-runFreshSecretSantaId = interpret $ \case
-  Fresh -> SecretSantaId <$> embed UUID.nextRandom
-
 apiServer :: Opts -> SS.ServerT API' (Sem HandlerEffects)
-apiServer opts =
-  (runError . createSecretSantaHandler >=> \case
-      Right r -> SS.respond $ WithStatus @200 r
-      Left  e -> SS.respond e
-    )
-    :<|> staticServer opts
+apiServer opts = createSecretSantaHandler :<|> staticServer opts
 
 staticServer :: Opts -> SS.ServerT Raw (Sem r)
 staticServer Opts {..} =

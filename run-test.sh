@@ -15,7 +15,7 @@ run_cabal_backend() {
     cabal configure
     # run with configuration in a `.env` file, that for obvious reasons is not
     # included in here
-    env $(cat .env | xargs) cabal run backend -- "${FLAGS[@]}" "$@"
+    env $(cat .env | xargs) cabal run exe:backend -- "${FLAGS[@]}" "$@"
 }
 run_cabal_multi() {
     nix-shell -A shells.ghc --run "cabal configure -f devel"
