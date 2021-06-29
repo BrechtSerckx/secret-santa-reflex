@@ -130,6 +130,7 @@ library
     SecretSanta.Handler.Create
     SecretSanta.Opts
     SecretSanta.Server
+    SecretSanta.Interpret
     Servant.Server
   ghc-options:
     -O2

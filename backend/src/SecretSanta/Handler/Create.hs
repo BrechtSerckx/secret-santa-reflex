@@ -12,8 +12,6 @@ import           Polysemy.Input
 import           Polysemy.Operators
 import           Polysemy.Transaction.Beam
 
-import qualified Database.SQLite.Simple        as SQLite
-
 import           Data.Error
 import           Data.Refine
 import           Data.SOP
@@ -35,14 +33,14 @@ import           SecretSanta.Effect.Email
 import           SecretSanta.Effect.Match
 import           SecretSanta.Effect.SecretSantaStore
 import           SecretSanta.Effect.Time        ( GetTime )
+import           SecretSanta.Interpret
 
 import           Servant.API.UVerb
 import qualified Servant.Server                as SS
 
 createSecretSantaHandler
-  :: Members '[Final IO , Embed IO , Input Sender , Email , GetTime] r
-  => SecretSanta
-  -> Input SQLite.Connection ': r @> Union '[WithStatus 200 SecretSantaId, InvalidDateTimeError]
+  :: SecretSanta
+  -> HandlerEffects @> Union '[WithStatus 200 SecretSantaId, InvalidDateTimeError]
 createSecretSantaHandler ss = do
   env :: Envelope '[InvalidDateTimeError] SecretSantaId <-
     runTransactionErrorsU @'[InvalidDateTimeError]

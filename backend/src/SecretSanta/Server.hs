@@ -3,14 +3,10 @@ module SecretSanta.Server
   ) where
 
 import           Polysemy
-import           Polysemy.Input
-import           Polysemy.Input.Env
 
 import           Control.Monad.Except           ( liftEither )
 import qualified Data.Aeson                    as Aeson
 import           Data.Error
-import qualified Data.Text                     as T
-import qualified Database.SQLite.Simple        as SQLite
 
 import qualified Network.Wai.Application.Static
                                                as Static
@@ -28,11 +24,8 @@ import qualified WaiAppStatic.Types            as Static
                                                 ( unsafeToPiece )
 
 import           SecretSanta.API
-import           SecretSanta.DB
-import           SecretSanta.Data
-import           SecretSanta.Effect.Email
-import           SecretSanta.Effect.Time
 import           SecretSanta.Handler.Create
+import           SecretSanta.Interpret
 import           SecretSanta.Opts
 
 type API' = API :<|> Raw
@@ -54,37 +47,9 @@ secretSantaServer = do
   corsPolicy =
     CORS.simpleCorsResourcePolicy { CORS.corsRequestHeaders = ["content-type"] }
 
-type HandlerEffects
-  = '[ Input SQLite.Connection
-     , Email
-     , GetTime
-     , Input Sender
-     , Embed IO
-     , Final IO
-     ]
-
 runInHandler :: forall a . Opts -> Sem HandlerEffects a -> SS.Handler a
-runInHandler Opts {..} act =
-  let runEmail = case oEmailBackend of
-        None  -> runEmailPrint
-        GMail -> runInputEnv gmailSettingsDecoder . runEmailGmail
-        SES   -> runInputEnv sesSettingsDecoder . runEmailSES
-  in  do
-        eRes <- liftIO . withConnection dbFile $ \conn -> do
-          SQLite.setTrace conn (Just putStrLn)
-          fmap (first toServantError)
-            . fmap join
-            . fmap (first $ serverError . T.pack . displayException)
-            . try @SomeException
-            . try @InternalError
-            . runFinal
-            . embedToFinal
-            . runInputConst (Sender oEmailSender)
-            . runGetTime
-            . runEmail
-            . runInputConst conn
-            $ act
-        liftEither eRes
+runInHandler opts act =
+  liftEither . first toServantError =<< (liftIO $ interpretHandler opts act)
 
 apiServer :: Opts -> SS.ServerT API' (Sem HandlerEffects)
 apiServer opts = createSecretSantaHandler :<|> staticServer opts
