@@ -9,7 +9,6 @@
       common = ./common;
       backend = ./backend;
       frontend = ./frontend;
-      emailaddress = ./emailaddress;
       servant-reflex = ./servant-reflex;
       beam-core = ./beam/beam-core;
       beam-migrate = ./beam/beam-migrate;
@@ -21,7 +20,6 @@
         "common"
         "backend"
         "frontend"
-        "emailaddress"
         "servant-reflex"
         "beam-core"
         "beam-migrate"
@@ -30,7 +28,6 @@
       ghcjs = [
         "common"
         "frontend"
-        "emailaddress"
         "servant-reflex"
       ];
     };

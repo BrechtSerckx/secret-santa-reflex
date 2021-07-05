@@ -38,7 +38,7 @@ library
     , aeson
     , protolude
     , either
-    , emailaddress
+    , email-validate
     , extra
     , beam-core
     , uuid

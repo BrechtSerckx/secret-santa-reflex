@@ -3,6 +3,4 @@ compiler: ghcjs
 packages:
   common/
   frontend/
-  base-noprelude/
-  emailaddress/
   servant-reflex/

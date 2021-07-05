@@ -3,8 +3,6 @@ packages:
   common/
   backend/
   frontend/
-  base-noprelude/
-  emailaddress/
   servant-reflex/
   beam/beam-core/
   beam/beam-migrate/

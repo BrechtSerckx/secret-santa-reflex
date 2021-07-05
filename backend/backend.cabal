@@ -93,7 +93,7 @@ common common-build-depends
     , aeson
     , pretty-simple
     , text
-    , emailaddress
+    , email-validate
     , bytestring
     , lens
     , uuid

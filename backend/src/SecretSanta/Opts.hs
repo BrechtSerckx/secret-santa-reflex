@@ -4,10 +4,12 @@ module SecretSanta.Opts
   , EmailBackend(..)
   ) where
 
+import qualified Data.Text as T
+import Data.Refine
+import Data.Validate
 import qualified Network.Wai.Handler.Warp      as Warp
 import qualified Options.Applicative           as OA
 import "common"  Text.EmailAddress
-import "emailaddress" Text.EmailAddress         ( validateFromString )
 
 data Opts = Opts
   { oEmailBackend :: EmailBackend
@@ -44,9 +46,12 @@ pEmailBackend =
 
 pEmailSender :: OA.Parser EmailAddress
 pEmailSender =
-  OA.option (OA.eitherReader validateFromString)
+  OA.option (OA.eitherReader parseEmailAddress)
     . mconcat
     $ [OA.long "email-sender", OA.metavar "EMAIL_ADDRESS"]
+  where parseEmailAddress s = case refine $ T.pack s of
+          Success a -> Right a
+          Failure es -> Left $ displayException es
 
 pWebRoot :: OA.Parser FilePath
 pWebRoot =

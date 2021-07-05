@@ -1,18 +1,19 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 module Text.EmailAddress
-  ( module Export
+  ( EmailAddress
   )
 where
 
+import qualified Data.Aeson                    as Aeson
 import           Data.Refine
-import "emailaddress" Text.EmailAddress        as Export
-                                                ( EmailAddress
-                                                , emailAddressFromText
-                                                )
-import "emailaddress" Text.EmailAddress         ( toText )
+import qualified Data.Text.Encoding as T
+import qualified Data.Text.Encoding.Error as T
+import "email-validate" Text.Email.Validate (EmailAddress, emailAddress, toByteString)
 
 instance Refine Text EmailAddress where
   refine =
-    emailAddressFromText
+    emailAddress . T.encodeUtf8
       |>? "Invalid email. Format: my-email-adress@my-provider"
-  unrefine = toText
+  unrefine = T.decodeUtf8With T.lenientDecode . toByteString
+deriving via Refinable Text EmailAddress instance Aeson.ToJSON EmailAddress
+deriving via Refinable Text EmailAddress instance Aeson.FromJSON EmailAddress
