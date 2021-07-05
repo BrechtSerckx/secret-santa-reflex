@@ -9,7 +9,6 @@
       common = ./common;
       backend = ./backend;
       frontend = ./frontend;
-      base-noprelude = ./base-noprelude;
       emailaddress = ./emailaddress;
       servant-reflex = ./servant-reflex;
       beam-core = ./beam/beam-core;
@@ -22,7 +21,6 @@
         "common"
         "backend"
         "frontend"
-        "base-noprelude"
         "emailaddress"
         "servant-reflex"
         "beam-core"
@@ -32,13 +30,13 @@
       ghcjs = [
         "common"
         "frontend"
-        "base-noprelude"
         "emailaddress"
         "servant-reflex"
       ];
     };
     useWarp = true;
     overrides = self: super: {
+      base-noprelude = self.callCabal2nix "base-noprelude" sources.base-noprelude { };
       polysemy = self.callCabal2nixWithOptions "polysemy" sources.polysemy "--no-hpack" {};
       polysemy-plugin = self.callCabal2nixWithOptions "polysemy-plugin" "${sources.polysemy}/polysemy-plugin" "--no-hpack" {};
       polysemy-zoo = self.callCabal2nixWithOptions "polysemy-zoo" sources.polysemy-zoo "--no-hpack" {};

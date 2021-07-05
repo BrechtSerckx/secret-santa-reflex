@@ -1,4 +1,10 @@
 {
+    "base-noprelude": {
+        "branch": "ghcjs",
+        "repo": "https://github.com/srid/base-noprelude.git",
+        "rev": "64fbf7ca39c0d5cb418b70d490d07de589806b60",
+        "type": "git"
+    },
     "brittany": {
         "branch": "master",
         "description": "haskell source code formatter",
