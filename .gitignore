@@ -4,5 +4,7 @@
 /backend-result
 cabal.project.local
 /ghc-frontend-result
-/result
+/result*
 /.env
+/backend.log
+/frontend.log

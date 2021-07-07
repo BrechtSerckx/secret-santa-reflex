@@ -3,3 +3,5 @@ packages:
   common/
   backend/
   frontend/
+  base-noprelude/
+  emailaddress/

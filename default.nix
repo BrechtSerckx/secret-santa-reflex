@@ -8,11 +8,13 @@
     common = ./common;
     backend = ./backend;
     frontend = ./frontend;
+    base-noprelude = ./base-noprelude;
+    emailaddress = ./emailaddress;
   };
 
   shells = {
-    ghc = ["common" "backend" "frontend"];
-    ghcjs = ["common" "frontend"];
+    ghc = ["common" "backend" "frontend" "base-noprelude" "emailaddress"];
+    ghcjs = ["common" "frontend" "base-noprelude" "emailaddress"];
   };
   useWarp = true;
   overrides = self: super: {
