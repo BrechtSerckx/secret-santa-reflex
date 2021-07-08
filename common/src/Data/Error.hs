@@ -10,6 +10,7 @@ module Data.Error
   , errStatus
   , serverError
   , InternalError
+  , internalError
   , throwInternalError
   ) where
 
@@ -51,6 +52,9 @@ type InternalError = ServerError 500 "INTERNAL"
 
 instance Exception InternalError where
   displayException = T.unpack . errMessage
+
+internalError :: Text -> InternalError
+internalError = serverError
 
 throwInternalError :: InternalError -> a
 throwInternalError = throw

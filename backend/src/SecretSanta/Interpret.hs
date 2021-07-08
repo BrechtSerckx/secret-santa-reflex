@@ -4,6 +4,7 @@ module SecretSanta.Interpret
   ) where
 
 import           Polysemy
+import           Polysemy.Error
 import           Polysemy.Input
 import           Polysemy.Input.Env
 import           Polysemy.Operators
@@ -23,24 +24,28 @@ type HandlerEffects
      , Email
      , GetTime
      , Input Sender
+     , Error EnvError
+     , Error InternalError
      , Embed IO
      , Final IO
      ]
 
 interpretHandler :: Opts -> HandlerEffects @> a -> IO (Either InternalError a)
 interpretHandler Opts {..} act =
-  let runEmail = case oEmailBackend of
+  let
+    runEmail :: Members '[Embed IO, Error EnvError] r => Email ': r @> a -> r @> a
+    runEmail = case oEmailBackend of
         None  -> runEmailPrint
-        GMail -> runInputEnv gmailSettingsDecoder . runEmailGmail
-        SES   -> runInputEnv sesSettingsDecoder . runEmailSES
+        GMail -> runInputEnv . runEmailGmail
+        SES   -> runInputEnv . runEmailSES
   in  liftIO . withConnection dbFile $ \conn -> do
         SQLite.setTrace conn (Just putStrLn)
-        fmap join
-          . fmap (first $ serverError . T.pack . displayException)
-          . try @SomeException
-          . try @InternalError
-          . runFinal
+        runFinal
           . embedToFinal
+          . runError @InternalError
+          . fromExceptionSem @InternalError
+          . fromExceptionSemVia  @SomeException (internalError . T.pack . displayException)
+          . mapError (internalError . T.pack . unEnvError)
           . runInputConst (Sender oEmailSender)
           . runGetTime
           . runEmail

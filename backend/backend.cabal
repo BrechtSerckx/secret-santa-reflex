@@ -84,7 +84,7 @@ common common-build-depends
       -- misc
     , random-shuffle
     , optparse-applicative
-    , nri-env-parser
+    , envy
     , mtl
     , random
     , directory
