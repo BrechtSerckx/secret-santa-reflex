@@ -1,6 +1,4 @@
 
-((nil . (
-         (dante-repl-command-line . ("nix-shell" "-A" "shells.ghc" "--run" "cabal repl backend"))
-         (dante-project-root . "/home/brecht/code/secret-santa-reflex")
+((nil . ((dante-target . "backend")
          (haskell-mode-stylish-haskell-path . "brittany")
          )))

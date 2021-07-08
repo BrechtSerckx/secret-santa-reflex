@@ -1,5 +1,4 @@
 
-((nil . (
-         (dante-target . "backend-test")
+((nil . ((dante-target . "backend-test")
          (haskell-mode-stylish-haskell-path . "brittany")
          )))
