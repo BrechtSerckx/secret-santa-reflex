@@ -2,24 +2,29 @@ module SecretSanta.Opts
   ( Opts(..)
   , parseOpts
   , EmailBackend(..)
+  , SEmailBackend(..)
+  , AnyEmailBackend(..)
+  , RunEmailBackend(..)
   ) where
 
-import qualified Data.Text as T
-import Data.Refine
-import Data.Validate
+import           Data.Refine
+import           Data.String                    ( String )
+import qualified Data.Text                     as T
+import           Data.Validate
 import qualified Network.Wai.Handler.Warp      as Warp
 import qualified Options.Applicative           as OA
+import           Polysemy
+import           Polysemy.Input.Env
+import           Polysemy.Operators
+import           SecretSanta.Effect.Email
 import "common"  Text.EmailAddress
 
 data Opts = Opts
-  { oEmailBackend :: EmailBackend
+  { oEmailBackend :: AnyEmailBackend
   , oEmailSender  :: EmailAddress
   , oWebRoot      :: FilePath
   , oPort         :: Warp.Port
   }
-
-data EmailBackend = None | GMail | SES
-  deriving (Eq, Show, Read)
 
 parseOpts :: IO Opts
 parseOpts =
@@ -34,24 +39,55 @@ pOpts = do
   oPort         <- pPort
   pure Opts { .. }
 
-pEmailBackend :: OA.Parser EmailBackend
+data EmailBackend = None | GMail | SES
+  deriving (Eq, Show, Read)
+
+data SEmailBackend eb where
+  SNone ::SEmailBackend 'None
+  SGMail ::SEmailBackend 'GMail
+  SSES ::SEmailBackend 'SES
+data AnyEmailBackend where
+  AnyEmailBackend ::RunEmailBackend eb => SEmailBackend eb ->AnyEmailBackend
+
+class RunEmailBackend (eb:: EmailBackend) where
+  runEmailBackend :: Member (Embed IO) r => SEmailBackend eb -> Email ': r @> a -> r @> a
+instance RunEmailBackend 'None where
+  runEmailBackend SNone = runEmailPrint
+instance RunEmailBackend 'GMail where
+  runEmailBackend SGMail = runInputEnv . runEmailGmail
+instance RunEmailBackend 'SES where
+  runEmailBackend SSES = runInputEnv . runEmailSES
+
+pEmailBackend :: OA.Parser AnyEmailBackend
 pEmailBackend =
-  OA.option OA.auto
+  OA.option readEmailBackend
     . mconcat
     $ [ OA.long "email-backend"
       , OA.metavar "EMAIL_BACKEND"
-      , OA.value None
-      , OA.showDefault
+      , OA.value (AnyEmailBackend SNone)
+      , OA.showDefaultWith showEmailBackend
       ]
+ where
+  readEmailBackend = OA.maybeReader $ \case
+    "none"  -> Just $ AnyEmailBackend SNone
+    "gmail" -> Just $ AnyEmailBackend SGMail
+    "ses"   -> Just $ AnyEmailBackend SSES
+    _       -> Nothing
+  showEmailBackend :: AnyEmailBackend -> String
+  showEmailBackend = \case
+    AnyEmailBackend SNone  -> "none"
+    AnyEmailBackend SGMail -> "gmail"
+    AnyEmailBackend SSES   -> "ses"
 
 pEmailSender :: OA.Parser EmailAddress
 pEmailSender =
   OA.option (OA.eitherReader parseEmailAddress)
     . mconcat
     $ [OA.long "email-sender", OA.metavar "EMAIL_ADDRESS"]
-  where parseEmailAddress s = case refine $ T.pack s of
-          Success a -> Right a
-          Failure es -> Left $ displayException es
+ where
+  parseEmailAddress s = case refine $ T.pack s of
+    Success a  -> Right a
+    Failure es -> Left $ displayException es
 
 pWebRoot :: OA.Parser FilePath
 pWebRoot =

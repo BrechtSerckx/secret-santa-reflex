@@ -6,23 +6,33 @@ module Polysemy.Input.Env
 
 import           Polysemy
 import           Polysemy.Input
-import           Polysemy.Error
 import           Polysemy.Operators
 
 import           System.Envy
 
 newtype EnvError = EnvError { unEnvError :: [Char] }
+  deriving newtype Show
+  deriving anyclass Exception
 
-runInputEnv
-  :: (FromEnv i, Members '[Embed IO, Error EnvError] r) => Input i ': r @> a -> r @> a
+runInputEnv :: (FromEnv i, Member (Embed IO) r) => Input i ': r @> a -> r @> a
 runInputEnv = interpret $ \case
   Input -> do
     eI <- embed @IO decodeEnv
-    fromEither $ first EnvError eI
+    case eI of
+      Left  e -> embed @IO . throwIO $ EnvError e
+      Right i -> pure i
 
 runInputEnvOnce
-  :: forall i a r. (FromEnv i, Members '[Embed IO, Error EnvError] r) => Input i ': r @> a -> r @> a
+  :: forall i a r
+   . (FromEnv i, Member (Embed IO) r)
+  => Input i ': r @> a
+  -> r @> a
 runInputEnvOnce act = do
   eI <- embed @IO $ decodeEnv @i
-  interpret (\case
-    Input -> fromEither $ first EnvError eI) act
+  case eI of
+    Left  e -> embed @IO . throwIO $ EnvError e
+    Right i -> interpret
+      (\case
+        Input -> pure i
+      )
+      act
