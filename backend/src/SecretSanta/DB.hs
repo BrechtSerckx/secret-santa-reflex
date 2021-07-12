@@ -9,8 +9,7 @@ module SecretSanta.DB
   , Sqlite
   , SqliteM
   , SQLite.withConnection
-  )
-where
+  ) where
 
 
 import "this"    Database.Beam

@@ -1,8 +1,7 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 module Data.Refine
   ( module Export
-  )
-where
+  ) where
 
 import "common"  Data.Refine                   as Export
 import           Database.Beam.Backend          ( FromBackendRow(..)

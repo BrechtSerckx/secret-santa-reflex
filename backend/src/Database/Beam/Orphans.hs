@@ -1,8 +1,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 module Database.Beam.Orphans
-  ()
-where
+  () where
 
 import           Data.Refine
 import qualified "uuid" Data.UUID              as UUID

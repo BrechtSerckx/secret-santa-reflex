@@ -4,16 +4,15 @@ module SecretSanta.Data
   ( module Export
   , InfoTable
   , ParticipantTable
-  )
-where
+  ) where
 
 import           Data.Refine
 import           Data.Time                      ( )
 import "common"  SecretSanta.Data              as Export
 
 import           Database.Beam                  ( Beamable
-                                                , Table(..)
                                                 , C'(..)
+                                                , Table(..)
                                                 )
 import           Database.Beam.Backend.SQL      ( HasSqlValueSyntax(..) )
 import           Database.Beam.Migrate          ( HasDefaultSqlDataType(..) )

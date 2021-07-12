@@ -14,8 +14,7 @@ module Data.Refine
   , Refined
   , renderRefineErrors
   , mappendMaybeErrors
-  )
-where
+  ) where
 
 import           Prelude                 hiding ( from
                                                 , to

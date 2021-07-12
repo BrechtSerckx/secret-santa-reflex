@@ -10,13 +10,12 @@ module Data.Validate
   , readValidation
   , readValidationMaybe
   , bindValidation
-  )
-where
+  ) where
 
 import           Data.Either.Validation        as Export
                                                 ( Validation(..) )
-import qualified Data.Text                     as T
 import           Data.String                    ( IsString(..) )
+import qualified Data.Text                     as T
 
 getSuccess :: Validation e a -> Maybe a
 getSuccess = \case

@@ -2,8 +2,7 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 module Database.Beam.T2
   ( T2(..)
-  )
-where
+  ) where
 
 import           Database.Beam.Migrate          ( BeamMigrateSqlBackend
                                                 , FieldCheck

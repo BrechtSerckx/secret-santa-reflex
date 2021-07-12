@@ -1,8 +1,7 @@
 module Text.NonEmpty
   ( NonEmptyText
   , unNonEmptyText
-  )
-where
+  ) where
 
 
 import qualified Data.Aeson                    as Aeson

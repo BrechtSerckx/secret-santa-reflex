@@ -10,11 +10,11 @@ module Data.Time
   , validateTimeMaybe
   , validateDateTime
   , compareZonedTime
-  )
-where
+  ) where
 
 import           Control.Monad.Fail             ( fail )
 import qualified Data.Aeson                    as Aeson
+import           Data.Refine
 import qualified Data.Text                     as T
 import "time"    Data.Time                     as Export
                                          hiding ( TimeZone(..)
@@ -24,7 +24,6 @@ import "time"    Data.Time                     as Export
                                                 , utcToZonedTime
                                                 )
 import qualified "time" Data.Time              as Time
-import           Data.Refine
 import           Data.Validate
 import qualified Text.Read                     as Read
 import qualified Text.Show                     as Show

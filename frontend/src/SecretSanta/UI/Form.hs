@@ -3,17 +3,16 @@
 module SecretSanta.UI.Form
   ( formWidget
   , participantsWidget
-  )
-where
+  ) where
 
 import           Control.Lens
 import           Control.Monad.Fix
 import           Data.Functor.Compose
 import qualified Data.Map                      as Map
+import           Data.Refine
 import qualified Data.Text                     as T
 import "common"  Data.Time
 import           Data.Time.MonadTime
-import           Data.Refine
 import           Data.Validate
 
 import qualified Reflex                        as Rx
