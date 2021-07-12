@@ -14,6 +14,7 @@ import           Data.Validate
 import qualified Network.Wai.Handler.Warp      as Warp
 import qualified Options.Applicative           as OA
 import           Polysemy
+import           Polysemy.Input
 import           Polysemy.Input.Env
 import           Polysemy.Operators
 import           SecretSanta.Effect.Email
@@ -50,13 +51,29 @@ data AnyEmailBackend where
   AnyEmailBackend ::RunEmailBackend eb => SEmailBackend eb ->AnyEmailBackend
 
 class RunEmailBackend (eb:: EmailBackend) where
-  runEmailBackend :: Member (Embed IO) r => SEmailBackend eb -> Email ': r @> a -> r @> a
+  type EmailBackendConfig eb :: *
+  type EmailBackendConfig eb = ()
+  runEmailBackend
+    :: Member (Embed IO) r
+    => SEmailBackend eb
+    -> Email ': r @> a
+    -> Input (EmailBackendConfig eb) ': r @> a
+  runEmailBackendConfig
+    :: Member (Embed IO) r
+    => SEmailBackend eb
+    -> Input (EmailBackendConfig eb) ': r @> a
+    -> r @> a
 instance RunEmailBackend 'None where
-  runEmailBackend SNone = runEmailPrint
+  runEmailBackend SNone = raise . runEmailPrint
+  runEmailBackendConfig SNone = runInputConst ()
 instance RunEmailBackend 'GMail where
-  runEmailBackend SGMail = runInputEnv . runEmailGmail
+  type EmailBackendConfig 'GMail = GmailSettings
+  runEmailBackend SGMail = runEmailGmail
+  runEmailBackendConfig SGMail = runInputEnv
 instance RunEmailBackend 'SES where
-  runEmailBackend SSES = runInputEnv . runEmailSES
+  type EmailBackendConfig 'SES = SESSettings
+  runEmailBackend SSES = runEmailSES
+  runEmailBackendConfig SSES = runInputEnv
 
 pEmailBackend :: OA.Parser AnyEmailBackend
 pEmailBackend =

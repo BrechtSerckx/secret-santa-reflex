@@ -30,30 +30,27 @@ type HandlerEffects
      , Final IO
      ]
 
-interpretHandler :: Opts -> HandlerEffects @> a -> IO (Either InternalError a)
-interpretHandler opts act =
+interpretHandler
+  :: Opts
+  -> '[ Input SQLite.Connection, GetTime, Input Sender, Email
+      , Error InternalError, Embed IO
+      , Final IO] @> a
+  -> IO (Either InternalError a)
+interpretHandler Opts {..} act =
   let aeb = AnyEmailBackend SNone
   in  liftIO $ case aeb of
         AnyEmailBackend (eb :: SEmailBackend eb) ->
-          interpretHandler' opts eb act
-
-
-interpretHandler'
-  :: RunEmailBackend eb
-  => Opts
-  -> SEmailBackend eb
-  -> HandlerEffects @> a
-  -> IO (Either InternalError a)
-interpretHandler' Opts {..} eb act = withConnection dbFile $ \conn -> do
-  SQLite.setTrace conn (Just putStrLn)
-  runFinal
-    . embedToFinal
-    . runError @InternalError
-    . fromExceptionSem @InternalError
-    . fromExceptionSemVia @SomeException
-        (internalError . T.pack . displayException)
-    . runEmailBackend eb
-    . runInputConst (Sender oEmailSender)
-    . runGetTime
-    . runInputConst conn
-    $ act
+          withConnection dbFile $ \conn -> do
+            SQLite.setTrace conn (Just putStrLn)
+            runFinal
+              . embedToFinal
+              . runError @InternalError
+              . fromExceptionSem @InternalError
+              . fromExceptionSemVia @SomeException
+                  (internalError . T.pack . displayException)
+              . runEmailBackendConfig eb
+              . runEmailBackend eb
+              . runInputConst (Sender oEmailSender)
+              . runGetTime
+              . runInputConst conn
+              $ act

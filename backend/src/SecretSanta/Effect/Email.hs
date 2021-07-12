@@ -35,10 +35,10 @@ runEmailPrint = interpret $ \case
     pPrint mail
 
 data SESSettings = SESSettings
-  { sesAccessKeyId    :: ByteString
-  , sesSecretAccessKey    :: ByteString
-  , sesSessionToken :: Maybe ByteString
-  , sesRegion       :: Text
+  { sesAccessKeyId     :: ByteString
+  , sesSecretAccessKey :: ByteString
+  , sesSessionToken    :: Maybe ByteString
+  , sesRegion          :: Text
   }
   deriving stock Generic
   deriving anyclass Env.FromEnv
@@ -46,8 +46,8 @@ runEmailSES :: Email ': r @> a -> IO ~@ Input SESSettings ': r @> a
 runEmailSES = reinterpret $ \case
   SendEmail mail@Mail { mailFrom, mailTo } -> do
     SESSettings {..} <- input
-    let ses = SES.SES { sesFrom = encodeUtf8 . addressEmail $ mailFrom
-                      , sesTo   = encodeUtf8 . addressEmail <$> mailTo
+    let ses = SES.SES { sesFrom      = encodeUtf8 . addressEmail $ mailFrom
+                      , sesTo        = encodeUtf8 . addressEmail <$> mailTo
                       , sesAccessKey = sesAccessKeyId
                       , sesSecretKey = sesSecretAccessKey
                       , ..

@@ -18,6 +18,7 @@ conf_forward:
   - -XStrictData
   - -XTupleSections
   - -XTypeApplications
+  - -XTypeOperators
   - -XViewPatterns
 
 conf_layout:
