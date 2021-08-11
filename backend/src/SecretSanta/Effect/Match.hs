@@ -16,9 +16,9 @@ data Match m a where
   MakeMatch ::Eq a => [a] -> Match m (Maybe [(a,a)])
 makeSem ''Match
 
-runMatchRandom :: Match ': r @> a -> IO ~@ r @> a
+runMatchRandom :: Member (Embed IO) r => Match ': r @> a -> r @> a
 runMatchRandom = interpret $ \case
-  MakeMatch xs -> embed $ match <$> Random.shuffleM xs
+  MakeMatch xs -> embed @IO $ match <$> Random.shuffleM xs
 
 runMatchDet :: Match ': r @> a -> r @> a
 runMatchDet = interpret $ \case
