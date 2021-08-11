@@ -17,6 +17,7 @@ data Opts = Opts
   , oEmailSender  :: EmailAddress
   , oWebRoot      :: FilePath
   , oPort         :: Warp.Port
+  , oDBFile       :: FilePath
   }
 
 parseOpts :: IO Opts
@@ -30,6 +31,7 @@ pOpts = do
   oEmailSender  <- pEmailSender
   oWebRoot      <- pWebRoot
   oPort         <- pPort
+  oDBFile       <- pKVBackend
   pure Opts { .. }
 
 
@@ -53,6 +55,10 @@ pEmailBackend =
     AnyEmailBackend SNone  -> "none"
     AnyEmailBackend SGMail -> "gmail"
     AnyEmailBackend SSES   -> "ses"
+
+pKVBackend :: OA.Parser FilePath
+pKVBackend =
+  OA.strOption . mconcat $ [OA.long "sqlite", OA.metavar "SQLITE DATABASE"]
 
 pEmailSender :: OA.Parser EmailAddress
 pEmailSender =

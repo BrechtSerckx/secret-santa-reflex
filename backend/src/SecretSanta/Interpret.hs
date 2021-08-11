@@ -32,20 +32,21 @@ type BaseEffects eb
      , Final IO
      ]
 interpretBase
-  :: forall eb
+  :: forall eb a
    . (RunEmailBackend eb)
   => Opts
-  -> SQLite.Connection
   -> SEmailBackend eb
-  -> forall a . (BaseEffects eb @> a -> IO a)
-interpretBase Opts {..} c eb =
+  -> BaseEffects eb @> a
+  -> IO a
+interpretBase Opts {..} eb act = SQLite.withConnection oDBFile $ \conn ->
   runFinal
     . embedToFinal
     . runEmailBackendConfig eb
     . runEmailBackend eb
     . runGetTime
-    . runInputConst c
+    . runInputConst conn
     . runInputConst (Sender oEmailSender)
+    $ act
 
 type HandlerEffects eb kv
   = '[GetTime , SecretSantaStore , Error InternalError , Embed IO , Final IO]

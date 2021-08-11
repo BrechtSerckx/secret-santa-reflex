@@ -27,14 +27,10 @@ import qualified WaiAppStatic.Types            as Static
                                                 ( unsafeToPiece )
 
 import           SecretSanta.API
-import           SecretSanta.DB
-import           SecretSanta.Effect.SecretSantaStore
 import           SecretSanta.Email
 import           SecretSanta.Handler.Create
 import           SecretSanta.Interpret
 import           SecretSanta.Opts
-
-import qualified Database.SQLite.Simple        as SQLite
 
 type API' = API :<|> Raw
 api' :: Proxy API'
@@ -43,13 +39,11 @@ api' = Proxy @API'
 secretSantaServer :: IO ()
 secretSantaServer = do
   opts@Opts {..} <- parseOpts
-  SQLite.withConnection dbFile $ \conn -> case oEmailBackend of
-    AnyEmailBackend eb ->
-      interpretBase opts conn eb $ secretSantaServer' opts eb
-
+  case oEmailBackend of
+    AnyEmailBackend eb -> interpretBase opts eb $ secretSantaServer' opts eb
 
 secretSantaServer'
-  :: forall eb kv
+  :: forall eb
    . (RunEmailBackend eb)
   => Opts
   -> SEmailBackend eb

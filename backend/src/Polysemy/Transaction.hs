@@ -17,7 +17,6 @@ module Polysemy.Transaction
 
 import           Polysemy
 import           Polysemy.Error
-import           Polysemy.Extra
 import           Polysemy.Input
 import           Polysemy.Operators
 
