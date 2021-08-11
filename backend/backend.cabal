@@ -123,6 +123,7 @@ library
     Polysemy.Input.Env
     SecretSanta.Data
     SecretSanta.DB
+    SecretSanta.Email
     SecretSanta.Effect.Email
     SecretSanta.Effect.Match
     SecretSanta.Effect.SecretSantaStore

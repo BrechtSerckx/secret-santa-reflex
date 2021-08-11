@@ -32,20 +32,25 @@ import           SecretSanta.Data
 import           SecretSanta.Effect.Email
 import           SecretSanta.Effect.Match
 import           SecretSanta.Effect.SecretSantaStore
-import           SecretSanta.Effect.Time        ( GetTime )
+import           SecretSanta.Effect.Time
+import           SecretSanta.Email
 import           SecretSanta.Interpret
 
 import           Servant.API.UVerb
 import qualified Servant.Server                as SS
 
 createSecretSantaHandler
-  :: SecretSanta
-  -> HandlerEffects @> Union '[WithStatus 200 SecretSantaId, InvalidDateTimeError]
-createSecretSantaHandler ss = do
-  env :: Envelope '[InvalidDateTimeError] SecretSantaId <-
-    runTransactionErrorsU @'[InvalidDateTimeError]
+  :: forall eb r
+   . (Members '[Input Sender , Email , GetTime] r, r ~ BaseEffects eb)
+  => SEmailBackend eb
+  -> SecretSanta
+  -> Error InternalError ': r @> Union '[WithStatus 200 SecretSantaId, InvalidDateTimeError]
+createSecretSantaHandler _eb ss = do
+  env <-
+    runTransaction
     . runBeamTransactionSqlite
     . runSecretSantaStoreDB secretSantaDB
+    . runErrorsU @'[InvalidDateTimeError]
     . runFreshSecretSantaId
     . runMatchRandom
     $ createSecretSanta ss
@@ -58,8 +63,19 @@ runFreshSecretSantaId = interpret $ \case
   Fresh -> SecretSantaId <$> embed UUID.nextRandom
 
 createSecretSanta
-  :: SecretSanta
-  -> '[Input Sender, Error InvalidDateTimeError, Match, Fresh SecretSantaId, Email, GetTime, SecretSantaStore ] >@> SecretSantaId
+  :: forall r
+   . Members
+       '[ Input Sender
+        , Error InvalidDateTimeError
+        , Match
+        , Fresh SecretSantaId
+        , Email
+        , GetTime
+        , SecretSantaStore
+        ]
+       r
+  => SecretSanta
+  -> r @> SecretSantaId
 createSecretSanta ss@(SecretSanta UnsafeSecretSanta {..}) = do
   let Info {..}    = secretsantaInfo
       participants = secretsantaParticipants

@@ -3,10 +3,13 @@ module SecretSanta.Server
   ) where
 
 import           Polysemy
+import           Polysemy.Error
+import           Polysemy.Operators
 
 import           Control.Monad.Except           ( liftEither )
 import qualified Data.Aeson                    as Aeson
 import           Data.Error
+import qualified Data.Text                     as T
 
 import qualified Network.Wai.Application.Static
                                                as Static
@@ -24,9 +27,14 @@ import qualified WaiAppStatic.Types            as Static
                                                 ( unsafeToPiece )
 
 import           SecretSanta.API
+import           SecretSanta.DB
+import           SecretSanta.Effect.SecretSantaStore
+import           SecretSanta.Email
 import           SecretSanta.Handler.Create
 import           SecretSanta.Interpret
 import           SecretSanta.Opts
+
+import qualified Database.SQLite.Simple        as SQLite
 
 type API' = API :<|> Raw
 api' :: Proxy API'
@@ -34,25 +42,55 @@ api' = Proxy @API'
 
 secretSantaServer :: IO ()
 secretSantaServer = do
-  opts@Opts { oPort } <- parseOpts
-  requestLogger       <- RL.mkRequestLogger def
-  Warp.run oPort
-    . requestLogger
-    . CORS.cors (const $ Just corsPolicy)
-    . SO.provideOptions api
-    . SS.serve api'
-    . SS.hoistServer api' (runInHandler opts)
-    $ apiServer opts
+  opts@Opts {..} <- parseOpts
+  SQLite.withConnection dbFile $ \conn -> case oEmailBackend of
+    AnyEmailBackend eb ->
+      interpretBase opts conn eb $ secretSantaServer' opts eb
+
+
+secretSantaServer'
+  :: forall eb kv
+   . (RunEmailBackend eb)
+  => Opts
+  -> SEmailBackend eb
+  -> BaseEffects eb @> ()
+secretSantaServer' opts@Opts {..} eb = do
+  requestLogger <- embed $ RL.mkRequestLogger def
+  withLowerToIO $ \lowerToIO finished -> do
+    Warp.run oPort
+      . requestLogger
+      . CORS.cors (const $ Just corsPolicy)
+      . SO.provideOptions api
+      . SS.serve api'
+      . SS.hoistServer api' (runInHandler lowerToIO)
+      $ apiServer eb opts
+    finished
  where
   corsPolicy =
     CORS.simpleCorsResourcePolicy { CORS.corsRequestHeaders = ["content-type"] }
 
-runInHandler :: forall a . Opts -> Sem HandlerEffects a -> SS.Handler a
-runInHandler opts act =
-  liftEither . first toServantError =<< (liftIO $ interpretHandler opts act)
 
-apiServer :: Opts -> SS.ServerT API' (Sem HandlerEffects)
-apiServer opts = createSecretSantaHandler :<|> staticServer opts
+runInHandler
+  :: Member (Final IO) r
+  => (forall a . r @> a -> IO a)
+  -> (forall a . Error InternalError ': r @> a -> SS.Handler a)
+runInHandler lowerToIO =
+  -- liftEither <=< liftIO . lowerToIO . fmap Right
+  liftEither
+    <=< liftIO
+    .   lowerToIO
+    .   fmap (first toServantError)
+    .   runError @InternalError
+    .   fromExceptionSem @InternalError
+    .   fromExceptionSemVia @SomeException
+          (internalError . T.pack . displayException)
+
+apiServer
+  :: (RunEmailBackend eb)
+  => SEmailBackend eb
+  -> Opts
+  -> SS.ServerT API' (Sem (Error InternalError ': BaseEffects eb))
+apiServer eb opts = createSecretSantaHandler eb :<|> staticServer opts
 
 staticServer :: Opts -> SS.ServerT Raw (Sem r)
 staticServer Opts {..} =

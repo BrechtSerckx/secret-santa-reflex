@@ -8,7 +8,7 @@ module Polysemy.Transaction
   , Transaction(..)
   , transact
   , runTransaction'
-  , runTransactionErrorsU
+  , runTransaction
   , Envelope
   , RunErrorsU(..)
   , runErrorsU
@@ -59,47 +59,33 @@ data Transaction c m a where
 makeSem ''Transaction
 
 runTransaction'
-  :: Member (Embed IO) r => c -> Transaction c ': r @> a -> Input c ': r @> a
-runTransaction' conn = reinterpret $ \case
+  :: Member (Embed IO) r => c -> Transaction c ': r @> a -> r @> a
+runTransaction' conn = interpret $ \case
   Transact f -> embed $ f conn
 
-runTransactionErrorsU
-  :: forall es a r c
-   . ( Members '[Embed IO , Final IO] r
-     , Members '[Embed IO , Final IO] (Errors es :++ r)
-     , Connection c
-     , RunErrorsU es es
-     )
-  => Transaction c ': (Errors es :++ r) @> a
-  -> Input c ': r @> Envelope es a
-runTransactionErrorsU act = do
+runTransaction
+  :: Members '[Embed IO , Input c] r => Transaction c ': r @> a -> r @> a
+runTransaction act = do
   conn <- input
-  startTransaction conn
-  eRes <- runErrorsU @es . runTransaction' conn $ act
-  if hasErrorsU @es eRes then rollbackTransaction conn else endTransaction conn
-  pure eRes
+  runTransaction' conn act
 
 type Envelope u a = Either (Union u) a
 
 class RunErrorsU es u where
   runErrorsU'
-    :: Input c ': Errors es :++ r @> Envelope u a
-    -> Input c ': r @> Envelope u a
+    :: Errors es :++ r @> Envelope u a
+    -> r @> Envelope u a
 instance RunErrorsU '[] u where
-  runErrorsU'
-    :: Input c ': Errors '[] :++ r @> Envelope u a
-    -> Input c ': r @> Envelope u a
+  runErrorsU' :: Errors '[] :++ r @> Envelope u a -> r @> Envelope u a
   runErrorsU' = identity
 instance
   ( RunErrorsU es u
   , IsMember e u
   ) => RunErrorsU ((e :: *) ': es) u where
   runErrorsU'
-    :: forall r a c
-     . Input c ': Errors (e ': es) :++ r @> Envelope u a
-    -> Input c ': r @> Envelope u a
+    :: forall r a . Errors (e ': es) :++ r @> Envelope u a -> r @> Envelope u a
   runErrorsU' act = runErrorsU' @es $ do
-    eEnv <- runError @e $ rotateEffects2 act
+    eEnv <- runError @e act
     let env' :: Envelope u a
         env' = case eEnv of
           Left  e         -> Left . inject $ I e
@@ -108,10 +94,10 @@ instance
     pure env'
 
 runErrorsU
-  :: forall es u c r a
+  :: forall es u r a
    . RunErrorsU es u
-  => Input c ': Errors es :++ r @> a
-  -> Input c ': r @> Envelope u a
+  => Errors es :++ r @> a
+  -> r @> Envelope u a
 runErrorsU = runErrorsU' @es @u . fmap Right
 
 hasErrorsU :: forall es a . Envelope es a -> Bool

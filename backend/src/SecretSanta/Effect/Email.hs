@@ -42,8 +42,10 @@ data SESSettings = SESSettings
   }
   deriving stock Generic
   deriving anyclass Env.FromEnv
-runEmailSES :: Email ': r @> a -> IO ~@ Input SESSettings ': r @> a
-runEmailSES = reinterpret $ \case
+
+runEmailSES
+  :: Members '[Embed IO , Input SESSettings] r => Email ': r @> a -> r @> a
+runEmailSES = interpret $ \case
   SendEmail mail@Mail { mailFrom, mailTo } -> do
     SESSettings {..} <- input
     let ses = SES.SES { sesFrom      = encodeUtf8 . addressEmail $ mailFrom
@@ -62,8 +64,10 @@ data GmailSettings = GmailSettings
   }
   deriving stock Generic
   deriving anyclass Env.FromEnv
-runEmailGmail :: Email ': r @> a -> IO ~@ Input GmailSettings ': r @> a
-runEmailGmail = reinterpret $ \case
+
+runEmailGmail
+  :: Members '[Embed IO , Input GmailSettings] r => Email ': r @> a -> r @> a
+runEmailGmail = interpret $ \case
   SendEmail mail -> do
     GmailSettings {..} <- input
     let host     = T.unpack gmailHost

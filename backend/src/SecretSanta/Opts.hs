@@ -1,10 +1,6 @@
 module SecretSanta.Opts
   ( Opts(..)
   , parseOpts
-  , EmailBackend(..)
-  , SEmailBackend(..)
-  , AnyEmailBackend(..)
-  , RunEmailBackend(..)
   ) where
 
 import           Data.Refine
@@ -13,11 +9,7 @@ import qualified Data.Text                     as T
 import           Data.Validate
 import qualified Network.Wai.Handler.Warp      as Warp
 import qualified Options.Applicative           as OA
-import           Polysemy
-import           Polysemy.Input
-import           Polysemy.Input.Env
-import           Polysemy.Operators
-import           SecretSanta.Effect.Email
+import           SecretSanta.Email
 import "common"  Text.EmailAddress
 
 data Opts = Opts
@@ -40,40 +32,6 @@ pOpts = do
   oPort         <- pPort
   pure Opts { .. }
 
-data EmailBackend = None | GMail | SES
-  deriving (Eq, Show, Read)
-
-data SEmailBackend eb where
-  SNone ::SEmailBackend 'None
-  SGMail ::SEmailBackend 'GMail
-  SSES ::SEmailBackend 'SES
-data AnyEmailBackend where
-  AnyEmailBackend ::RunEmailBackend eb => SEmailBackend eb ->AnyEmailBackend
-
-class RunEmailBackend (eb:: EmailBackend) where
-  type EmailBackendConfig eb :: *
-  type EmailBackendConfig eb = ()
-  runEmailBackend
-    :: Member (Embed IO) r
-    => SEmailBackend eb
-    -> Email ': r @> a
-    -> Input (EmailBackendConfig eb) ': r @> a
-  runEmailBackendConfig
-    :: Member (Embed IO) r
-    => SEmailBackend eb
-    -> Input (EmailBackendConfig eb) ': r @> a
-    -> r @> a
-instance RunEmailBackend 'None where
-  runEmailBackend SNone = raise . runEmailPrint
-  runEmailBackendConfig SNone = runInputConst ()
-instance RunEmailBackend 'GMail where
-  type EmailBackendConfig 'GMail = GmailSettings
-  runEmailBackend SGMail = runEmailGmail
-  runEmailBackendConfig SGMail = runInputEnv
-instance RunEmailBackend 'SES where
-  type EmailBackendConfig 'SES = SESSettings
-  runEmailBackend SSES = runEmailSES
-  runEmailBackendConfig SSES = runInputEnv
 
 pEmailBackend :: OA.Parser AnyEmailBackend
 pEmailBackend =

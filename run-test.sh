@@ -5,9 +5,9 @@ FLAGS=()
 
 FLAGS+=(--email-sender "info@secret-santa.link")
 
-FLAGS+=(--email-backend None)
-# FLAGS+=(--email-backend GMail)
-# FLAGS+=(--email-backend SES)
+FLAGS+=(--email-backend none)
+# FLAGS+=(--email-backend gmail)
+# FLAGS+=(--email-backend ses)
 
 FLAGS+=(--port 8000)
 
