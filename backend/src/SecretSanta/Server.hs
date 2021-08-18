@@ -27,12 +27,12 @@ import qualified WaiAppStatic.Types            as Static
                                                 ( unsafeToPiece )
 
 import           SecretSanta.API
-import           SecretSanta.Database
-import           SecretSanta.Effect.SecretSantaStore
-import           SecretSanta.Email
-import           SecretSanta.Handler.Create
+import           SecretSanta.Backend.Email
+import           SecretSanta.Backend.KVStore
 import           SecretSanta.Interpret
 import           SecretSanta.Opts
+import           SecretSanta.Server.SecretSanta
+import           SecretSanta.Store.SecretSanta
 
 type API' = API :<|> Raw
 api' :: Proxy API'

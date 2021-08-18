@@ -1,107 +1,68 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE UndecidableInstances #-}
-module SecretSanta.Database where
+module SecretSanta.Database
+  ( SecretSantaDB(..)
+  , secretSantaDB
+  , dbFile
+  , withConn
+  , createDB
+  , recreateDB
+  , BeamC
+  , Sqlite
+  , SqliteM
+  , SQLite.withConnection
+  ) where
 
-import           Data.String                    ( String )
-import           Polysemy
-import           Polysemy.Input
-import           Polysemy.Operators
-import           Polysemy.Transaction
-
-import qualified Database.SQLite.Simple        as SQLite
-import SecretSanta.DB
 
 import "this"    Database.Beam
-import qualified Database.Beam.Sqlite.Connection
-                                               as Beam
+import           Database.Beam.Sqlite           ( Sqlite
+                                                , SqliteM
+                                                , runBeamSqliteDebug
+                                                )
+import           Database.Beam.Sqlite.Migrate   ( migrationBackend )
+import qualified Database.SQLite.Simple        as SQLite
 
-data NoOp m a where
-  NoOp ::a -> NoOp m a
-makeSem ''NoOp
+import           System.Directory
 
-runNoOp :: NoOp ': r @> a -> r @> a
-runNoOp = interpret \case
-  NoOp a -> pure a
+import           SecretSanta.Data
 
-type family FoldC mkC as :: Constraint where
-  FoldC mkC '[] = ()
-  FoldC mkC (a ': as) = (mkC a, FoldC mkC as)
+-- * Database
 
-data KVBackend = KVState | KVDatabase
-  deriving (Eq, Show, Read)
+data SecretSantaDB f = SecretSantaDB
+  { _secretsantaInfo         :: f (TableEntity InfoTable)
+  , _secretsantaParticipants :: f (TableEntity ParticipantTable)
+  }
+  deriving Generic
+deriving anyclass instance Database be SecretSantaDB
 
-data SKVBackend kv where
-  SKVState ::SKVBackend 'KVState
-  SKVDatabase ::SKVBackend 'KVDatabase
-data AnyKVBackendWithConfig stores where
-  AnyKVBackendWithConfig
-    :: (RunKVBackend kv, FoldC (RunKVStore kv) stores)
-    => SKVBackend kv
-    -> KVConfig kv
-    -> AnyKVBackendWithConfig stores
+-- brittany-disable-next-binding
+type BeamC be
+  = ( BeamSqlBackend be
+    , FieldsFulfillConstraint
+        (BeamSqlBackendCanSerialize be)
+        InfoTable
+    , FieldsFulfillConstraint
+        (BeamSqlBackendCanSerialize be)
+        ParticipantTable
+    )
 
-class RunKVBackend (kv:: KVBackend) where
-  data KVTransaction kv (m :: Type -> Type) (a :: Type) :: Type
-  data KVConnection kv :: Type
-  data KVConfig kv :: Type
-  runKVTransaction
-    :: Members '[Embed IO, Input (KVConnection kv)] r
-    => SKVBackend kv
-    -> KVTransaction kv ': r @> Either e a
-    -> r @> Either e a
-  runKVConnection
-    :: Members '[Embed IO, Input (KVConfig kv)] r
-    => SKVBackend kv
-    -> Input (KVConnection kv) ': r @> a
-    -> r @> a
-  runKVConfig
-    :: SKVBackend kv
-    -> KVConfig kv
-    -> Input (KVConfig kv) ': r @> a
-    -> r @> a
+-- ** Sqlite
 
-instance RunKVBackend 'KVState where
-  newtype KVTransaction 'KVState m a = KVStateTransaction { unStateTx :: NoOp m a}
-  data KVConnection 'KVState = KVStateConnection
-  data KVConfig 'KVState = KVStateConfig
-  runKVTransaction SKVState = runNoOp . rewrite unStateTx
-  runKVConnection SKVState =
-    runInputConst KVStateConnection
-  runKVConfig SKVState KVStateConfig = runInputConst KVStateConfig
+dbFile :: FilePath
+dbFile = "/home/brecht/code/secret-santa-reflex/secretsanta.db"
 
-instance RunKVBackend 'KVDatabase where
-  data KVTransaction 'KVDatabase m a
-    = KVDatabaseTransaction { unDBTx :: Transaction SQLite.Connection  m a}
-  data KVConnection 'KVDatabase = KVDatabaseConnection SQLite.Connection
-  newtype KVConfig 'KVDatabase = KVDatabaseConfig FilePath
-    deriving IsString via FilePath
-  runKVTransaction SKVDatabase{} act = do
-    KVDatabaseConnection conn <- input
-    startTransaction conn
-    eRes <- runTransaction' conn  . rewrite unDBTx $ act
-    case eRes of
-      Left  _ -> rollbackTransaction conn
-      Right _ -> endTransaction conn
-    pure eRes
-  runKVConnection SKVDatabase{} act = do
-    KVDatabaseConfig db <- input
-    withLowerToIO $ \lowerToIO finalize -> do
-      res <- SQLite.withConnection db
-        $ \conn -> do
-        SQLite.setTrace conn $ Just putStrLn
-        lowerToIO $ runInputConst (KVDatabaseConnection conn) act
-      finalize
-      pure res
-  runKVConfig SKVDatabase cfg = runInputConst cfg
+checkedSecretSantaDB :: CheckedDatabaseSettings Sqlite SecretSantaDB
+checkedSecretSantaDB = defaultMigratableDbSettings
 
-class RunKVBackend kv => RunKVStore kv store where
-  data KVStoreInit kv store (m :: Type -> Type) (a :: Type) :: Type
-  runKVStore
-    :: Members '[KVTransaction kv, KVStoreInit kv store] r
-    => SKVBackend kv
-    -> store ': r @> a
-    -> r @> a
-  runKVStoreInit
-    :: SKVBackend kv
-    -> KVStoreInit kv store ': r @> a
-    -> r @> a
+secretSantaDB :: DatabaseSettings Sqlite SecretSantaDB
+secretSantaDB = unCheckDatabase checkedSecretSantaDB
+
+createDB :: IO ()
+createDB = bracket (SQLite.open dbFile) SQLite.close $ \conn ->
+  runBeamSqliteDebug putStrLn conn
+    $ createSchema migrationBackend checkedSecretSantaDB
+
+recreateDB :: IO ()
+recreateDB = removeFile dbFile >> createDB
+
+withConn :: (SQLite.Connection -> IO ()) -> IO ()
+withConn = SQLite.withConnection dbFile
+

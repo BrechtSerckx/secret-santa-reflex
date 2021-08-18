@@ -9,9 +9,18 @@ import qualified Data.Text                     as T
 import           Data.Validate
 import qualified Network.Wai.Handler.Warp      as Warp
 import qualified Options.Applicative           as OA
-import           SecretSanta.Database
-import           SecretSanta.Effect.SecretSantaStore
-import           SecretSanta.Email
+import           SecretSanta.Backend.Email
+import           SecretSanta.Backend.Email.Dummy
+                                                ( )
+import           SecretSanta.Backend.Email.GMail
+                                                ( )
+import           SecretSanta.Backend.Email.SES  ( )
+import           SecretSanta.Backend.KVStore
+import           SecretSanta.Backend.KVStore.Database
+                                                ( )
+import           SecretSanta.Backend.KVStore.State
+                                                ( KVConfig(..) )
+import           SecretSanta.Store
 import "common"  Text.EmailAddress
 
 data Opts = Opts
@@ -19,7 +28,7 @@ data Opts = Opts
   , oEmailSender  :: EmailAddress
   , oWebRoot      :: FilePath
   , oPort         :: Warp.Port
-  , oKVBackend    :: AnyKVBackendWithConfig '[SecretSantaStore]
+  , oKVBackend    :: AnyKVBackendWithConfig Stores
   }
 
 parseOpts :: IO Opts
@@ -58,13 +67,13 @@ pEmailBackend =
     AnyEmailBackend SGMail -> "gmail"
     AnyEmailBackend SSES   -> "ses"
 
-pKVBackend :: OA.Parser (AnyKVBackendWithConfig '[SecretSantaStore])
+pKVBackend :: OA.Parser (AnyKVBackendWithConfig Stores)
 pKVBackend =
-  let pState = OA.flag' (AnyKVBackendWithConfig SKVState KVStateConfig) $ mconcat [OA.long "in-memory"]
+  let pState = OA.flag' (AnyKVBackendWithConfig SKVState KVStateConfig)
+        $ mconcat [OA.long "in-memory"]
       pDatabase =
-        fmap (AnyKVBackendWithConfig SKVDatabase)
-          . OA.strOption
-          $ mconcat [OA.long "sqlite", OA.metavar "SQLITE_DATABASE"]
+        fmap (AnyKVBackendWithConfig SKVDatabase) . OA.strOption $ mconcat
+          [OA.long "sqlite", OA.metavar "SQLITE_DATABASE"]
   in  pState <|> pDatabase
 
 pEmailSender :: OA.Parser EmailAddress

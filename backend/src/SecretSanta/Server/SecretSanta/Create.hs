@@ -1,6 +1,6 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE TypeApplications #-}
-module SecretSanta.Handler.Create
+module SecretSanta.Server.SecretSanta.Create
   ( createSecretSantaHandler
   , InvalidDateTimeError
   ) where
@@ -28,13 +28,13 @@ import qualified Text.Blaze.Renderer.Text      as BlazeText
 import           Text.Hamlet
 
 import           SecretSanta.API
+import           SecretSanta.Backend.Email
+import           SecretSanta.Backend.KVStore
 import           SecretSanta.Data
-import           SecretSanta.Database
 import           SecretSanta.Effect.Email
 import           SecretSanta.Effect.Match
-import           SecretSanta.Effect.SecretSantaStore
 import           SecretSanta.Effect.Time
-import           SecretSanta.Email
+import           SecretSanta.Store.SecretSanta
 
 import           Servant.API.UVerb
 import qualified Servant.Server                as SS

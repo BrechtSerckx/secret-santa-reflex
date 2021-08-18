@@ -1,10 +1,12 @@
-module SecretSanta.Effect.SecretSantaStore
+module SecretSanta.Store.SecretSanta
   ( SecretSantaStore
   , runSecretSantaStoreAsState
   , runSecretSantaStorePurely
   , runSecretSantaStoreDB
   , writeSecretSanta
-  , KVStoreInit, runKVStore, runKVStoreInit
+  , KVStoreInit
+  , runKVStore
+  , runKVStoreInit
   ) where
 
 import qualified Data.Map.Strict               as Map
@@ -25,7 +27,11 @@ import "this"    Database.Beam
 import qualified Database.Beam.Sqlite.Connection
                                                as Beam
 
-import           SecretSanta.DB
+import           SecretSanta.Backend.KVStore
+import           SecretSanta.Backend.KVStore.Database
+                                                ( KVTransaction(..) )
+import           SecretSanta.Backend.KVStore.State
+                                                ( )
 import           SecretSanta.Data
 import           SecretSanta.Database
 

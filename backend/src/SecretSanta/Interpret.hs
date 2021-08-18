@@ -9,13 +9,13 @@ import           Polysemy
 import           Polysemy.Input
 import           Polysemy.Operators
 
+import           SecretSanta.Backend.Email
+import           SecretSanta.Backend.KVStore
 import           SecretSanta.Data
-import           SecretSanta.Database
 import           SecretSanta.Effect.Email
-import           SecretSanta.Effect.SecretSantaStore
 import           SecretSanta.Effect.Time
-import           SecretSanta.Email
 import           SecretSanta.Opts
+import           SecretSanta.Store
 
 type BaseEffects eb kvb
   = '[ Input Sender
@@ -30,7 +30,7 @@ type BaseEffects eb kvb
      ]
 interpretBase
   :: forall eb kvb a
-   . (RunEmailBackend eb, RunKVStore kvb SecretSantaStore)
+   . (RunEmailBackend eb, RunKVBackend kvb, FoldC (RunKVStore kvb) Stores)
   => Opts
   -> SEmailBackend eb
   -> SKVBackend kvb
