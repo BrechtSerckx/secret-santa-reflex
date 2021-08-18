@@ -9,6 +9,7 @@ FLAGS+=(--email-backend none)
 # FLAGS+=(--email-backend gmail)
 # FLAGS+=(--email-backend ses)
 
+# FLAGS+=(--in-memory)
 FLAGS+=(--sqlite secretsanta.db)
 
 FLAGS+=(--port 8000)

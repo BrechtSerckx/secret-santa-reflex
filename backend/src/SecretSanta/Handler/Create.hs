@@ -7,6 +7,7 @@ module SecretSanta.Handler.Create
 
 import           Polysemy
 import           Polysemy.Error
+import           Polysemy.Extra
 import           Polysemy.Fresh
 import           Polysemy.Input
 import           Polysemy.Operators
@@ -27,30 +28,41 @@ import qualified Text.Blaze.Renderer.Text      as BlazeText
 import           Text.Hamlet
 
 import           SecretSanta.API
-import           SecretSanta.DB
 import           SecretSanta.Data
+import           SecretSanta.Database
 import           SecretSanta.Effect.Email
 import           SecretSanta.Effect.Match
 import           SecretSanta.Effect.SecretSantaStore
 import           SecretSanta.Effect.Time
 import           SecretSanta.Email
-import           SecretSanta.Interpret
 
 import           Servant.API.UVerb
 import qualified Servant.Server                as SS
 
 createSecretSantaHandler
-  :: forall eb r
-   . (Members '[Input Sender , Email , GetTime] r, r ~ BaseEffects eb)
+  :: forall eb kv r
+   . ( Members
+         '[ Input Sender
+          , Email
+          , GetTime
+          , KVStoreInit kv SecretSantaStore
+          , Embed IO
+          , Input (KVConnection kv)
+          ]
+         r
+     , RunKVStore kv SecretSantaStore
+     )
   => SEmailBackend eb
+  -> SKVBackend kv
   -> SecretSanta
   -> Error InternalError ': r @> Union '[WithStatus 200 SecretSantaId, InvalidDateTimeError]
-createSecretSantaHandler _eb ss = do
-  env <-
-    runTransaction
-    . runBeamTransactionSqlite
-    . runSecretSantaStoreDB secretSantaDB
+createSecretSantaHandler _eb kv ss = do
+  env :: Envelope '[InvalidDateTimeError] SecretSantaId <-
+    runKVTransaction kv
     . runErrorsU @'[InvalidDateTimeError]
+    . rotateEffects2
+    . runKVStore @kv @SecretSantaStore kv
+    . raiseUnder @(KVTransaction kv)
     . runFreshSecretSantaId
     . runMatchRandom
     $ createSecretSanta ss

@@ -91,6 +91,7 @@ common common-build-depends
 
       -- data
     , aeson
+    , containers
     , pretty-simple
     , text
     , email-validate
@@ -123,6 +124,7 @@ library
     Polysemy.Input.Env
     SecretSanta.Data
     SecretSanta.DB
+    SecretSanta.Database
     SecretSanta.Email
     SecretSanta.Effect.Email
     SecretSanta.Effect.Match

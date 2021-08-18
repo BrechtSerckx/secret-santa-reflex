@@ -27,6 +27,8 @@ import qualified WaiAppStatic.Types            as Static
                                                 ( unsafeToPiece )
 
 import           SecretSanta.API
+import           SecretSanta.Database
+import           SecretSanta.Effect.SecretSantaStore
 import           SecretSanta.Email
 import           SecretSanta.Handler.Create
 import           SecretSanta.Interpret
@@ -39,16 +41,18 @@ api' = Proxy @API'
 secretSantaServer :: IO ()
 secretSantaServer = do
   opts@Opts {..} <- parseOpts
-  case oEmailBackend of
-    AnyEmailBackend eb -> interpretBase opts eb $ secretSantaServer' opts eb
+  case (oEmailBackend, oKVBackend) of
+    (AnyEmailBackend eb, AnyKVBackendWithConfig kvb cfg) ->
+      interpretBase opts eb kvb cfg $ secretSantaServer' opts eb kvb
 
 secretSantaServer'
-  :: forall eb
-   . (RunEmailBackend eb)
+  :: forall eb kvb
+   . (RunEmailBackend eb, RunKVStore kvb SecretSantaStore)
   => Opts
   -> SEmailBackend eb
-  -> BaseEffects eb @> ()
-secretSantaServer' opts@Opts {..} eb = do
+  -> SKVBackend kvb
+  -> BaseEffects eb kvb @> ()
+secretSantaServer' opts@Opts {..} eb kvb = do
   requestLogger <- embed $ RL.mkRequestLogger def
   withLowerToIO $ \lowerToIO finished -> do
     Warp.run oPort
@@ -57,7 +61,7 @@ secretSantaServer' opts@Opts {..} eb = do
       . SO.provideOptions api
       . SS.serve api'
       . SS.hoistServer api' (runInHandler lowerToIO)
-      $ apiServer eb opts
+      $ apiServer eb kvb opts
     finished
  where
   corsPolicy =
@@ -80,11 +84,14 @@ runInHandler lowerToIO =
           (internalError . T.pack . displayException)
 
 apiServer
-  :: (RunEmailBackend eb)
+  :: (RunEmailBackend eb, RunKVStore kvb SecretSantaStore)
   => SEmailBackend eb
+  -> SKVBackend kvb
   -> Opts
-  -> SS.ServerT API' (Sem (Error InternalError ': BaseEffects eb))
-apiServer eb opts = createSecretSantaHandler eb :<|> staticServer opts
+  -> SS.ServerT
+       API'
+       (Sem (Error InternalError ': BaseEffects eb kvb))
+apiServer eb kvb opts = createSecretSantaHandler eb kvb :<|> staticServer opts
 
 staticServer :: Opts -> SS.ServerT Raw (Sem r)
 staticServer Opts {..} =

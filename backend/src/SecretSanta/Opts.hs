@@ -9,6 +9,8 @@ import qualified Data.Text                     as T
 import           Data.Validate
 import qualified Network.Wai.Handler.Warp      as Warp
 import qualified Options.Applicative           as OA
+import           SecretSanta.Database
+import           SecretSanta.Effect.SecretSantaStore
 import           SecretSanta.Email
 import "common"  Text.EmailAddress
 
@@ -17,7 +19,7 @@ data Opts = Opts
   , oEmailSender  :: EmailAddress
   , oWebRoot      :: FilePath
   , oPort         :: Warp.Port
-  , oDBFile       :: FilePath
+  , oKVBackend    :: AnyKVBackendWithConfig '[SecretSantaStore]
   }
 
 parseOpts :: IO Opts
@@ -31,7 +33,7 @@ pOpts = do
   oEmailSender  <- pEmailSender
   oWebRoot      <- pWebRoot
   oPort         <- pPort
-  oDBFile       <- pKVBackend
+  oKVBackend    <- pKVBackend
   pure Opts { .. }
 
 
@@ -56,9 +58,14 @@ pEmailBackend =
     AnyEmailBackend SGMail -> "gmail"
     AnyEmailBackend SSES   -> "ses"
 
-pKVBackend :: OA.Parser FilePath
+pKVBackend :: OA.Parser (AnyKVBackendWithConfig '[SecretSantaStore])
 pKVBackend =
-  OA.strOption . mconcat $ [OA.long "sqlite", OA.metavar "SQLITE DATABASE"]
+  let pState = OA.flag' (AnyKVBackendWithConfig SKVState KVStateConfig) $ mconcat [OA.long "in-memory"]
+      pDatabase =
+        fmap (AnyKVBackendWithConfig SKVDatabase)
+          . OA.strOption
+          $ mconcat [OA.long "sqlite", OA.metavar "SQLITE_DATABASE"]
+  in  pState <|> pDatabase
 
 pEmailSender :: OA.Parser EmailAddress
 pEmailSender =

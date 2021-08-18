@@ -1,52 +1,50 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 module SecretSanta.Interpret
-  ( HandlerEffects
-  , interpretBase
+  ( interpretBase
   , BaseEffects
   ) where
 
 import           Polysemy
-import           Polysemy.Error
 import           Polysemy.Input
 import           Polysemy.Operators
 
-import           Data.Error
-
 import           SecretSanta.Data
+import           SecretSanta.Database
 import           SecretSanta.Effect.Email
 import           SecretSanta.Effect.SecretSantaStore
 import           SecretSanta.Effect.Time
 import           SecretSanta.Email
 import           SecretSanta.Opts
 
-import qualified Database.SQLite.Simple        as SQLite
-
-type BaseEffects eb
+type BaseEffects eb kvb
   = '[ Input Sender
-     , Input SQLite.Connection
      , GetTime
      , Email
      , Input (EmailBackendConfig eb)
+     , KVStoreInit kvb SecretSantaStore
+     , Input (KVConnection kvb)
+     , Input (KVConfig kvb)
      , Embed IO
      , Final IO
      ]
 interpretBase
-  :: forall eb a
-   . (RunEmailBackend eb)
+  :: forall eb kvb a
+   . (RunEmailBackend eb, RunKVStore kvb SecretSantaStore)
   => Opts
   -> SEmailBackend eb
-  -> BaseEffects eb @> a
+  -> SKVBackend kvb
+  -> KVConfig kvb
+  -> BaseEffects eb kvb @> a
   -> IO a
-interpretBase Opts {..} eb act = SQLite.withConnection oDBFile $ \conn ->
+interpretBase Opts {..} eb kvb cfg act =
   runFinal
     . embedToFinal
+    . runKVConfig kvb cfg
+    . runKVConnection kvb
+    . runKVStoreInit @kvb kvb
     . runEmailBackendConfig eb
     . runEmailBackend eb
     . runGetTime
-    . runInputConst conn
     . runInputConst (Sender oEmailSender)
     $ act
-
-type HandlerEffects eb kv
-  = '[GetTime , SecretSantaStore , Error InternalError , Embed IO , Final IO]
