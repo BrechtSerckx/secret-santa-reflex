@@ -52,20 +52,14 @@ pEmailBackend =
     . mconcat
     $ [ OA.long "email-backend"
       , OA.metavar "EMAIL_BACKEND"
-      , OA.value (AnyEmailBackend SNone)
+      , OA.value (AnyEmailBackend $ Proxy @Dummy)
       , OA.showDefaultWith showEmailBackend
       ]
  where
-  readEmailBackend = OA.maybeReader $ \case
-    "none"  -> Just $ AnyEmailBackend SNone
-    "gmail" -> Just $ AnyEmailBackend SGMail
-    "ses"   -> Just $ AnyEmailBackend SSES
-    _       -> Nothing
+  readEmailBackend = OA.maybeReader $ readEmailBackends . T.pack
   showEmailBackend :: AnyEmailBackend -> String
   showEmailBackend = \case
-    AnyEmailBackend SNone  -> "none"
-    AnyEmailBackend SGMail -> "gmail"
-    AnyEmailBackend SSES   -> "ses"
+    AnyEmailBackend (Proxy :: Proxy eb)  -> T.unpack $ emailBackendName @eb
 
 pKVBackend :: OA.Parser (AnyKVBackendWithConfig Stores)
 pKVBackend =

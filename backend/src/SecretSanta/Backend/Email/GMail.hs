@@ -1,17 +1,20 @@
 module SecretSanta.Backend.Email.GMail
-  () where
+  (GMail) where
 
 import           Polysemy
 import           Polysemy.Extra
 import           Polysemy.Input
 import           Polysemy.Input.Env
-import           SecretSanta.Backend.Email
+import           SecretSanta.Backend.Email.Class
 import           SecretSanta.Effect.Email
 
-instance RunEmailBackend 'GMail where
-  data EmailBackendConfig 'GMail = EmailGMailConfig GmailSettings
-  runEmailBackend SGMail act = do
+data GMail
+
+instance RunEmailBackend GMail where
+  emailBackendName = "gmail"
+  data EmailBackendConfig GMail = EmailGMailConfig GmailSettings
+  runEmailBackend act = do
     EmailGMailConfig c <- input
     runInputConst c . runEmailGmail . raiseUnder $ act
-  runEmailBackendConfig SGMail =
+  runEmailBackendConfig =
     runInputEnv . contramapInput EmailGMailConfig . raiseUnder

@@ -28,7 +28,6 @@ import qualified Text.Blaze.Renderer.Text      as BlazeText
 import           Text.Hamlet
 
 import           SecretSanta.API
-import           SecretSanta.Backend.Email
 import           SecretSanta.Backend.KVStore
 import           SecretSanta.Data
 import           SecretSanta.Effect.Email
@@ -40,7 +39,7 @@ import           Servant.API.UVerb
 import qualified Servant.Server                as SS
 
 createSecretSantaHandler
-  :: forall eb kv r
+  :: forall kv r
    . ( Members
          '[ Input Sender
           , Email
@@ -52,11 +51,10 @@ createSecretSantaHandler
          r
      , RunKVStore kv SecretSantaStore
      )
-  => SEmailBackend eb
-  -> SKVBackend kv
+  => SKVBackend kv
   -> SecretSanta
   -> Error InternalError ': r @> Union '[WithStatus 200 SecretSantaId, InvalidDateTimeError]
-createSecretSantaHandler _eb kv ss = do
+createSecretSantaHandler kv ss = do
   env :: Envelope '[InvalidDateTimeError] SecretSantaId <-
     runKVTransaction kv
     . runErrorsU @'[InvalidDateTimeError]

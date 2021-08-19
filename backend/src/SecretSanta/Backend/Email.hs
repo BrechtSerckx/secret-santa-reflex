@@ -1,36 +1,25 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 module SecretSanta.Backend.Email
-  ( EmailBackend(..)
-  , SEmailBackend(..)
-  , AnyEmailBackend(..)
-  , RunEmailBackend(..)
+  ( module Export
+  , readEmailBackends
   ) where
 
-import           Polysemy
-import           Polysemy.Input
-import           Polysemy.Operators
+import SecretSanta.Backend.Email.Class as Export 
+import SecretSanta.Backend.Email.Dummy as Export 
+import SecretSanta.Backend.Email.GMail as Export 
+import SecretSanta.Backend.Email.SES as Export 
 
-import           SecretSanta.Effect.Email
+type EmailBackends = '[Dummy, SES, GMail]
 
-data EmailBackend = None | GMail | SES
-  deriving (Eq, Show, Read)
+readEmailBackends :: Text -> Maybe AnyEmailBackend
+readEmailBackends = readEmailBackends' @EmailBackends
 
-data SEmailBackend eb where
-  SNone ::SEmailBackend 'None
-  SGMail ::SEmailBackend 'GMail
-  SSES ::SEmailBackend 'SES
+class ReadEmailBackends ebs where
+  readEmailBackends' :: Text -> Maybe AnyEmailBackend
 
-data AnyEmailBackend where
-  AnyEmailBackend ::RunEmailBackend eb => SEmailBackend eb ->AnyEmailBackend
-
-class RunEmailBackend (eb:: EmailBackend) where
-  data EmailBackendConfig eb :: *
-  runEmailBackend
-    :: Members '[Embed IO, Input (EmailBackendConfig eb) ] r
-    => SEmailBackend eb
-    -> Email ': r @> a
-    -> r @> a
-  runEmailBackendConfig
-    :: Member (Embed IO) r
-    => SEmailBackend eb
-    -> Input (EmailBackendConfig eb) ': r @> a
-    -> r @> a
+instance ReadEmailBackends '[] where readEmailBackends' _ = Nothing
+instance (RunEmailBackend eb, ReadEmailBackends ebs) => ReadEmailBackends (eb ': ebs) where
+  readEmailBackends' t =
+    if t == emailBackendName @eb
+    then Just . AnyEmailBackend $ Proxy @eb
+    else readEmailBackends' @ebs t

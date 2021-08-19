@@ -1,11 +1,14 @@
 module SecretSanta.Backend.Email.Dummy
-  () where
+  (Dummy) where
 
 import           Polysemy.Input
-import           SecretSanta.Backend.Email
+import           SecretSanta.Backend.Email.Class
 import           SecretSanta.Effect.Email
 
-instance RunEmailBackend 'None where
-  data EmailBackendConfig 'None = EmailNoneConfig
-  runEmailBackend SNone = runEmailPrint
-  runEmailBackendConfig SNone = runInputConst EmailNoneConfig
+data Dummy
+
+instance RunEmailBackend Dummy where
+  emailBackendName = "dummy"
+  data EmailBackendConfig Dummy = EmailDummyConfig
+  runEmailBackend = runEmailPrint
+  runEmailBackendConfig = runInputConst EmailDummyConfig
