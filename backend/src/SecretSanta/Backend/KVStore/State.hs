@@ -8,6 +8,7 @@ module SecretSanta.Backend.KVStore.State
 import qualified Options.Applicative           as OA
 import           Polysemy
 import           Polysemy.Input
+import           Polysemy.NoOp
 import           SecretSanta.Backend.KVStore.Class
 
 data KVState

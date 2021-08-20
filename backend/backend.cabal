@@ -122,6 +122,7 @@ library
     Polysemy.Transaction
     Polysemy.Transaction.Beam
     Polysemy.Input.Env
+    Polysemy.NoOp
     SecretSanta.Data
     SecretSanta.Database
     SecretSanta.Backend.Email
@@ -144,6 +145,7 @@ library
     SecretSanta.Server.SecretSanta
     SecretSanta.Server.SecretSanta.Create
     Servant.Server
+    Type.Constraint
   ghc-options:
     -O2
     -flate-specialise

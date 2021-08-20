@@ -8,6 +8,7 @@ module SecretSanta.Interpret
 import           Polysemy
 import           Polysemy.Input
 import           Polysemy.Operators
+import           Type.Constraint                ( FoldC )
 
 import           SecretSanta.Backend.Email
 import           SecretSanta.Backend.KVStore

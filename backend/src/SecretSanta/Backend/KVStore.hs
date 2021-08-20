@@ -14,6 +14,7 @@ import           SecretSanta.Backend.KVStore.Database
 import           SecretSanta.Backend.KVStore.State
                                                as Export
 import           SecretSanta.Effect.Store      as Export
+import           Type.Constraint                ( FoldC )
 
 
 type KVStoreBackends = '[KVState , KVDatabase]

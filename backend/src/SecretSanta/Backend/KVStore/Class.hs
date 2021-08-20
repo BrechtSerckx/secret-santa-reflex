@@ -1,29 +1,13 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 module SecretSanta.Backend.KVStore.Class
-  ( NoOp
-  , noOp
-  , runNoOp
-  , FoldC
+  ( RunKVBackend(..)
   , RunKVStore(..)
-  , RunKVBackend(..)
   ) where
 
 import qualified Options.Applicative           as OA
 import           Polysemy
 import           Polysemy.Input
 import           Polysemy.Operators
-
-data NoOp m a where
-  NoOp ::a -> NoOp m a
-makeSem ''NoOp
-
-runNoOp :: NoOp ': r @> a -> r @> a
-runNoOp = interpret \case
-  NoOp a -> pure a
-
-type family FoldC mkC as :: Constraint where
-  FoldC mkC '[] = ()
-  FoldC mkC (a ': as) = (mkC a, FoldC mkC as)
 
 class RunKVBackend kv where
   parseKVOpts :: OA.Parser (Proxy kv, KVOpts kv)
