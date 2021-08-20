@@ -1,3 +1,6 @@
-module SecretSanta.Server.SecretSanta (module Export) where
+module SecretSanta.Server.SecretSanta
+  ( module Export
+  ) where
 
-import SecretSanta.Server.SecretSanta.Create as Export
+import           SecretSanta.Server.SecretSanta.Create
+                                               as Export

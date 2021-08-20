@@ -1,6 +1,7 @@
 conf_forward:
   options_ghc:
   - -XArrows
+  - -XBlockArguments
   - -XDeriveGeneric
   - -XDerivingVia
   - -XGADTs

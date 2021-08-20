@@ -1,11 +1,12 @@
 module SecretSanta.Backend.KVStore.Database
-  ( KVDatabase, KVTransaction(..)
+  ( KVDatabase
+  , KVTransaction(..)
   , KVConnection(..)
   , KVConfig(..)
   ) where
 
-import           Polysemy
 import qualified Options.Applicative           as OA
+import           Polysemy
 import           Polysemy.Input
 import           Polysemy.Transaction
 import           SecretSanta.Backend.KVStore.Class
@@ -15,9 +16,8 @@ import qualified Database.SQLite.Simple        as SQLite
 data KVDatabase
 
 instance RunKVBackend KVDatabase where
-  parseKVConfig = 
-        fmap (Proxy @KVDatabase, ) . OA.strOption $ mconcat
-          [OA.long "sqlite", OA.metavar "SQLITE_DATABASE"]
+  parseKVConfig = fmap (Proxy @KVDatabase, ) . OA.strOption $ mconcat
+    [OA.long "sqlite", OA.metavar "SQLITE_DATABASE"]
   data KVTransaction KVDatabase m a
     = KVDatabaseTransaction { unDBTx :: Transaction SQLite.Connection  m a}
   data KVConnection KVDatabase = KVDatabaseConnection SQLite.Connection

@@ -1,10 +1,17 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-module SecretSanta.Backend.KVStore.Class (NoOp, noOp, runNoOp, FoldC, RunKVStore(..), RunKVBackend(..)) where
+module SecretSanta.Backend.KVStore.Class
+  ( NoOp
+  , noOp
+  , runNoOp
+  , FoldC
+  , RunKVStore(..)
+  , RunKVBackend(..)
+  ) where
 
+import qualified Options.Applicative           as OA
 import           Polysemy
 import           Polysemy.Input
 import           Polysemy.Operators
-import qualified Options.Applicative as OA
 
 data NoOp m a where
   NoOp ::a -> NoOp m a

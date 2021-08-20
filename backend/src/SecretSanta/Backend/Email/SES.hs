@@ -1,5 +1,6 @@
 module SecretSanta.Backend.Email.SES
-  (SES) where
+  ( SES
+  ) where
 
 import           Polysemy
 import           Polysemy.Extra

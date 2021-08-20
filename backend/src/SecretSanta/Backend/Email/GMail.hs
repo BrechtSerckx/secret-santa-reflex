@@ -1,5 +1,6 @@
 module SecretSanta.Backend.Email.GMail
-  (GMail) where
+  ( GMail
+  ) where
 
 import           Polysemy
 import           Polysemy.Extra
