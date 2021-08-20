@@ -14,8 +14,7 @@ import           SecretSanta.Backend.KVStore.Class
 data KVStoreState
 
 instance RunKVStoreBackend KVStoreState where
-  parseKVStoreOpts = OA.flag' (Proxy @KVStoreState, KVStoreStateOpts)
-    $ mconcat [OA.long "in-memory"]
+  parseKVStoreOpts = OA.flag' KVStoreStateOpts $ mconcat [OA.long "in-memory"]
   newtype KVStoreTransaction KVStoreState m a = KVStoreStateTransaction { unStateTx :: NoOp m a}
   data KVStoreConnection KVStoreState = KVStoreStateConnection
   data KVStoreConfig KVStoreState = KVStoreStateConfig

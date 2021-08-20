@@ -16,10 +16,8 @@ import qualified Database.SQLite.Simple        as SQLite
 data KVStoreDatabase
 
 instance RunKVStoreBackend KVStoreDatabase where
-  parseKVStoreOpts =
-    fmap ((Proxy @KVStoreDatabase, ) . KVStoreDatabaseOpts)
-      . OA.strOption
-      $ mconcat [OA.long "sqlite", OA.metavar "SQLITE_DATABASE"]
+  parseKVStoreOpts = fmap KVStoreDatabaseOpts . OA.strOption $ mconcat
+    [OA.long "sqlite", OA.metavar "SQLITE_DATABASE"]
   data KVStoreTransaction KVStoreDatabase m a
     = KVStoreDatabaseTransaction { unDBTx :: Transaction SQLite.Connection  m a}
   data KVStoreConnection KVStoreDatabase = KVStoreDatabaseConnection SQLite.Connection

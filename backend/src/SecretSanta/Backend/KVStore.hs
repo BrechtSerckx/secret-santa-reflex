@@ -36,5 +36,5 @@ instance (RunKVStoreBackend kv, RunKVStores kv, ParseKVStoreBackends kvs) => Par
 data AnyKVStoreBackend where
   AnyKVStoreBackend
     ::(RunKVStoreBackend kv, RunKVStores kv)
-    => (Proxy kv , KVStoreOpts kv)
+    => KVStoreOpts kv
     -> AnyKVStoreBackend

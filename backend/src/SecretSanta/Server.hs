@@ -41,7 +41,8 @@ secretSantaServer :: IO ()
 secretSantaServer = do
   opts@Opts {..} <- parseOpts
   case (oEmailBackend, oKVStoreBackend) of
-    (AnyEmailBackend (Proxy :: Proxy eb), AnyKVStoreBackend ((Proxy :: Proxy kvb), cfg))
+    (AnyEmailBackend (Proxy :: Proxy eb), AnyKVStoreBackend (cfg :: KVStoreOpts
+        kvb))
       -> interpretBase @eb @kvb opts cfg $ secretSantaServer' @eb @kvb opts
 
 secretSantaServer'

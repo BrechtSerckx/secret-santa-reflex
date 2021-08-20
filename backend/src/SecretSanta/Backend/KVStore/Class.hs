@@ -10,7 +10,7 @@ import           Polysemy.Input
 import           Polysemy.Operators
 
 class RunKVStoreBackend kv where
-  parseKVStoreOpts :: OA.Parser (Proxy kv, KVStoreOpts kv)
+  parseKVStoreOpts :: OA.Parser (KVStoreOpts kv)
   data KVStoreTransaction kv (m :: Type -> Type) (a :: Type) :: Type
   data KVStoreConnection kv :: Type
   data KVStoreConfig kv :: Type
