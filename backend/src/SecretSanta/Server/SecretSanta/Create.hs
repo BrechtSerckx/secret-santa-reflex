@@ -33,7 +33,6 @@ import           SecretSanta.Data
 import           SecretSanta.Effect.Email
 import           SecretSanta.Effect.Match
 import           SecretSanta.Effect.Time
-import           SecretSanta.Store.SecretSanta
 
 import           Servant.API.UVerb
 import qualified Servant.Server                as SS

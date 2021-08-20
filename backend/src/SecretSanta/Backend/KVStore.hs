@@ -13,7 +13,7 @@ import           SecretSanta.Backend.KVStore.Database
                                                as Export
 import           SecretSanta.Backend.KVStore.State
                                                as Export
-import           SecretSanta.Store             as Export
+import           SecretSanta.Effect.Store      as Export
 
 
 type KVStoreBackends = '[KVState , KVDatabase]

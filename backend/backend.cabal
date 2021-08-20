@@ -135,14 +135,14 @@ library
     SecretSanta.Backend.KVStore.Database
     SecretSanta.Effect.Email
     SecretSanta.Effect.Match
+    SecretSanta.Effect.Store
+    SecretSanta.Effect.Store.SecretSanta
     SecretSanta.Effect.Time
     SecretSanta.Interpret
     SecretSanta.Opts
     SecretSanta.Server
     SecretSanta.Server.SecretSanta
     SecretSanta.Server.SecretSanta.Create
-    SecretSanta.Store
-    SecretSanta.Store.SecretSanta
     Servant.Server
   ghc-options:
     -O2

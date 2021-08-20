@@ -1,4 +1,4 @@
-module SecretSanta.Store.SecretSanta
+module SecretSanta.Effect.Store.SecretSanta
   ( SecretSantaStore
   , runSecretSantaStoreAsState
   , runSecretSantaStorePurely

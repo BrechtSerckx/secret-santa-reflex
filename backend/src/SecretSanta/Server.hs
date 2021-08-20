@@ -32,7 +32,6 @@ import           SecretSanta.Backend.KVStore
 import           SecretSanta.Interpret
 import           SecretSanta.Opts
 import           SecretSanta.Server.SecretSanta
-import           SecretSanta.Store.SecretSanta
 
 type API' = API :<|> Raw
 api' :: Proxy API'
@@ -42,8 +41,9 @@ secretSantaServer :: IO ()
 secretSantaServer = do
   opts@Opts {..} <- parseOpts
   case (oEmailBackend, oKVBackend) of
-    (AnyEmailBackend (Proxy :: Proxy eb), AnyKVBackendWithConfig ((Proxy :: Proxy kvb), cfg)) ->
-      interpretBase @eb @kvb opts cfg $ secretSantaServer' @eb @kvb opts
+    (AnyEmailBackend (Proxy :: Proxy eb), AnyKVBackendWithConfig ((Proxy :: Proxy
+        kvb), cfg))
+      -> interpretBase @eb @kvb opts cfg $ secretSantaServer' @eb @kvb opts
 
 secretSantaServer'
   :: forall eb kvb
@@ -82,11 +82,10 @@ runInHandler lowerToIO =
           (internalError . T.pack . displayException)
 
 apiServer
-  :: forall eb kvb. RunKVStore kvb SecretSantaStore
+  :: forall eb kvb
+   . RunKVStore kvb SecretSantaStore
   => Opts
-  -> SS.ServerT
-       API'
-       (Sem (Error InternalError ': BaseEffects eb kvb))
+  -> SS.ServerT API' (Sem (Error InternalError ': BaseEffects eb kvb))
 apiServer opts = createSecretSantaHandler @kvb :<|> staticServer opts
 
 staticServer :: Opts -> SS.ServerT Raw (Sem r)

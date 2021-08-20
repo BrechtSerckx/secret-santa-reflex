@@ -15,7 +15,6 @@ import           SecretSanta.Data
 import           SecretSanta.Effect.Email
 import           SecretSanta.Effect.Time
 import           SecretSanta.Opts
-import           SecretSanta.Store
 
 type BaseEffects eb kvb
   = '[ Input Sender

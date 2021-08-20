@@ -10,17 +10,7 @@ import           Data.Validate
 import qualified Network.Wai.Handler.Warp      as Warp
 import qualified Options.Applicative           as OA
 import           SecretSanta.Backend.Email
-import           SecretSanta.Backend.Email.Dummy
-                                                ( )
-import           SecretSanta.Backend.Email.GMail
-                                                ( )
-import           SecretSanta.Backend.Email.SES  ( )
 import           SecretSanta.Backend.KVStore
-import           SecretSanta.Backend.KVStore.Database
-                                                ( )
-import           SecretSanta.Backend.KVStore.State
-                                                ( KVConfig(..) )
-import           SecretSanta.Store
 import "common"  Text.EmailAddress
 
 data Opts = Opts
@@ -59,9 +49,9 @@ pEmailBackend =
   readEmailBackend = OA.maybeReader $ readEmailBackends . T.pack
   showEmailBackend :: AnyEmailBackend -> String
   showEmailBackend = \case
-    AnyEmailBackend (Proxy :: Proxy eb)  -> T.unpack $ emailBackendName @eb
+    AnyEmailBackend (Proxy :: Proxy eb) -> T.unpack $ emailBackendName @eb
 
-pKVBackend :: OA.Parser (AnyKVBackendWithConfig )
+pKVBackend :: OA.Parser (AnyKVBackendWithConfig)
 pKVBackend = parseKVStoreBackends
 
 pEmailSender :: OA.Parser EmailAddress
