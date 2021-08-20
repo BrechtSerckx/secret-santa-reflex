@@ -28,11 +28,10 @@ instance ParseKVStoreBackends '[] where
   parseKVStoreBackends' = OA.empty
 instance (RunKVBackend kv, FoldC (RunKVStore kv) Stores, ParseKVStoreBackends kvs) => ParseKVStoreBackends (kv ': kvs) where
   parseKVStoreBackends' =
-    (AnyKVBackendWithConfig <$> parseKVConfig @kv)
-      <|> parseKVStoreBackends' @kvs
+    (AnyKVBackendWithConfig <$> parseKVOpts @kv) <|> parseKVStoreBackends' @kvs
 
 data AnyKVBackendWithConfig where
   AnyKVBackendWithConfig
     ::(RunKVBackend kv, FoldC (RunKVStore kv) Stores)
-    => (Proxy kv , KVConfig kv)
+    => (Proxy kv , KVOpts kv)
     -> AnyKVBackendWithConfig

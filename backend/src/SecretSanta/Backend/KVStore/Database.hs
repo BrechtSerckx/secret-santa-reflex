@@ -16,12 +16,14 @@ import qualified Database.SQLite.Simple        as SQLite
 data KVDatabase
 
 instance RunKVBackend KVDatabase where
-  parseKVConfig = fmap (Proxy @KVDatabase, ) . OA.strOption $ mconcat
-    [OA.long "sqlite", OA.metavar "SQLITE_DATABASE"]
+  parseKVOpts =
+    fmap ((Proxy @KVDatabase, ) . KVDatabaseOpts) . OA.strOption $ mconcat
+      [OA.long "sqlite", OA.metavar "SQLITE_DATABASE"]
   data KVTransaction KVDatabase m a
     = KVDatabaseTransaction { unDBTx :: Transaction SQLite.Connection  m a}
   data KVConnection KVDatabase = KVDatabaseConnection SQLite.Connection
   newtype KVConfig KVDatabase = KVDatabaseConfig FilePath
+  newtype KVOpts KVDatabase = KVDatabaseOpts FilePath
     deriving IsString via FilePath
   runKVTransaction act = do
     KVDatabaseConnection conn <- input
@@ -39,4 +41,4 @@ instance RunKVBackend KVDatabase where
         lowerToIO $ runInputConst (KVDatabaseConnection conn) act
       finalize
       pure res
-  runKVConfig cfg = runInputConst cfg
+  runKVConfig (KVDatabaseOpts cfg) = runInputConst $ KVDatabaseConfig cfg

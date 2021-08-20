@@ -26,11 +26,12 @@ type family FoldC mkC as :: Constraint where
   FoldC mkC (a ': as) = (mkC a, FoldC mkC as)
 
 class RunKVBackend kv where
-  parseKVConfig :: OA.Parser (Proxy kv, KVConfig kv)
+  parseKVOpts :: OA.Parser (Proxy kv, KVOpts kv)
   data KVTransaction kv (m :: Type -> Type) (a :: Type) :: Type
   data KVConnection kv :: Type
   data KVConfig kv :: Type
-  -- data KVOpts kv :: Type
+  data KVOpts kv :: Type
+
   runKVTransaction
     :: Members '[Embed IO, Input (KVConnection kv)] r
     => KVTransaction kv ': r @> Either e a
@@ -40,7 +41,7 @@ class RunKVBackend kv where
     => Input (KVConnection kv) ': r @> a
     -> r @> a
   runKVConfig
-    :: KVConfig kv
+    :: KVOpts kv
     -> Input (KVConfig kv) ': r @> a
     -> r @> a
 

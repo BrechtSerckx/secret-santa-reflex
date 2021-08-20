@@ -31,7 +31,7 @@ interpretBase
   :: forall eb kvb a
    . (RunEmailBackend eb, RunKVBackend kvb, FoldC (RunKVStore kvb) Stores)
   => Opts
-  -> KVConfig kvb
+  -> KVOpts kvb
   -> BaseEffects eb kvb @> a
   -> IO a
 interpretBase Opts {..} cfg act =
