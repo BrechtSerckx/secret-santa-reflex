@@ -14,11 +14,11 @@ import           SecretSanta.Backend.KVStore
 import "common"  Text.EmailAddress
 
 data Opts = Opts
-  { oEmailBackend :: AnyEmailBackend
-  , oEmailSender  :: EmailAddress
-  , oWebRoot      :: FilePath
-  , oPort         :: Warp.Port
-  , oKVBackend    :: AnyKVBackendWithConfig
+  { oEmailBackend   :: AnyEmailBackend
+  , oEmailSender    :: EmailAddress
+  , oWebRoot        :: FilePath
+  , oPort           :: Warp.Port
+  , oKVStoreBackend :: AnyKVStoreBackend
   }
 
 parseOpts :: IO Opts
@@ -28,11 +28,11 @@ parseOpts =
 
 pOpts :: OA.Parser Opts
 pOpts = do
-  oEmailBackend <- pEmailBackend
-  oEmailSender  <- pEmailSender
-  oWebRoot      <- pWebRoot
-  oPort         <- pPort
-  oKVBackend    <- pKVBackend
+  oEmailBackend   <- pEmailBackend
+  oEmailSender    <- pEmailSender
+  oWebRoot        <- pWebRoot
+  oPort           <- pPort
+  oKVStoreBackend <- pKVStoreBackend
   pure Opts { .. }
 
 
@@ -51,8 +51,8 @@ pEmailBackend =
   showEmailBackend = \case
     AnyEmailBackend (Proxy :: Proxy eb) -> T.unpack $ emailBackendName @eb
 
-pKVBackend :: OA.Parser (AnyKVBackendWithConfig)
-pKVBackend = parseKVStoreBackends
+pKVStoreBackend :: OA.Parser AnyKVStoreBackend
+pKVStoreBackend = parseKVStoreBackends
 
 pEmailSender :: OA.Parser EmailAddress
 pEmailSender =

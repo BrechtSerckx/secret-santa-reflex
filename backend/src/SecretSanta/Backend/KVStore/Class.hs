@@ -1,6 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 module SecretSanta.Backend.KVStore.Class
-  ( RunKVBackend(..)
+  ( RunKVStoreBackend(..)
   , RunKVStore(..)
   ) where
 
@@ -9,30 +9,30 @@ import           Polysemy
 import           Polysemy.Input
 import           Polysemy.Operators
 
-class RunKVBackend kv where
-  parseKVOpts :: OA.Parser (Proxy kv, KVOpts kv)
-  data KVTransaction kv (m :: Type -> Type) (a :: Type) :: Type
-  data KVConnection kv :: Type
-  data KVConfig kv :: Type
-  data KVOpts kv :: Type
+class RunKVStoreBackend kv where
+  parseKVStoreOpts :: OA.Parser (Proxy kv, KVStoreOpts kv)
+  data KVStoreTransaction kv (m :: Type -> Type) (a :: Type) :: Type
+  data KVStoreConnection kv :: Type
+  data KVStoreConfig kv :: Type
+  data KVStoreOpts kv :: Type
 
-  runKVTransaction
-    :: Members '[Embed IO, Input (KVConnection kv)] r
-    => KVTransaction kv ': r @> Either e a
+  runKVStoreTransaction
+    :: Members '[Embed IO, Input (KVStoreConnection kv)] r
+    => KVStoreTransaction kv ': r @> Either e a
     -> r @> Either e a
-  runKVConnection
-    :: Members '[Embed IO, Input (KVConfig kv)] r
-    => Input (KVConnection kv) ': r @> a
+  runKVStoreConnection
+    :: Members '[Embed IO, Input (KVStoreConfig kv)] r
+    => Input (KVStoreConnection kv) ': r @> a
     -> r @> a
-  runKVConfig
-    :: KVOpts kv
-    -> Input (KVConfig kv) ': r @> a
+  runKVStoreConfig
+    :: KVStoreOpts kv
+    -> Input (KVStoreConfig kv) ': r @> a
     -> r @> a
 
-class RunKVBackend kv => RunKVStore kv store where
+class RunKVStoreBackend kv => RunKVStore kv store where
   data KVStoreInit kv store (m :: Type -> Type) (a :: Type) :: Type
   runKVStore
-    :: Members '[KVTransaction kv, KVStoreInit kv store] r
+    :: Members '[KVStoreTransaction kv, KVStoreInit kv store] r
     => store ': r @> a
     -> r @> a
   runKVStoreInit

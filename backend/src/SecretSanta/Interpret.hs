@@ -22,23 +22,23 @@ type BaseEffects eb kvb
      , Email
      , Input (EmailBackendConfig eb)
      , KVStoreInit kvb SecretSantaStore
-     , Input (KVConnection kvb)
-     , Input (KVConfig kvb)
+     , Input (KVStoreConnection kvb)
+     , Input (KVStoreConfig kvb)
      , Embed IO
      , Final IO
      ]
 interpretBase
   :: forall eb kvb a
-   . (RunEmailBackend eb, RunKVBackend kvb, RunKVStores kvb)
+   . (RunEmailBackend eb, RunKVStoreBackend kvb, RunKVStores kvb)
   => Opts
-  -> KVOpts kvb
+  -> KVStoreOpts kvb
   -> BaseEffects eb kvb @> a
   -> IO a
 interpretBase Opts {..} cfg act =
   runFinal
     . embedToFinal
-    . runKVConfig @kvb cfg
-    . runKVConnection @kvb
+    . runKVStoreConfig @kvb cfg
+    . runKVStoreConnection @kvb
     . runKVStoreInit @kvb
     . runEmailBackendConfig @eb
     . runEmailBackend @eb

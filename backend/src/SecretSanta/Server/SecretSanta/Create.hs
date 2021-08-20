@@ -45,7 +45,7 @@ createSecretSantaHandler
           , GetTime
           , KVStoreInit kv SecretSantaStore
           , Embed IO
-          , Input (KVConnection kv)
+          , Input (KVStoreConnection kv)
           ]
          r
      , RunKVStore kv SecretSantaStore
@@ -54,11 +54,11 @@ createSecretSantaHandler
   -> Error InternalError ': r @> Union '[WithStatus 200 SecretSantaId, InvalidDateTimeError]
 createSecretSantaHandler ss = do
   env :: Envelope '[InvalidDateTimeError] SecretSantaId <-
-    runKVTransaction @kv
+    runKVStoreTransaction @kv
     . runErrorsU @'[InvalidDateTimeError]
     . rotateEffects2
     . runKVStore @kv @SecretSantaStore
-    . raiseUnder @(KVTransaction kv)
+    . raiseUnder @(KVStoreTransaction kv)
     . runFreshSecretSantaId
     . runMatchRandom
     $ createSecretSanta ss

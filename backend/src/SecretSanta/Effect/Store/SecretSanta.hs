@@ -93,31 +93,31 @@ insertParticipants db id ps =
   insert (_secretsantaParticipants db) . insertValues . fmap T2 $ (id, ) <$> ps
 
 
-instance RunKVStore KVState SecretSantaStore where
-  data KVStoreInit KVState SecretSantaStore m a
+instance RunKVStore KVStoreState SecretSantaStore where
+  data KVStoreInit KVStoreState SecretSantaStore m a
     = SecretSantaStoreStateInit { unSecretSantaStoreStateInit :: State SecretSantaMap m a}
   runKVStore =
     subsume . rewrite SecretSantaStoreStateInit . runSecretSantaStoreAsState
   runKVStoreInit = evalState Map.empty . rewrite unSecretSantaStoreStateInit
 
-instance RunKVStore KVDatabase SecretSantaStore where
-  data KVStoreInit KVDatabase SecretSantaStore m a
+instance RunKVStore KVStoreDatabase SecretSantaStore where
+  data KVStoreInit KVStoreDatabase SecretSantaStore m a
     = SecretSantaStoreDatabaseInit
     { unSecretSantaStoreDatabaseInit :: Input (DatabaseSettings Beam.Sqlite SecretSantaDB) m a
     }
   runKVStore
     :: forall r a
      . Members
-         '[ KVTransaction KVDatabase
-          , KVStoreInit KVDatabase SecretSantaStore
+         '[ KVStoreTransaction KVStoreDatabase
+          , KVStoreInit KVStoreDatabase SecretSantaStore
           ]
          r
     => SecretSantaStore ':r @> a
     -> r @> a
   runKVStore =
-    subsume @(KVTransaction KVDatabase)
-      . rewrite KVDatabaseTransaction
-      . subsume @(KVStoreInit KVDatabase SecretSantaStore)
+    subsume @(KVStoreTransaction KVStoreDatabase)
+      . rewrite KVStoreDatabaseTransaction
+      . subsume @(KVStoreInit KVStoreDatabase SecretSantaStore)
       . rewrite SecretSantaStoreDatabaseInit
       . rotateEffects2
       . runBeamTransactionSqlite
@@ -128,6 +128,8 @@ instance RunKVStore KVDatabase SecretSantaStore where
       . raise
 
   runKVStoreInit
-    :: forall r a . KVStoreInit KVDatabase SecretSantaStore ': r @> a -> r @> a
+    :: forall r a
+     . KVStoreInit KVStoreDatabase SecretSantaStore ': r @> a
+    -> r @> a
   runKVStoreInit =
     runInputConst secretSantaDB . rewrite unSecretSantaStoreDatabaseInit

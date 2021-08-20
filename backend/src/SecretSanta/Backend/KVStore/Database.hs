@@ -1,8 +1,8 @@
 module SecretSanta.Backend.KVStore.Database
-  ( KVDatabase
-  , KVTransaction(..)
-  , KVConnection(..)
-  , KVConfig(..)
+  ( KVStoreDatabase
+  , KVStoreTransaction(..)
+  , KVStoreConnection(..)
+  , KVStoreConfig(..)
   ) where
 
 import qualified Options.Applicative           as OA
@@ -13,32 +13,34 @@ import           SecretSanta.Backend.KVStore.Class
 
 import qualified Database.SQLite.Simple        as SQLite
 
-data KVDatabase
+data KVStoreDatabase
 
-instance RunKVBackend KVDatabase where
-  parseKVOpts =
-    fmap ((Proxy @KVDatabase, ) . KVDatabaseOpts) . OA.strOption $ mconcat
-      [OA.long "sqlite", OA.metavar "SQLITE_DATABASE"]
-  data KVTransaction KVDatabase m a
-    = KVDatabaseTransaction { unDBTx :: Transaction SQLite.Connection  m a}
-  data KVConnection KVDatabase = KVDatabaseConnection SQLite.Connection
-  newtype KVConfig KVDatabase = KVDatabaseConfig FilePath
-  newtype KVOpts KVDatabase = KVDatabaseOpts FilePath
+instance RunKVStoreBackend KVStoreDatabase where
+  parseKVStoreOpts =
+    fmap ((Proxy @KVStoreDatabase, ) . KVStoreDatabaseOpts)
+      . OA.strOption
+      $ mconcat [OA.long "sqlite", OA.metavar "SQLITE_DATABASE"]
+  data KVStoreTransaction KVStoreDatabase m a
+    = KVStoreDatabaseTransaction { unDBTx :: Transaction SQLite.Connection  m a}
+  data KVStoreConnection KVStoreDatabase = KVStoreDatabaseConnection SQLite.Connection
+  newtype KVStoreConfig KVStoreDatabase = KVStoreDatabaseConfig FilePath
+  newtype KVStoreOpts KVStoreDatabase = KVStoreDatabaseOpts FilePath
     deriving IsString via FilePath
-  runKVTransaction act = do
-    KVDatabaseConnection conn <- input
+  runKVStoreTransaction act = do
+    KVStoreDatabaseConnection conn <- input
     startTransaction conn
     eRes <- runTransaction' conn . rewrite unDBTx $ act
     case eRes of
       Left  _ -> rollbackTransaction conn
       Right _ -> endTransaction conn
     pure eRes
-  runKVConnection act = do
-    KVDatabaseConfig db <- input
+  runKVStoreConnection act = do
+    KVStoreDatabaseConfig db <- input
     withLowerToIO $ \lowerToIO finalize -> do
       res <- SQLite.withConnection db $ \conn -> do
         SQLite.setTrace conn $ Just putStrLn
-        lowerToIO $ runInputConst (KVDatabaseConnection conn) act
+        lowerToIO $ runInputConst (KVStoreDatabaseConnection conn) act
       finalize
       pure res
-  runKVConfig (KVDatabaseOpts cfg) = runInputConst $ KVDatabaseConfig cfg
+  runKVStoreConfig (KVStoreDatabaseOpts cfg) =
+    runInputConst $ KVStoreDatabaseConfig cfg

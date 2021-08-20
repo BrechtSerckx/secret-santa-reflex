@@ -40,9 +40,8 @@ api' = Proxy @API'
 secretSantaServer :: IO ()
 secretSantaServer = do
   opts@Opts {..} <- parseOpts
-  case (oEmailBackend, oKVBackend) of
-    (AnyEmailBackend (Proxy :: Proxy eb), AnyKVBackendWithConfig ((Proxy :: Proxy
-        kvb), cfg))
+  case (oEmailBackend, oKVStoreBackend) of
+    (AnyEmailBackend (Proxy :: Proxy eb), AnyKVStoreBackend ((Proxy :: Proxy kvb), cfg))
       -> interpretBase @eb @kvb opts cfg $ secretSantaServer' @eb @kvb opts
 
 secretSantaServer'
