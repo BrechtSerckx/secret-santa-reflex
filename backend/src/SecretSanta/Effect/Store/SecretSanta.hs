@@ -16,7 +16,6 @@ import           Prelude                 hiding ( State
                                                 )
 
 import           Polysemy
-import           Polysemy.Extra
 import           Polysemy.Input
 import           Polysemy.KVStore
 import           Polysemy.Operators
@@ -114,22 +113,12 @@ instance RunKVStore KVStoreDatabase SecretSantaStore where
          r
     => SecretSantaStore ':r @> a
     -> r @> a
-  runKVStore =
-    subsume @(KVStoreTransaction KVStoreDatabase)
-      . rewrite KVStoreDatabaseTransaction
-      . subsume @(KVStoreInit KVStoreDatabase SecretSantaStore)
-      . rewrite SecretSantaStoreDatabaseInit
-      . rotateEffects2
-      . runBeamTransactionSqlite
-      . runSecretSantaStoreDB @Beam.Sqlite @Beam.SqliteM
-      . raiseUnder
-      . rotateEffects2
-      . rewrite unSecretSantaStoreDatabaseInit
-      . raise
+  runKVStore = runKVStore' SecretSantaStoreDatabaseInit
+                           unSecretSantaStoreDatabaseInit
+                           (runSecretSantaStoreDB @Beam.Sqlite @Beam.SqliteM)
 
   runKVStoreInit
     :: forall r a
      . KVStoreInit KVStoreDatabase SecretSantaStore ': r @> a
     -> r @> a
-  runKVStoreInit =
-    runInputConst secretSantaDB . rewrite unSecretSantaStoreDatabaseInit
+  runKVStoreInit = runKVStoreInit' unSecretSantaStoreDatabaseInit
