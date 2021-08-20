@@ -27,11 +27,9 @@ import "this"    Database.Beam
 import qualified Database.Beam.Sqlite.Connection
                                                as Beam
 
-import           SecretSanta.Backend.KVStore
+import           SecretSanta.Backend.KVStore.Class
 import           SecretSanta.Backend.KVStore.Database
-                                                ( KVTransaction(..) )
 import           SecretSanta.Backend.KVStore.State
-                                                ( )
 import           SecretSanta.Data
 import           SecretSanta.Database
 
@@ -95,33 +93,31 @@ insertParticipants db id ps =
   insert (_secretsantaParticipants db) . insertValues . fmap T2 $ (id, ) <$> ps
 
 
-instance RunKVStore 'KVState SecretSantaStore where
-  data KVStoreInit 'KVState SecretSantaStore m a
+instance RunKVStore KVState SecretSantaStore where
+  data KVStoreInit KVState SecretSantaStore m a
     = SecretSantaStoreStateInit { unSecretSantaStoreStateInit :: State SecretSantaMap m a}
-  runKVStore SKVState =
+  runKVStore =
     subsume . rewrite SecretSantaStoreStateInit . runSecretSantaStoreAsState
-  runKVStoreInit SKVState =
-    evalState Map.empty . rewrite unSecretSantaStoreStateInit
+  runKVStoreInit = evalState Map.empty . rewrite unSecretSantaStoreStateInit
 
-instance RunKVStore 'KVDatabase SecretSantaStore where
-  data KVStoreInit 'KVDatabase SecretSantaStore m a
+instance RunKVStore KVDatabase SecretSantaStore where
+  data KVStoreInit KVDatabase SecretSantaStore m a
     = SecretSantaStoreDatabaseInit
     { unSecretSantaStoreDatabaseInit :: Input (DatabaseSettings Beam.Sqlite SecretSantaDB) m a
     }
   runKVStore
     :: forall r a
      . Members
-         '[ KVTransaction 'KVDatabase
-          , KVStoreInit 'KVDatabase SecretSantaStore
+         '[ KVTransaction KVDatabase
+          , KVStoreInit KVDatabase SecretSantaStore
           ]
          r
-    => SKVBackend 'KVDatabase
-    -> SecretSantaStore ':r @> a
+    => SecretSantaStore ':r @> a
     -> r @> a
-  runKVStore SKVDatabase{} =
-    subsume @(KVTransaction 'KVDatabase)
+  runKVStore =
+    subsume @(KVTransaction KVDatabase)
       . rewrite KVDatabaseTransaction
-      . subsume @(KVStoreInit 'KVDatabase SecretSantaStore)
+      . subsume @(KVStoreInit KVDatabase SecretSantaStore)
       . rewrite SecretSantaStoreDatabaseInit
       . rotateEffects2
       . runBeamTransactionSqlite
@@ -132,9 +128,6 @@ instance RunKVStore 'KVDatabase SecretSantaStore where
       . raise
 
   runKVStoreInit
-    :: forall r a
-     . SKVBackend 'KVDatabase
-    -> KVStoreInit 'KVDatabase SecretSantaStore ': r @> a
-    -> r @> a
-  runKVStoreInit SKVDatabase{} =
+    :: forall r a . KVStoreInit KVDatabase SecretSantaStore ': r @> a -> r @> a
+  runKVStoreInit =
     runInputConst secretSantaDB . rewrite unSecretSantaStoreDatabaseInit

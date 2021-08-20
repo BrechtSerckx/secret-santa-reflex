@@ -42,16 +42,15 @@ secretSantaServer :: IO ()
 secretSantaServer = do
   opts@Opts {..} <- parseOpts
   case (oEmailBackend, oKVBackend) of
-    (AnyEmailBackend (Proxy :: Proxy eb), AnyKVBackendWithConfig kvb cfg) ->
-      interpretBase @eb opts kvb cfg $ secretSantaServer' @eb opts kvb
+    (AnyEmailBackend (Proxy :: Proxy eb), AnyKVBackendWithConfig ((Proxy :: Proxy kvb), cfg)) ->
+      interpretBase @eb @kvb opts cfg $ secretSantaServer' @eb @kvb opts
 
 secretSantaServer'
   :: forall eb kvb
    . (RunEmailBackend eb, RunKVStore kvb SecretSantaStore)
   => Opts
-  -> SKVBackend kvb
   -> BaseEffects eb kvb @> ()
-secretSantaServer' opts@Opts {..} kvb = do
+secretSantaServer' opts@Opts {..} = do
   requestLogger <- embed $ RL.mkRequestLogger def
   withLowerToIO $ \lowerToIO finished -> do
     Warp.run oPort
@@ -60,7 +59,7 @@ secretSantaServer' opts@Opts {..} kvb = do
       . SO.provideOptions api
       . SS.serve api'
       . SS.hoistServer api' (runInHandler lowerToIO)
-      $ apiServer @eb kvb opts
+      $ apiServer @eb @kvb opts
     finished
  where
   corsPolicy =
@@ -84,12 +83,11 @@ runInHandler lowerToIO =
 
 apiServer
   :: forall eb kvb. RunKVStore kvb SecretSantaStore
-  => SKVBackend kvb
-  -> Opts
+  => Opts
   -> SS.ServerT
        API'
        (Sem (Error InternalError ': BaseEffects eb kvb))
-apiServer kvb opts = createSecretSantaHandler kvb :<|> staticServer opts
+apiServer opts = createSecretSantaHandler @kvb :<|> staticServer opts
 
 staticServer :: Opts -> SS.ServerT Raw (Sem r)
 staticServer Opts {..} =

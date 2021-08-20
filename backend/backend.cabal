@@ -125,10 +125,12 @@ library
     SecretSanta.Data
     SecretSanta.Database
     SecretSanta.Backend.Email
+    SecretSanta.Backend.Email.Class
     SecretSanta.Backend.Email.Dummy
     SecretSanta.Backend.Email.SES
     SecretSanta.Backend.Email.GMail
     SecretSanta.Backend.KVStore
+    SecretSanta.Backend.KVStore.Class
     SecretSanta.Backend.KVStore.State
     SecretSanta.Backend.KVStore.Database
     SecretSanta.Effect.Email

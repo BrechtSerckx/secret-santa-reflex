@@ -5,7 +5,7 @@ FLAGS=()
 
 FLAGS+=(--email-sender "info@secret-santa.link")
 
-FLAGS+=(--email-backend none)
+FLAGS+=(--email-backend dummy)
 # FLAGS+=(--email-backend gmail)
 # FLAGS+=(--email-backend ses)
 

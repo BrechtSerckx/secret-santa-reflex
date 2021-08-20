@@ -1,24 +1,29 @@
 module SecretSanta.Backend.KVStore.Database
-  ( KVTransaction(..)
+  ( KVDatabase, KVTransaction(..)
   , KVConnection(..)
   , KVConfig(..)
   ) where
 
 import           Polysemy
+import qualified Options.Applicative           as OA
 import           Polysemy.Input
 import           Polysemy.Transaction
-import           SecretSanta.Backend.KVStore
+import           SecretSanta.Backend.KVStore.Class
 
 import qualified Database.SQLite.Simple        as SQLite
 
+data KVDatabase
 
-instance RunKVBackend 'KVDatabase where
-  data KVTransaction 'KVDatabase m a
+instance RunKVBackend KVDatabase where
+  parseKVConfig = 
+        fmap (Proxy @KVDatabase, ) . OA.strOption $ mconcat
+          [OA.long "sqlite", OA.metavar "SQLITE_DATABASE"]
+  data KVTransaction KVDatabase m a
     = KVDatabaseTransaction { unDBTx :: Transaction SQLite.Connection  m a}
-  data KVConnection 'KVDatabase = KVDatabaseConnection SQLite.Connection
-  newtype KVConfig 'KVDatabase = KVDatabaseConfig FilePath
+  data KVConnection KVDatabase = KVDatabaseConnection SQLite.Connection
+  newtype KVConfig KVDatabase = KVDatabaseConfig FilePath
     deriving IsString via FilePath
-  runKVTransaction SKVDatabase{} act = do
+  runKVTransaction act = do
     KVDatabaseConnection conn <- input
     startTransaction conn
     eRes <- runTransaction' conn . rewrite unDBTx $ act
@@ -26,7 +31,7 @@ instance RunKVBackend 'KVDatabase where
       Left  _ -> rollbackTransaction conn
       Right _ -> endTransaction conn
     pure eRes
-  runKVConnection SKVDatabase{} act = do
+  runKVConnection act = do
     KVDatabaseConfig db <- input
     withLowerToIO $ \lowerToIO finalize -> do
       res <- SQLite.withConnection db $ \conn -> do
@@ -34,4 +39,4 @@ instance RunKVBackend 'KVDatabase where
         lowerToIO $ runInputConst (KVDatabaseConnection conn) act
       finalize
       pure res
-  runKVConfig SKVDatabase cfg = runInputConst cfg
+  runKVConfig cfg = runInputConst cfg

@@ -28,7 +28,7 @@ data Opts = Opts
   , oEmailSender  :: EmailAddress
   , oWebRoot      :: FilePath
   , oPort         :: Warp.Port
-  , oKVBackend    :: AnyKVBackendWithConfig Stores
+  , oKVBackend    :: AnyKVBackendWithConfig
   }
 
 parseOpts :: IO Opts
@@ -61,14 +61,8 @@ pEmailBackend =
   showEmailBackend = \case
     AnyEmailBackend (Proxy :: Proxy eb)  -> T.unpack $ emailBackendName @eb
 
-pKVBackend :: OA.Parser (AnyKVBackendWithConfig Stores)
-pKVBackend =
-  let pState = OA.flag' (AnyKVBackendWithConfig SKVState KVStateConfig)
-        $ mconcat [OA.long "in-memory"]
-      pDatabase =
-        fmap (AnyKVBackendWithConfig SKVDatabase) . OA.strOption $ mconcat
-          [OA.long "sqlite", OA.metavar "SQLITE_DATABASE"]
-  in  pState <|> pDatabase
+pKVBackend :: OA.Parser (AnyKVBackendWithConfig )
+pKVBackend = parseKVStoreBackends
 
 pEmailSender :: OA.Parser EmailAddress
 pEmailSender =

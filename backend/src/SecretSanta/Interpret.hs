@@ -32,16 +32,15 @@ interpretBase
   :: forall eb kvb a
    . (RunEmailBackend eb, RunKVBackend kvb, FoldC (RunKVStore kvb) Stores)
   => Opts
-  -> SKVBackend kvb
   -> KVConfig kvb
   -> BaseEffects eb kvb @> a
   -> IO a
-interpretBase Opts {..} kvb cfg act =
+interpretBase Opts {..} cfg act =
   runFinal
     . embedToFinal
-    . runKVConfig kvb cfg
-    . runKVConnection kvb
-    . runKVStoreInit @kvb kvb
+    . runKVConfig @kvb cfg
+    . runKVConnection @kvb
+    . runKVStoreInit @kvb
     . runEmailBackendConfig @eb
     . runEmailBackend @eb
     . runGetTime
