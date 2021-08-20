@@ -8,7 +8,6 @@ module SecretSanta.Interpret
 import           Polysemy
 import           Polysemy.Input
 import           Polysemy.Operators
-import           Type.Constraint                ( FoldC )
 
 import           SecretSanta.Backend.Email
 import           SecretSanta.Backend.KVStore
@@ -30,7 +29,7 @@ type BaseEffects eb kvb
      ]
 interpretBase
   :: forall eb kvb a
-   . (RunEmailBackend eb, RunKVBackend kvb, FoldC (RunKVStore kvb) Stores)
+   . (RunEmailBackend eb, RunKVBackend kvb, RunKVStores kvb)
   => Opts
   -> KVOpts kvb
   -> BaseEffects eb kvb @> a

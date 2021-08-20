@@ -4,6 +4,7 @@ module SecretSanta.Backend.KVStore
   ( module Export
   , AnyKVBackendWithConfig(..)
   , parseKVStoreBackends
+  , RunKVStores
   ) where
 
 import qualified Options.Applicative           as OA
@@ -18,6 +19,7 @@ import           Type.Constraint                ( FoldC )
 
 
 type KVStoreBackends = '[KVState , KVDatabase]
+type RunKVStores kv = FoldC (RunKVStore kv) Stores
 
 parseKVStoreBackends :: OA.Parser AnyKVBackendWithConfig
 parseKVStoreBackends = parseKVStoreBackends' @KVStoreBackends
@@ -27,12 +29,12 @@ class ParseKVStoreBackends kvs where
 
 instance ParseKVStoreBackends '[] where
   parseKVStoreBackends' = OA.empty
-instance (RunKVBackend kv, FoldC (RunKVStore kv) Stores, ParseKVStoreBackends kvs) => ParseKVStoreBackends (kv ': kvs) where
+instance (RunKVBackend kv, RunKVStores kv, ParseKVStoreBackends kvs) => ParseKVStoreBackends (kv ': kvs) where
   parseKVStoreBackends' =
     (AnyKVBackendWithConfig <$> parseKVOpts @kv) <|> parseKVStoreBackends' @kvs
 
 data AnyKVBackendWithConfig where
   AnyKVBackendWithConfig
-    ::(RunKVBackend kv, FoldC (RunKVStore kv) Stores)
+    ::(RunKVBackend kv, RunKVStores kv)
     => (Proxy kv , KVOpts kv)
     -> AnyKVBackendWithConfig
