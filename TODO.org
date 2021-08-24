@@ -17,10 +17,19 @@
 - [x] display a nicer success message
 - [x] nonemptytext: strip whitespace
 - [x] revisit Refine class and types
+- [ ] create/reset database through CLI commands
+- [ ] fix ses emails
 
 ** Allow hosts to update the config
 
-- [ ] Store the SS information in a database
+- [x] Store the SS information in a database
+- [ ] authorization
+  - user store
+  - servant auth
+- [ ] endpoint to retrieve all secret santas
+  - pagination
+  - for admin user
+- [ ] redis backend
 - [ ] Also store a host-key
 - [ ] Send the host-key to the host
 - [ ] add an admin page, accessible with the host-key, where the host can update the SS info
