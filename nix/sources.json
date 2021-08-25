@@ -33,6 +33,13 @@
         "tag": "refs/tags/0.1.0.2",
         "type": "git"
     },
+    "mime-mail-ses": {
+        "sha256": "121hmphbv4xs21ldrsmkiv9mn8ipj3dxs11hpmyzbv33si2ink0r",
+        "type": "tarball",
+        "url": "https://hackage.haskell.org/package/mime-mail-ses-0.4.3/mime-mail-ses-0.4.3.tar.gz",
+        "url_template": "https://hackage.haskell.org/package/mime-mail-ses-<version>/mime-mail-ses-<version>.tar.gz",
+        "version": "0.4.3"
+    },
     "niv": {
         "branch": "master",
         "description": "Easy dependency management for Nix projects",

@@ -2,16 +2,19 @@ module SecretSanta.Backend.Email.SES
   ( SES
   ) where
 
+import           Network.Mail.Mime
+import qualified Network.Mail.Mime.SES         as SES
 import           Polysemy
 import           Polysemy.Extra
 import           Polysemy.Input
 import           Polysemy.Input.Env
+import           Polysemy.Operators
 import           SecretSanta.Backend.Email.Class
 import           SecretSanta.Effect.Email
-import           Network.Mail.Mime
-import qualified Network.Mail.Mime.SES         as SES
-import qualified System.Envy                   as Env
-import           Polysemy.Operators
+import qualified "this" System.Envy            as Env
+import "this"    System.Envy                    ( (.<)
+                                                , (.<?)
+                                                )
 
 data SESSettings = SESSettings
   { sesAccessKeyId     :: ByteString
@@ -19,8 +22,14 @@ data SESSettings = SESSettings
   , sesSessionToken    :: Maybe ByteString
   , sesRegion          :: Text
   }
-  deriving stock Generic
-  deriving anyclass Env.FromEnv
+
+instance Env.FromEnv SESSettings where
+  fromEnv mDef = do
+    sesAccessKeyId     <- "SES_ACCESS_KEY_ID" .< sesAccessKeyId <$> mDef
+    sesSecretAccessKey <- "SES_SECRET_ACCESS_KEY" .< sesSecretAccessKey <$> mDef
+    sesSessionToken    <- "SES_SESSION_TOKEN" .<? sesSessionToken <$> mDef
+    sesRegion          <- "SES_REGION" .< sesRegion <$> mDef
+    pure SESSettings { .. }
 
 runEmailSES
   :: Members '[Embed IO , Input SESSettings] r => Email ': r @> a -> r @> a

@@ -145,6 +145,7 @@ library
     SecretSanta.Server.SecretSanta
     SecretSanta.Server.SecretSanta.Create
     Servant.Server
+    System.Envy
     Type.Constraint
   ghc-options:
     -O2

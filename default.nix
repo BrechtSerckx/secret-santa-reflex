@@ -40,6 +40,7 @@
       polysemy-extra = self.callCabal2nixWithOptions "polysemy-extra" sources.polysemy-extra "--no-hpack" {};
 
       smtp-mail = self.callCabal2nix "smtp-mail" sources.smtp-mail { };
+      mime-mail-ses = self.callCabal2nix "mime-mail-ses" sources.mime-mail-ses {};
 
       # override servant version
       servant = self.callCabal2nix "servant" "${sources.servant}/servant" { };
