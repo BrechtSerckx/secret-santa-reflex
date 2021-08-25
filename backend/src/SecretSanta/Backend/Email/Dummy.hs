@@ -5,6 +5,15 @@ module SecretSanta.Backend.Email.Dummy
 import           Polysemy.Input
 import           SecretSanta.Backend.Email.Class
 import           SecretSanta.Effect.Email
+import           Polysemy.Operators
+import           Polysemy
+import           Text.Pretty.Simple
+
+runEmailPrint :: Email ': r @> a -> IO ~@ r @> a
+runEmailPrint = interpret $ \case
+  SendEmail mail -> embed @IO $ do
+    putStrLn @Text @IO $ "Sending email:"
+    pPrint mail
 
 data Dummy
 
