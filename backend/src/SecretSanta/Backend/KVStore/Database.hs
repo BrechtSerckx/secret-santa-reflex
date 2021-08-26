@@ -5,6 +5,7 @@ module SecretSanta.Backend.KVStore.Database
   , KVStoreConfig(..)
   , runKVStore'
   , runKVStoreInit'
+  , module Export
   ) where
 
 import "this"    Database.Beam
@@ -18,19 +19,22 @@ import           Polysemy.Input
 import           Polysemy.Operators
 import           Polysemy.Transaction
 import           Polysemy.Transaction.Beam
+import           SecretSanta.Backend.Database.Class
+                                               as Export
 import           SecretSanta.Backend.KVStore.Class
+                                               as Export
 import           SecretSanta.Database
 
-data KVStoreDatabase
+data KVStoreDatabase db
 
-instance RunKVStoreBackend KVStoreDatabase where
+instance IsDatabaseBackend db => RunKVStoreBackend (KVStoreDatabase db) where
   parseKVStoreOpts = fmap KVStoreDatabaseOpts . OA.strOption $ mconcat
     [OA.long "sqlite", OA.metavar "SQLITE_DATABASE"]
-  data KVStoreTransaction KVStoreDatabase m a
+  data KVStoreTransaction (KVStoreDatabase db) m a
     = KVStoreDatabaseTransaction { unDBTx :: Transaction SQLite.Connection  m a}
-  data KVStoreConnection KVStoreDatabase = KVStoreDatabaseConnection SQLite.Connection
-  newtype KVStoreConfig KVStoreDatabase = KVStoreDatabaseConfig FilePath
-  newtype KVStoreOpts KVStoreDatabase = KVStoreDatabaseOpts FilePath
+  data KVStoreConnection (KVStoreDatabase db) = KVStoreDatabaseConnection SQLite.Connection
+  newtype KVStoreConfig (KVStoreDatabase db) = KVStoreDatabaseConfig FilePath
+  newtype KVStoreOpts (KVStoreDatabase db) = KVStoreDatabaseOpts FilePath
     deriving IsString via FilePath
   runKVStoreTransaction act = do
     KVStoreDatabaseConnection conn <- input
@@ -50,12 +54,13 @@ instance RunKVStoreBackend KVStoreDatabase where
 runKVStore'
   :: forall
        store
+       db
    . (  forall m a
    . Input (DatabaseSettings Beam.Sqlite SecretSantaDB) m a
-  -> KVStoreInit KVStoreDatabase store m a
+  -> KVStoreInit (KVStoreDatabase db) store m a
   )
   -> (  forall m a
-      . KVStoreInit KVStoreDatabase store m a
+      . KVStoreInit (KVStoreDatabase db) store m a
      -> Input (DatabaseSettings Beam.Sqlite SecretSantaDB) m a
      )
   -> ( forall
@@ -66,15 +71,15 @@ runKVStore'
      )
   -> forall a r
    . Members
-       '[ KVStoreTransaction KVStoreDatabase
-        , KVStoreInit KVStoreDatabase store
+       '[ KVStoreTransaction (KVStoreDatabase db)
+        , KVStoreInit (KVStoreDatabase db) store
         ]
        r
   => (store ': r @> a -> r @> a)
 runKVStore' construct deconstruct runStore =
-  subsume @(KVStoreTransaction KVStoreDatabase)
+  subsume @(KVStoreTransaction (KVStoreDatabase db))
     . rewrite KVStoreDatabaseTransaction
-    . subsume @(KVStoreInit KVStoreDatabase store)
+    . subsume @(KVStoreInit (KVStoreDatabase db) store)
     . rewrite construct
     . rotateEffects2
     . runBeamTransactionSqlite
@@ -85,11 +90,11 @@ runKVStore' construct deconstruct runStore =
     . raise
 
 runKVStoreInit'
-  :: forall store
+  :: forall store db
    . (  forall m a
-   . KVStoreInit KVStoreDatabase store m a
+   . KVStoreInit (KVStoreDatabase db) store m a
   -> Input (DatabaseSettings Sqlite SecretSantaDB) m a
   )
-  -> forall r a . (KVStoreInit KVStoreDatabase store : r @> a -> r @> a)
+  -> forall r a . (KVStoreInit (KVStoreDatabase db) store : r @> a -> r @> a)
 runKVStoreInit' deconstructor =
   runInputConst secretSantaDB . rewrite deconstructor

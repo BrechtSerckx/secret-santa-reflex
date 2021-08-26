@@ -99,16 +99,16 @@ instance RunKVStore KVStoreState SecretSantaStore where
     subsume . rewrite SecretSantaStoreStateInit . runSecretSantaStoreAsState
   runKVStoreInit = evalState Map.empty . rewrite unSecretSantaStoreStateInit
 
-instance RunKVStore KVStoreDatabase SecretSantaStore where
-  data KVStoreInit KVStoreDatabase SecretSantaStore m a
+instance IsDatabaseBackend db => RunKVStore (KVStoreDatabase db) SecretSantaStore where
+  data KVStoreInit (KVStoreDatabase db) SecretSantaStore m a
     = SecretSantaStoreDatabaseInit
     { unSecretSantaStoreDatabaseInit :: Input (DatabaseSettings Beam.Sqlite SecretSantaDB) m a
     }
   runKVStore
     :: forall r a
      . Members
-         '[ KVStoreTransaction KVStoreDatabase
-          , KVStoreInit KVStoreDatabase SecretSantaStore
+         '[ KVStoreTransaction (KVStoreDatabase db)
+          , KVStoreInit (KVStoreDatabase db) SecretSantaStore
           ]
          r
     => SecretSantaStore ':r @> a
@@ -119,6 +119,6 @@ instance RunKVStore KVStoreDatabase SecretSantaStore where
 
   runKVStoreInit
     :: forall r a
-     . KVStoreInit KVStoreDatabase SecretSantaStore ': r @> a
+     . KVStoreInit (KVStoreDatabase db) SecretSantaStore ': r @> a
     -> r @> a
   runKVStoreInit = runKVStoreInit' unSecretSantaStoreDatabaseInit
