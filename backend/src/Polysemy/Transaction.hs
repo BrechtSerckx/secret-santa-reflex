@@ -8,7 +8,6 @@ module Polysemy.Transaction
   , Transaction(..)
   , transact
   , runTransaction'
-  , runTransaction
   , Envelope
   , RunErrorsU(..)
   , runErrorsU
@@ -17,7 +16,6 @@ module Polysemy.Transaction
 
 import           Polysemy
 import           Polysemy.Error
-import           Polysemy.Input
 import           Polysemy.Operators
 
 import           Data.SOP                       ( I(..) )
@@ -61,12 +59,6 @@ runTransaction'
   :: Member (Embed IO) r => c -> Transaction c ': r @> a -> r @> a
 runTransaction' conn = interpret $ \case
   Transact f -> embed $ f conn
-
-runTransaction
-  :: Members '[Embed IO , Input c] r => Transaction c ': r @> a -> r @> a
-runTransaction act = do
-  conn <- input
-  runTransaction' conn act
 
 type Envelope u a = Either (Union u) a
 
