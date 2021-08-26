@@ -12,6 +12,7 @@
   - internal errors: unrecoverable, give 500 with text message
   - recoverable error: custom error type with description, maybe context, name (type) and error code (type)
 - [ ] better error design
+- [ ] catch startup errors: f.e. wrong envvar
 - [x] show which fields are required and which aren't
 - [x] check that the secret santa date is in the future
 - [x] display a nicer success message
