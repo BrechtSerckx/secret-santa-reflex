@@ -34,12 +34,7 @@ instance RunKVStoreBackend KVStoreDatabase where
     deriving IsString via FilePath
   runKVStoreTransaction act = do
     KVStoreDatabaseConnection conn <- input
-    startTransaction conn
-    eRes <- runTransaction' conn . rewrite unDBTx $ act
-    case eRes of
-      Left  _ -> rollbackTransaction conn
-      Right _ -> endTransaction conn
-    pure eRes
+    runTransaction conn . rewrite unDBTx $ act
   runKVStoreConnection act = do
     KVStoreDatabaseConfig db <- input
     withLowerToIO $ \lowerToIO finalize -> do

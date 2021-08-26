@@ -2,39 +2,15 @@
 {-# LANGUAGE UndecidableInstances #-}
 module Polysemy.Transaction
   ( -- * Utils
-    Errors
-  , (:++)
-  , Connection(..)
+    Connection(..)
   , Transaction(..)
   , transact
-  , runTransaction'
-  , Envelope
-  , RunErrorsU(..)
-  , runErrorsU
-  , hasErrorsU
+  , runTransaction
   ) where
 
-import           Polysemy
-import           Polysemy.Error
-import           Polysemy.Operators
-
-import           Data.SOP                       ( I(..) )
 import qualified Database.SQLite.Simple        as SQLite
-import           Servant.API.UVerb.Union        ( IsMember
-                                                , Union
-                                                , inject
-                                                )
-
--- * Utils
-
-type family Errors es where
-  Errors '[] = '[]
-  Errors (e ': es) = Error e ': Errors es
-
-type family (:++) (as ::[k]) (bs ::[k]) :: [k] where
-  '[] :++ bs = bs
-  (a ': as) :++ bs = a ': (as :++ bs)
-infixr 4 :++
+import           Polysemy
+import           Polysemy.Operators
 
 -- * Connection class
 
@@ -60,36 +36,15 @@ runTransaction'
 runTransaction' conn = interpret $ \case
   Transact f -> embed $ f conn
 
-type Envelope u a = Either (Union u) a
-
-class RunErrorsU es u where
-  runErrorsU'
-    :: Errors es :++ r @> Envelope u a
-    -> r @> Envelope u a
-instance RunErrorsU '[] u where
-  runErrorsU' :: Errors '[] :++ r @> Envelope u a -> r @> Envelope u a
-  runErrorsU' = identity
-instance
-  ( RunErrorsU es u
-  , IsMember e u
-  ) => RunErrorsU ((e :: *) ': es) u where
-  runErrorsU'
-    :: forall r a . Errors (e ': es) :++ r @> Envelope u a -> r @> Envelope u a
-  runErrorsU' act = runErrorsU' @es $ do
-    eEnv <- runError @e act
-    let env' :: Envelope u a
-        env' = case eEnv of
-          Left  e         -> Left . inject $ I e
-          Right (Left  e) -> Left e
-          Right (Right a) -> Right a
-    pure env'
-
-runErrorsU
-  :: forall es u r a
-   . RunErrorsU es u
-  => Errors es :++ r @> a
-  -> r @> Envelope u a
-runErrorsU = runErrorsU' @es @u . fmap Right
-
-hasErrorsU :: forall es a . Envelope es a -> Bool
-hasErrorsU = isLeft
+runTransaction
+  :: (Member (Embed IO) r, Connection c)
+  => c
+  -> Transaction c ': r @> Either e a
+  -> r @> Either e a
+runTransaction conn act = do
+  startTransaction conn
+  eRes <- runTransaction' conn act
+  case eRes of
+    Left  _ -> rollbackTransaction conn
+    Right _ -> endTransaction conn
+  pure eRes

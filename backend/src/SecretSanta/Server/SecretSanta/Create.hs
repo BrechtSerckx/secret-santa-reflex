@@ -11,7 +11,6 @@ import           Polysemy.Extra
 import           Polysemy.Fresh
 import           Polysemy.Input
 import           Polysemy.Operators
-import           Polysemy.Transaction.Beam
 
 import           Data.Error
 import           Data.Refine

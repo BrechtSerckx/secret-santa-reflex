@@ -113,16 +113,20 @@ library
   hs-source-dirs:
     src
   exposed-modules:
+    Data.Constraint
     Data.Refine
     Data.Time
+    Data.Type
+    Data.Union
     Data.WithId
     Database.Beam
     Database.Beam.T2
     Database.Beam.Orphans
-    Polysemy.Transaction
-    Polysemy.Transaction.Beam
+    Polysemy.Error
     Polysemy.Input.Env
     Polysemy.NoOp
+    Polysemy.Transaction
+    Polysemy.Transaction.Beam
     SecretSanta.Data
     SecretSanta.Database
     SecretSanta.Backend.Email
@@ -146,7 +150,6 @@ library
     SecretSanta.Server.SecretSanta.Create
     Servant.Server
     System.Envy
-    Type.Constraint
   ghc-options:
     -O2
     -flate-specialise
