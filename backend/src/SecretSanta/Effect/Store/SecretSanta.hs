@@ -23,8 +23,6 @@ import           Polysemy.State
 import           Polysemy.Transaction.Beam
 
 import "this"    Database.Beam
-import qualified Database.Beam.Sqlite.Connection
-                                               as Beam
 
 import           SecretSanta.Backend.KVStore.Class
 import           SecretSanta.Backend.KVStore.Database
@@ -102,7 +100,7 @@ instance RunKVStore KVStoreState SecretSantaStore where
 instance IsDatabaseBackend db => RunKVStore (KVStoreDatabase db) SecretSantaStore where
   data KVStoreInit (KVStoreDatabase db) SecretSantaStore m a
     = SecretSantaStoreDatabaseInit
-    { unSecretSantaStoreDatabaseInit :: Input (DatabaseSettings Beam.Sqlite SecretSantaDB) m a
+    { unSecretSantaStoreDatabaseInit :: Input (DatabaseSettings (BeamBackend db) SecretSantaDB) m a
     }
   runKVStore
     :: forall r a
@@ -113,9 +111,10 @@ instance IsDatabaseBackend db => RunKVStore (KVStoreDatabase db) SecretSantaStor
          r
     => SecretSantaStore ':r @> a
     -> r @> a
-  runKVStore = runKVStore' SecretSantaStoreDatabaseInit
-                           unSecretSantaStoreDatabaseInit
-                           (runSecretSantaStoreDB @Beam.Sqlite @Beam.SqliteM)
+  runKVStore = runKVStore'
+    SecretSantaStoreDatabaseInit
+    unSecretSantaStoreDatabaseInit
+    (runSecretSantaStoreDB @(BeamBackend db) @(BeamBackendM db))
 
   runKVStoreInit
     :: forall r a
