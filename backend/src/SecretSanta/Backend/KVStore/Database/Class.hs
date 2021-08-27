@@ -12,7 +12,7 @@ import           SecretSanta.Database
 import qualified Options.Applicative           as OA
 
 class
-  ( Connection (DBConnection db)
+  ( CanTransact (DBConnection db)
   , BeamC (BeamBackend db)
   , MonadBeam (BeamBackend db) (BeamBackendM db)
   ) => IsDatabaseBackend db where

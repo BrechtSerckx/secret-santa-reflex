@@ -2,7 +2,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 module Polysemy.Transaction
   ( -- * Utils
-    Connection(..)
+    CanTransact(..)
   , Transaction(..)
   , transact
   , runTransaction
@@ -15,12 +15,12 @@ import           Polysemy.Operators
 
 -- * Connection class
 
-class Connection c where
+class CanTransact c where
   startTransaction :: c -> IO ~@> ()
   endTransaction :: c -> IO ~@> ()
   rollbackTransaction :: c -> IO ~@> ()
 
-instance Connection SQLite.Connection where
+instance CanTransact SQLite.Connection where
   startTransaction conn = embed $ SQLite.execute_ conn "BEGIN TRANSACTION"
   endTransaction conn = embed $ SQLite.execute_ conn "COMMIT TRANSACTION"
   rollbackTransaction conn =
@@ -37,7 +37,7 @@ runTransaction' conn = interpret $ \case
   Transact f -> embed $ f conn
 
 runTransaction
-  :: (Member (Embed IO) r, Connection c)
+  :: (Member (Embed IO) r, CanTransact c)
   => c
   -> Transaction c ': r @> Either e a
   -> r @> Either e a
