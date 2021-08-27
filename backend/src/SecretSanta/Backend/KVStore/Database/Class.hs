@@ -1,7 +1,8 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 module SecretSanta.Backend.KVStore.Database.Class
   ( IsDatabaseBackend(..)
-  ) where
+  )
+where
 
 import           Database.Beam
 import           Polysemy.Input
@@ -35,5 +36,10 @@ class
 
   runDBConfig
     :: DBOpts db -> Input (DBConfig db) ': r @> a -> r @> a
-    
+
   parseDBOpts :: OA.Parser (DBOpts db)
+
+  dbSettings :: CheckedDatabaseSettings (BeamBackend db) SecretSantaDB
+
+  createDB :: DBOpts db -> IO ()
+

@@ -2,6 +2,7 @@ module SecretSanta.Opts
   ( ServeOpts(..)
   , parseCmd
   , Cmd(..)
+  , CreateDBOpts(..)
   )
 where
 
@@ -17,6 +18,7 @@ import "common"  Text.EmailAddress
 
 data Cmd
   = Serve ServeOpts
+  | CreateDB CreateDBOpts
 
 data ServeOpts = ServeOpts
   { soEmailBackend   :: AnyEmailBackend
@@ -24,6 +26,10 @@ data ServeOpts = ServeOpts
   , soWebRoot        :: FilePath
   , soPort           :: Warp.Port
   , soKVStoreBackend :: AnyKVStoreBackend
+  }
+
+data CreateDBOpts = CreateDBOpts
+  { cdbDBOpts :: FilePath
   }
 
 parseCmd :: IO Cmd
@@ -34,10 +40,20 @@ parseCmd =
 pCmd :: OA.Parser Cmd
 pCmd = OA.hsubparser $ mconcat
   [ OA.command "serve"
-      $ let serveInfo =
-              mconcat [OA.fullDesc, OA.progDesc "Run the Secret Santa server"]
-        in  Serve <$> pServeOpts `OA.info` serveInfo
+    $ let serveInfo =
+            mconcat [OA.fullDesc, OA.progDesc "Run the Secret Santa server"]
+      in  Serve <$> pServeOpts `OA.info` serveInfo
+  , OA.command "create-db"
+    $ let createDBInfo = mconcat
+            [ OA.fullDesc
+            , OA.progDesc "Create an empty database for the Secret Santa server"
+            ]
+      in  CreateDB <$> pCreateDBOpts `OA.info` createDBInfo
   ]
+
+pCreateDBOpts :: OA.Parser CreateDBOpts
+pCreateDBOpts = fmap CreateDBOpts . OA.strOption $ mconcat
+  [OA.long "sqlite", OA.metavar "SQLITE_DATABASE"]
 
 pServeOpts :: OA.Parser ServeOpts
 pServeOpts = do

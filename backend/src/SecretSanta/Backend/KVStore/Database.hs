@@ -48,7 +48,7 @@ instance IsDatabaseBackend db => RunKVStoreBackend (KVStoreDatabase db) where
 
   runKVStoreConfig (KVStoreDatabaseOpts opts) =
     runDBConfig @db opts . contramapInput KVStoreDatabaseConfig . raiseUnder
-    
+
 -- | helper for implementing `runKVStore`
 runKVStore'
   :: forall store db
@@ -89,10 +89,12 @@ runKVStore' construct deconstruct runStore =
 
 runKVStoreInit'
   :: forall store db
-   . (  forall m a
-   . KVStoreInit (KVStoreDatabase db) store m a
-  -> Input (DatabaseSettings (BeamBackend db) SecretSantaDB) m a
-  )
-  -> forall r a . (KVStoreInit (KVStoreDatabase db) store : r @> a -> r @> a)
+   . IsDatabaseBackend db
+  => (  forall m a
+      . KVStoreInit (KVStoreDatabase db) store m a
+     -> Input (DatabaseSettings (BeamBackend db) SecretSantaDB) m a
+     )
+  -> forall r a
+   . (KVStoreInit (KVStoreDatabase db) store : r @> a -> r @> a)
 runKVStoreInit' deconstructor =
-  runInputConst secretSantaDB . rewrite deconstructor
+  runInputConst (unCheckDatabase $ dbSettings @db) . rewrite deconstructor

@@ -45,6 +45,7 @@ secretSantaServer = parseCmd >>= \case
         kvb))
       -> interpretBase @eb @kvb serveOpts cfg
         $ secretSantaServer' @eb @kvb serveOpts
+  CreateDB CreateDBOpts {..} -> createDB @Sqlite cdbDBOpts
 
 secretSantaServer'
   :: forall eb kvb
