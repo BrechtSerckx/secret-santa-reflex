@@ -1,5 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-module SecretSanta.Backend.Database.Sqlite
+module SecretSanta.Backend.KVStore.Database.Sqlite
   ( Sqlite
   ) where
 
@@ -7,7 +7,7 @@ import qualified Database.Beam.Sqlite.Connection
                                                as Beam
 import qualified Database.SQLite.Simple        as SQLite
 import           Polysemy.Transaction.Beam
-import           SecretSanta.Backend.Database.Class
+import           SecretSanta.Backend.KVStore.Database.Class
 
 data Sqlite
 

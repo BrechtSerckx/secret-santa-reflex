@@ -9,7 +9,6 @@ module SecretSanta.Backend.KVStore
 
 import           Data.Constraint                ( FoldC )
 import qualified Options.Applicative           as OA
-import           SecretSanta.Backend.Database  as Export
 import           SecretSanta.Backend.KVStore.Class
                                                as Export
 import           SecretSanta.Backend.KVStore.Database

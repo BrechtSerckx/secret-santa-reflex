@@ -1,5 +1,5 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
-module SecretSanta.Backend.Database.Class
+module SecretSanta.Backend.KVStore.Database.Class
   ( IsDatabaseBackend(..)
   ) where
 

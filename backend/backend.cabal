@@ -129,10 +129,6 @@ library
     Polysemy.Transaction.Beam
     SecretSanta.Data
     SecretSanta.Database
-    SecretSanta.Backend.Database
-    SecretSanta.Backend.Database.Class
-    SecretSanta.Backend.Database.Sqlite
-    SecretSanta.Backend.Database.Postgres
     SecretSanta.Backend.Email
     SecretSanta.Backend.Email.Class
     SecretSanta.Backend.Email.Dummy
@@ -142,6 +138,9 @@ library
     SecretSanta.Backend.KVStore.Class
     SecretSanta.Backend.KVStore.State
     SecretSanta.Backend.KVStore.Database
+    SecretSanta.Backend.KVStore.Database.Class
+    SecretSanta.Backend.KVStore.Database.Sqlite
+    SecretSanta.Backend.KVStore.Database.Postgres
     SecretSanta.Effect.Email
     SecretSanta.Effect.Match
     SecretSanta.Effect.Store

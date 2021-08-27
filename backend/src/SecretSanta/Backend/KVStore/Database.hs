@@ -16,10 +16,14 @@ import           Polysemy.Input
 import           Polysemy.Operators
 import           Polysemy.Transaction
 import           Polysemy.Transaction.Beam
-import           SecretSanta.Backend.Database.Class
-                                               as Export
 import           SecretSanta.Backend.KVStore.Class
                                                as Export
+import           SecretSanta.Backend.KVStore.Database.Class
+                                               as Export
+import           SecretSanta.Backend.KVStore.Database.Sqlite
+                                               as Export
+-- import           SecretSanta.Backend.KVStore.Database.Postgres
+--                                                as Export
 import           SecretSanta.Database
 
 data KVStoreDatabase db
