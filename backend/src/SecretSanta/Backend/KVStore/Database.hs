@@ -29,25 +29,26 @@ import           SecretSanta.Database
 data KVStoreDatabase db
 
 instance IsDatabaseBackend db => RunKVStoreBackend (KVStoreDatabase db) where
-  parseKVStoreOpts = KVStoreDatabaseOpts <$> parseConn @(DBConnection db)
+  parseKVStoreOpts = KVStoreDatabaseOpts <$> parseDBOpts @db
   data KVStoreTransaction (KVStoreDatabase db) m a
     = KVStoreDatabaseTransaction { unDBTx :: Transaction (DBConnection db)  m a}
   data KVStoreConnection (KVStoreDatabase db) = KVStoreDatabaseConnection (DBConnection db)
-  newtype KVStoreConfig (KVStoreDatabase db) = KVStoreDatabaseConfig (WithConnectionInput (DBConnection db))
-  newtype KVStoreOpts (KVStoreDatabase db) = KVStoreDatabaseOpts (WithConnectionInput (DBConnection db))
+  newtype KVStoreConfig (KVStoreDatabase db) = KVStoreDatabaseConfig (DBConfig db)
+  newtype KVStoreOpts (KVStoreDatabase db) = KVStoreDatabaseOpts (DBOpts db)
   runKVStoreTransaction act = do
     KVStoreDatabaseConnection conn <- input
     runTransaction conn . rewrite unDBTx $ act
   runKVStoreConnection act = do
     KVStoreDatabaseConfig db <- input
     withLowerToIO $ \lowerToIO finalize -> do
-      res <- withConnection db $ \conn -> do
+      res <- withDBConnection @db db $ \conn -> do
         lowerToIO $ runInputConst (KVStoreDatabaseConnection conn) act
       finalize
       pure res
-  runKVStoreConfig (KVStoreDatabaseOpts cfg) =
-    runInputConst $ KVStoreDatabaseConfig cfg
 
+  runKVStoreConfig (KVStoreDatabaseOpts opts) =
+    runDBConfig @db opts . contramapInput KVStoreDatabaseConfig . raiseUnder
+    
 -- | helper for implementing `runKVStore`
 runKVStore'
   :: forall store db
