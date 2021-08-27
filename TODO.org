@@ -19,11 +19,12 @@
 - [x] nonemptytext: strip whitespace
 - [x] revisit Refine class and types
 - [ ] create/reset database through CLI commands
-- [ ] fix ses emails
+- [x] fix ses emails
 
 ** Allow hosts to update the config
 
 - [x] Store the SS information in a database
+- [ ] resource pool
 - [ ] authorization
   - user store
   - servant auth
