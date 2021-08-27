@@ -1,6 +1,7 @@
 module SecretSanta.Server
   ( secretSantaServer
-  ) where
+  )
+where
 
 import           Polysemy
 import           Polysemy.Error
@@ -38,22 +39,22 @@ api' :: Proxy API'
 api' = Proxy @API'
 
 secretSantaServer :: IO ()
-secretSantaServer = do
-  opts@Opts {..} <- parseOpts
-  case (oEmailBackend, oKVStoreBackend) of
+secretSantaServer = parseCmd >>= \case
+  Serve serveOpts@ServeOpts {..} -> case (soEmailBackend, soKVStoreBackend) of
     (AnyEmailBackend (Proxy :: Proxy eb), AnyKVStoreBackend (cfg :: KVStoreOpts
         kvb))
-      -> interpretBase @eb @kvb opts cfg $ secretSantaServer' @eb @kvb opts
+      -> interpretBase @eb @kvb serveOpts cfg
+        $ secretSantaServer' @eb @kvb serveOpts
 
 secretSantaServer'
   :: forall eb kvb
    . (RunEmailBackend eb, RunKVStore kvb SecretSantaStore)
-  => Opts
+  => ServeOpts
   -> BaseEffects eb kvb @> ()
-secretSantaServer' opts@Opts {..} = do
+secretSantaServer' opts@ServeOpts {..} = do
   requestLogger <- embed $ RL.mkRequestLogger def
   withLowerToIO $ \lowerToIO finished -> do
-    Warp.run oPort
+    Warp.run soPort
       . requestLogger
       . CORS.cors (const $ Just corsPolicy)
       . SO.provideOptions api
@@ -84,13 +85,13 @@ runInHandler lowerToIO =
 apiServer
   :: forall eb kvb
    . RunKVStore kvb SecretSantaStore
-  => Opts
+  => ServeOpts
   -> SS.ServerT API' (Sem (Error InternalError ': BaseEffects eb kvb))
 apiServer opts = createSecretSantaHandler @kvb :<|> staticServer opts
 
-staticServer :: Opts -> SS.ServerT Raw (Sem r)
-staticServer Opts {..} =
-  SS.serveDirectoryWith $ (Static.defaultWebAppSettings oWebRoot)
+staticServer :: ServeOpts -> SS.ServerT Raw (Sem r)
+staticServer ServeOpts {..} =
+  SS.serveDirectoryWith $ (Static.defaultWebAppSettings soWebRoot)
     { Static.ssRedirectToIndex = True
     , Static.ssIndices         = pure . Static.unsafeToPiece $ "index.html"
     }
