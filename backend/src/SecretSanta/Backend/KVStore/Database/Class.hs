@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 module SecretSanta.Backend.KVStore.Database.Class
   ( IsDatabaseBackend(..)
+  , runBeamTransaction
   )
 where
 
@@ -26,9 +27,8 @@ class
   type DBConfig db :: Type
   type DBOpts db :: Type
 
-  runBeamTransaction
-    :: BeamTransaction (BeamBackend db) (BeamBackendM db) ': r @> a
-    -> Transaction (DBConnection db) ': r @> a
+  runBeam
+    :: DBConnection db -> BeamBackendM db a -> IO a
 
   withDBConnection
     :: DBConfig db
@@ -43,3 +43,9 @@ class
 
   createDB :: DBOpts db -> IO ()
 
+runBeamTransaction
+  :: forall db r a
+   . IsDatabaseBackend db
+  => BeamTransaction (BeamBackend db) (BeamBackendM db) ': r @> a
+  -> Transaction (DBConnection db) ': r @> a
+runBeamTransaction = runBeamTransaction' $ runBeam @db
