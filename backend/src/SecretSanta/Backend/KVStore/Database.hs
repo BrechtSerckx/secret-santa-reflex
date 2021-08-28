@@ -1,10 +1,14 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 module SecretSanta.Backend.KVStore.Database
   ( KVStoreDatabase
+  , DatabaseBackends
+  , AnyDatabaseBackend(..)
   , KVStoreTransaction(..)
   , KVStoreConnection(..)
   , KVStoreConfig(..)
   , runKVStore'
   , runKVStoreInit'
+  , parseDatabaseBackends
   , module Export
   )
 where
@@ -24,9 +28,28 @@ import           SecretSanta.Backend.KVStore.Database.Sqlite
                                                as Export
 -- import           SecretSanta.Backend.KVStore.Database.Postgres
 --                                                as Export
+import qualified Options.Applicative           as OA
 import           SecretSanta.Database
 
 data KVStoreDatabase db
+type DatabaseBackends = '[Sqlite]
+
+data AnyDatabaseBackend where
+  AnyDatabaseBackend ::IsDatabaseBackend db => Proxy db -> DBOpts db -> AnyDatabaseBackend
+
+parseDatabaseBackends :: OA.Parser AnyDatabaseBackend
+parseDatabaseBackends = parseDatabaseBackends' @DatabaseBackends
+
+class ParseDatabaseBackends dbs where
+  parseDatabaseBackends' :: OA.Parser AnyDatabaseBackend
+
+instance ParseDatabaseBackends '[] where
+  parseDatabaseBackends' = OA.empty
+instance (IsDatabaseBackend db, ParseDatabaseBackends dbs) => ParseDatabaseBackends (db ': dbs) where
+  parseDatabaseBackends' =
+    (AnyDatabaseBackend (Proxy @db) <$> parseDBOpts @db)
+      <|> parseDatabaseBackends' @dbs
+
 
 instance IsDatabaseBackend db => RunKVStoreBackend (KVStoreDatabase db) where
   parseKVStoreOpts = KVStoreDatabaseOpts <$> parseDBOpts @db

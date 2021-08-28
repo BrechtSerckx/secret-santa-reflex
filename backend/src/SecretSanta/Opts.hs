@@ -29,7 +29,7 @@ data ServeOpts = ServeOpts
   }
 
 data CreateDBOpts = CreateDBOpts
-  { cdbDBOpts :: FilePath
+  { cdbDatabaseBackend :: AnyDatabaseBackend
   }
 
 parseCmd :: IO Cmd
@@ -52,8 +52,9 @@ pCmd = OA.hsubparser $ mconcat
   ]
 
 pCreateDBOpts :: OA.Parser CreateDBOpts
-pCreateDBOpts = fmap CreateDBOpts . OA.strOption $ mconcat
-  [OA.long "sqlite", OA.metavar "SQLITE_DATABASE"]
+pCreateDBOpts = do
+  cdbDatabaseBackend <- parseDatabaseBackends
+  pure CreateDBOpts { .. }
 
 pServeOpts :: OA.Parser ServeOpts
 pServeOpts = do

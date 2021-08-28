@@ -5,9 +5,11 @@ module SecretSanta.Backend.KVStore
   , AnyKVStoreBackend(..)
   , parseKVStoreBackends
   , RunKVStores
-  ) where
+  )
+where
 
 import           Data.Constraint                ( FoldC )
+import           Data.Type
 import qualified Options.Applicative           as OA
 import           SecretSanta.Backend.KVStore.Class
                                                as Export
@@ -18,7 +20,8 @@ import           SecretSanta.Backend.KVStore.State
 import           SecretSanta.Effect.Store      as Export
 
 
-type KVStoreBackends = '[KVStoreState , KVStoreDatabase Sqlite]
+type KVStoreBackends
+  = '[KVStoreState ] :++ TMap KVStoreDatabase DatabaseBackends
 type RunKVStores kv = FoldC (RunKVStore kv) Stores
 
 parseKVStoreBackends :: OA.Parser AnyKVStoreBackend

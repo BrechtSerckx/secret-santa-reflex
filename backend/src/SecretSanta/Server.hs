@@ -45,7 +45,8 @@ secretSantaServer = parseCmd >>= \case
         kvb))
       -> interpretBase @eb @kvb serveOpts cfg
         $ secretSantaServer' @eb @kvb serveOpts
-  CreateDB CreateDBOpts {..} -> createDB @Sqlite cdbDBOpts
+  CreateDB CreateDBOpts {..} -> case cdbDatabaseBackend of
+    AnyDatabaseBackend (Proxy :: Proxy db) opts -> createDB @db opts
 
 secretSantaServer'
   :: forall eb kvb
@@ -73,7 +74,6 @@ runInHandler
   => (forall a . r @> a -> IO a)
   -> (forall a . Error InternalError ': r @> a -> SS.Handler a)
 runInHandler lowerToIO =
-  -- liftEither <=< liftIO . lowerToIO . fmap Right
   liftEither
     <=< liftIO
     .   lowerToIO
