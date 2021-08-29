@@ -3,21 +3,30 @@ module SecretSanta
   ) where
 
 import           Polysemy
+import           Polysemy.Error
 
-import           SecretSanta.Backend.Email
+import           Data.Error
+import qualified Data.Text                     as T
+
 import           SecretSanta.Backend.KVStore
-import           SecretSanta.Interpret
 import           SecretSanta.Opts
 import           SecretSanta.Server
 
 runSecretSanta :: IO ()
-runSecretSanta = parseCmd >>= \case
-  Serve serveOpts@ServeOpts {..} -> case (soEmailBackend, soKVStoreBackend) of
-    (AnyEmailBackend (Proxy :: Proxy eb), AnyKVStoreBackend (cfg :: KVStoreOpts
-        kvb))
-      -> interpretBase @eb @kvb serveOpts cfg
-        $ secretSantaServer @eb @kvb serveOpts
-  CreateDB CreateDBOpts {..} -> case cdbDatabaseBackend of
-    AnyDatabaseBackend (Proxy :: Proxy db) opts ->
-      runM . runDBConfig @db opts $ createDB @db
+runSecretSanta = do
+  cmd <- parseCmd
+  res <-
+    runFinal
+    . embedToFinal
+    . runError @ExtError
+    . fromExceptionSemVia @SomeException (mkError . T.pack . displayException)
+    . raise
+    $ case cmd of
+        Serve    serveOpts@ServeOpts {..} -> secretSantaServer serveOpts
+        CreateDB CreateDBOpts {..}        -> case cdbDatabaseBackend of
+          AnyDatabaseBackend (Proxy :: Proxy db) opts ->
+            runDBConfig @db opts $ createDB @db
+  case res of
+    Left  e  -> die $ errMessage e
+    Right () -> exitSuccess
 

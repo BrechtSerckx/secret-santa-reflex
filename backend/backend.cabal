@@ -147,7 +147,6 @@ library
     SecretSanta.Effect.Store
     SecretSanta.Effect.Store.SecretSanta
     SecretSanta.Effect.Time
-    SecretSanta.Interpret
     SecretSanta.Opts
     SecretSanta.Server
     SecretSanta.Server.SecretSanta

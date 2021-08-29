@@ -1,9 +1,11 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 module SecretSanta.Server
   ( secretSantaServer
   ) where
 
 import           Polysemy
 import           Polysemy.Error
+import           Polysemy.Input
 import           Polysemy.Operators
 
 import           Control.Monad.Except           ( liftEither )
@@ -29,30 +31,60 @@ import qualified WaiAppStatic.Types            as Static
 import           SecretSanta.API
 import           SecretSanta.Backend.Email
 import           SecretSanta.Backend.KVStore
-import           SecretSanta.Interpret
+import           SecretSanta.Data
+import           SecretSanta.Effect.Email
+import           SecretSanta.Effect.Time
 import           SecretSanta.Opts
 import           SecretSanta.Server.SecretSanta
+
+type BaseEffects eb kvb
+  = '[ Input Sender
+     , GetTime
+     , Email
+     , Input (EmailBackendConfig eb)
+     , KVStoreInit kvb SecretSantaStore
+     , Input (KVStoreConnection kvb)
+     , Input (KVStoreConfig kvb)
+     , Embed IO
+     , Final IO
+     ]
 
 type API' = API :<|> Raw
 api' :: Proxy API'
 api' = Proxy @API'
 
-secretSantaServer
+secretSantaServer :: ServeOpts -> '[Embed IO, Final IO] @> ()
+secretSantaServer serveOpts@ServeOpts {..} =
+  case (soEmailBackend, soKVStoreBackend) of
+    (AnyEmailBackend (Proxy :: Proxy eb), AnyKVStoreBackend (cfg :: KVStoreOpts
+        kvb))
+      -> secretSantaServer' @eb @kvb serveOpts cfg
+
+secretSantaServer'
   :: forall eb kvb
    . (RunEmailBackend eb, RunKVStore kvb SecretSantaStore)
   => ServeOpts
-  -> BaseEffects eb kvb @> ()
-secretSantaServer opts@ServeOpts {..} = do
-  requestLogger <- embed $ RL.mkRequestLogger def
-  withLowerToIO $ \lowerToIO finished -> do
-    Warp.run soPort
-      . requestLogger
-      . CORS.cors (const $ Just corsPolicy)
-      . SO.provideOptions api
-      . SS.serve api'
-      . SS.hoistServer api' (runInHandler lowerToIO)
-      $ apiServer @eb @kvb opts
-    finished
+  -> KVStoreOpts kvb
+  -> [Embed IO, Final IO] @> ()
+secretSantaServer' opts@ServeOpts {..} cfg =
+  runKVStoreConfig @kvb cfg
+    . runKVStoreConnection @kvb
+    . runKVStoreInit @kvb
+    . runEmailBackendConfig @eb
+    . runEmailBackend @eb
+    . runGetTime
+    . runInputConst (Sender soEmailSender)
+    $ do
+        requestLogger <- embed $ RL.mkRequestLogger def
+        withLowerToIO $ \lowerToIO finished -> do
+          Warp.run soPort
+            . requestLogger
+            . CORS.cors (const $ Just corsPolicy)
+            . SO.provideOptions api
+            . SS.serve api'
+            . SS.hoistServer api' (runInHandler lowerToIO)
+            $ apiServer @eb @kvb opts
+          finished
  where
   corsPolicy =
     CORS.simpleCorsResourcePolicy { CORS.corsRequestHeaders = ["content-type"] }
