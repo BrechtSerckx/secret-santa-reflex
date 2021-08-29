@@ -18,7 +18,7 @@
 - [x] display a nicer success message
 - [x] nonemptytext: strip whitespace
 - [x] revisit Refine class and types
-- [ ] create/reset database through CLI commands
+- [x] create/reset database through CLI commands
 - [x] fix ses emails
 
 ** Allow hosts to update the config

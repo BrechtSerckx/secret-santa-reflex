@@ -2,7 +2,7 @@ module Main
   ( main
   ) where
 
-import           SecretSanta                    ( run )
+import           SecretSanta                    ( runSecretSanta )
 
 main :: IO ()
-main = run
+main = runSecretSanta
