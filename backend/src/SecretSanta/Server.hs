@@ -7,7 +7,7 @@ import           Polysemy.Error
 import           Polysemy.Operators
 
 import           Control.Monad.Except           ( liftEither )
-import qualified Data.Aeson                    as Aeson
+import qualified "common" Data.Aeson           as Aeson
 import qualified Data.Text                     as T
 import           Network.Http.Error
 

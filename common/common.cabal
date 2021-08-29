@@ -19,6 +19,7 @@ build-type:          Simple
 library
   exposed-modules:
     Prelude
+    Data.Aeson
     Data.Error
     Data.Time
     Data.Time.MonadTime

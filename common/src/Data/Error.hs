@@ -48,8 +48,8 @@ throwErrorPure = throw
 instance Exception ExtError where
   displayException = T.unpack . errMessage
 
-instance Aeson.ToJSON ExtError where
-  toJSON ExtError {..} = Aeson.object
+instance Aeson.ToPairs ExtError where
+  toPairs ExtError {..} =
     [ "description" .= errDescription
     , "extendedDescription" .= errExtendedDescription
     ]
@@ -68,7 +68,7 @@ mkGenericError = GenericError . mkError
 
 instance KnownSymbol code => Aeson.ToJSON (GenericError code) where
   toJSON (GenericError err) =
-    Aeson.object ["code" .= symbolVal (Proxy @code), "error" .= err] -- FIXME
+    Aeson.object $ ["code" .= symbolVal (Proxy @code)] <> Aeson.toPairs err
 
 instance KnownSymbol code => Aeson.FromJSON (GenericError code) where
   parseJSON v = flip (Aeson.withObject "GenericError") v $ \o -> do
