@@ -6,8 +6,7 @@ module Polysemy.Transaction
   , Transaction(..)
   , transact
   , runTransaction
-  )
-where
+  ) where
 
 import qualified Database.SQLite.Simple        as SQLite
 import           Polysemy
@@ -32,7 +31,8 @@ data Transaction c m a where
   Transact ::(c -> IO a) -> Transaction c m a
 makeSem ''Transaction
 
-runTransaction' :: Member (Embed IO) r => c -> Transaction c ': r @> a -> r @> a
+runTransaction'
+  :: Member (Embed IO) r => c -> Transaction c ': r @> a -> r @> a
 runTransaction' conn = interpret $ \case
   Transact f -> embed $ f conn
 

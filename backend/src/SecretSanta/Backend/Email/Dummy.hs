@@ -2,11 +2,11 @@ module SecretSanta.Backend.Email.Dummy
   ( Dummy
   ) where
 
+import           Polysemy
 import           Polysemy.Input
+import           Polysemy.Operators
 import           SecretSanta.Backend.Email.Class
 import           SecretSanta.Effect.Email
-import           Polysemy.Operators
-import           Polysemy
 import           Text.Pretty.Simple
 
 runEmailPrint :: Email ': r @> a -> IO ~@ r @> a

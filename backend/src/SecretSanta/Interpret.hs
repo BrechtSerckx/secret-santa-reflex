@@ -3,8 +3,7 @@
 module SecretSanta.Interpret
   ( interpretBase
   , BaseEffects
-  )
-where
+  ) where
 
 import           Polysemy
 import           Polysemy.Input
@@ -18,10 +17,16 @@ import           SecretSanta.Effect.Time
 import           SecretSanta.Opts
 
 type BaseEffects eb kvb
-  = '[Input Sender, GetTime, Email, Input (EmailBackendConfig eb), KVStoreInit
-    kvb
-    SecretSantaStore, Input (KVStoreConnection kvb), Input (KVStoreConfig kvb), Embed
-    IO, Final IO]
+  = '[ Input Sender
+     , GetTime
+     , Email
+     , Input (EmailBackendConfig eb)
+     , KVStoreInit kvb SecretSantaStore
+     , Input (KVStoreConnection kvb)
+     , Input (KVStoreConfig kvb)
+     , Embed IO
+     , Final IO
+     ]
 interpretBase
   :: forall eb kvb a
    . (RunEmailBackend eb, RunKVStoreBackend kvb, RunKVStores kvb)

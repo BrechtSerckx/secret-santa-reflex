@@ -10,10 +10,12 @@ module SecretSanta.Backend.KVStore.Database
   , runKVStoreInit'
   , parseDatabaseBackends
   , module Export
-  )
-where
+  ) where
 
 import "this"    Database.Beam
+-- import           SecretSanta.Backend.KVStore.Database.Postgres
+--                                                as Export
+import qualified Options.Applicative           as OA
 import           Polysemy
 import           Polysemy.Extra
 import           Polysemy.Input
@@ -26,9 +28,6 @@ import           SecretSanta.Backend.KVStore.Database.Class
                                                as Export
 import           SecretSanta.Backend.KVStore.Database.Sqlite
                                                as Export
--- import           SecretSanta.Backend.KVStore.Database.Postgres
---                                                as Export
-import qualified Options.Applicative           as OA
 import           SecretSanta.Database
 
 data KVStoreDatabase db
@@ -92,9 +91,9 @@ runKVStore'
      )
   -> forall a r
    . Members
-       '[KVStoreTransaction (KVStoreDatabase db), KVStoreInit
-         (KVStoreDatabase db)
-         store]
+       '[ KVStoreTransaction (KVStoreDatabase db)
+        , KVStoreInit (KVStoreDatabase db) store
+        ]
        r
   => (store ': r @> a -> r @> a)
 runKVStore' construct deconstruct runStore =

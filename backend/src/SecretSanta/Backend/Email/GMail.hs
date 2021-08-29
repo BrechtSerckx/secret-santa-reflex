@@ -2,15 +2,15 @@ module SecretSanta.Backend.Email.GMail
   ( GMail
   ) where
 
+import qualified Data.Text                     as T
+import qualified Network.Mail.SMTP             as SMTP
 import           Polysemy
 import           Polysemy.Extra
 import           Polysemy.Input
 import           Polysemy.Input.Env
+import           Polysemy.Operators
 import           SecretSanta.Backend.Email.Class
 import           SecretSanta.Effect.Email
-import qualified Data.Text                     as T
-import           Polysemy.Operators
-import qualified Network.Mail.SMTP             as SMTP
 
 import qualified System.Envy                   as Env
 

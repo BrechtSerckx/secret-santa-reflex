@@ -3,8 +3,8 @@ module SecretSanta.Effect.Email
   , sendEmail
   ) where
 
-import           Polysemy
 import           Network.Mail.Mime
+import           Polysemy
 
 
 data Email m a where

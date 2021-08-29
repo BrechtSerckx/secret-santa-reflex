@@ -1,8 +1,7 @@
 module SecretSanta.Database
   ( SecretSantaDB(..)
   , BeamC
-  )
-where
+  ) where
 
 
 import "this"    Database.Beam

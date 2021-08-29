@@ -3,8 +3,7 @@ module SecretSanta.Opts
   , parseCmd
   , Cmd(..)
   , CreateDBOpts(..)
-  )
-where
+  ) where
 
 import           Data.Refine
 import           Data.String                    ( String )

@@ -5,8 +5,7 @@ module SecretSanta.Backend.KVStore
   , AnyKVStoreBackend(..)
   , parseKVStoreBackends
   , RunKVStores
-  )
-where
+  ) where
 
 import           Data.Constraint                ( FoldC )
 import           Data.Type

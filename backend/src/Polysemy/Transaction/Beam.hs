@@ -5,13 +5,12 @@ module Polysemy.Transaction.Beam
   , beamTransact
   , runBeamTransaction'
   , module Export
-  )
-where
+  ) where
 
+import           Database.Beam
 import           Polysemy
 import           Polysemy.Operators
 import           Polysemy.Transaction          as Export
-import           Database.Beam
 
 -- * Beam Transactions
 
