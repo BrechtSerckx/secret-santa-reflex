@@ -1,7 +1,6 @@
 module SecretSanta.Server
   ( secretSantaServer
-  )
-where
+  ) where
 
 import           Polysemy
 import           Polysemy.Error
@@ -46,7 +45,8 @@ secretSantaServer = parseCmd >>= \case
       -> interpretBase @eb @kvb serveOpts cfg
         $ secretSantaServer' @eb @kvb serveOpts
   CreateDB CreateDBOpts {..} -> case cdbDatabaseBackend of
-    AnyDatabaseBackend (Proxy :: Proxy db) opts -> createDB @db opts
+    AnyDatabaseBackend (Proxy :: Proxy db) opts ->
+      runM . runDBConfig @db opts $ createDB @db
 
 secretSantaServer'
   :: forall eb kvb

@@ -2,21 +2,25 @@
 module SecretSanta.Backend.KVStore.Database.Class
   ( IsDatabaseBackend(..)
   , runBeamTransaction
-  )
-where
+  , createDB
+  ) where
 
+import           Control.Monad.Fail             ( MonadFail )
 import           Database.Beam
+import           Database.Beam.Migrate.Backend
+import qualified Options.Applicative           as OA
+import           Polysemy
 import           Polysemy.Input
 import           Polysemy.Operators
 import           Polysemy.Transaction
 import           Polysemy.Transaction.Beam
 import           SecretSanta.Database
-import qualified Options.Applicative           as OA
 
 class
   ( CanTransact (DBConnection db)
   , BeamC (BeamBackend db)
   , MonadBeam (BeamBackend db) (BeamBackendM db)
+  , MonadFail (BeamBackendM db)
   ) => IsDatabaseBackend db where
 
   type BeamBackend db :: Type
@@ -41,7 +45,7 @@ class
 
   dbSettings :: CheckedDatabaseSettings (BeamBackend db) SecretSantaDB
 
-  createDB :: DBOpts db -> IO ()
+  beamMigrationBackend :: BeamMigrationBackend (BeamBackend db) (BeamBackendM db)
 
 runBeamTransaction
   :: forall db r a
@@ -49,3 +53,13 @@ runBeamTransaction
   => BeamTransaction (BeamBackend db) (BeamBackendM db) ': r @> a
   -> Transaction (DBConnection db) ': r @> a
 runBeamTransaction = runBeamTransaction' $ runBeam @db
+
+
+createDB
+  :: forall db r
+   . (IsDatabaseBackend db, Member (Embed IO) r)
+  => Input (DBConfig db) ': r @> ()
+createDB = do
+  db <- input
+  embed . withDBConnection @db db $ \conn -> runBeam @db conn
+    $ createSchema (beamMigrationBackend @db) (dbSettings @db)

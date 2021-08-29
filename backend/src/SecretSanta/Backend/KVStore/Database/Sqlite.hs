@@ -1,19 +1,17 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 module SecretSanta.Backend.KVStore.Database.Sqlite
   ( Sqlite
-  )
-where
+  ) where
 
-import qualified Database.Beam.Sqlite.Connection
-                                               as Beam
-import qualified Database.SQLite.Simple        as SQLite
-import           SecretSanta.Backend.KVStore.Database.Class
-import qualified Options.Applicative           as OA
-import           Polysemy.Input
 import           Database.Beam.Migrate
 import qualified Database.Beam.Sqlite          as SQLite
+import qualified Database.Beam.Sqlite.Connection
+                                               as Beam
 import           Database.Beam.Sqlite.Migrate   ( migrationBackend )
-import "this"    Database.Beam
+import qualified Database.SQLite.Simple        as SQLite
+import qualified Options.Applicative           as OA
+import           Polysemy.Input
+import           SecretSanta.Backend.KVStore.Database.Class
 
 data Sqlite
 
@@ -30,9 +28,6 @@ instance IsDatabaseBackend Sqlite where
   runDBConfig conn = runInputConst conn
   parseDBOpts =
     OA.strOption $ mconcat [OA.long "sqlite", OA.metavar "SQLITE_DATABASE"]
-  dbSettings = defaultMigratableDbSettings
+  dbSettings           = defaultMigratableDbSettings
 
-  createDB dbFile = SQLite.withConnection dbFile $ \conn ->
-    Beam.runBeamSqliteDebug putStrLn conn
-      . createSchema migrationBackend
-      $ dbSettings @Sqlite
+  beamMigrationBackend = migrationBackend
