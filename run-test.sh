@@ -1,18 +1,28 @@
 #! /usr/bin/env nix-shell
 #! nix-shell  -i bash -A shells.ghc
 
+DBFILE=secretsanta.db
+PORT=8000
+
 FLAGS=()
 
-FLAGS+=(--email-sender "info@secret-santa.link")
+# Create database
+# FLAGS+=(create-db)
+# FLAGS+=(--sqlite "$DBFILE")
+
+# Run server
+FLAGS+=(serve)
 
 FLAGS+=(--email-backend dummy)
 # FLAGS+=(--email-backend gmail)
 # FLAGS+=(--email-backend ses)
 
-# FLAGS+=(--in-memory)
-FLAGS+=(--sqlite secretsanta.db)
+FLAGS+=(--email-sender "info@secret-santa.link")
 
-FLAGS+=(--port 8000)
+# FLAGS+=(--in-memory)
+FLAGS+=(--sqlite "$DBFILE")
+
+FLAGS+=(--port "$PORT")
 
 run_cabal_backend() {
     cabal configure
@@ -42,7 +52,7 @@ run_binary() {
 run_docker() {
     docker image load -i $(nix-build docker.nix)
     docker run \
-           -p 8081:8000 \
+           -p 8081:"$PORT" \
            --name secret-santa-test \
            --rm \
            --env-file .env \
