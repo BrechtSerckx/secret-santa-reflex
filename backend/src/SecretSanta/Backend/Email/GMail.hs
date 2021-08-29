@@ -5,10 +5,8 @@ module SecretSanta.Backend.Email.GMail
 import qualified Data.Text                     as T
 import qualified Network.Mail.SMTP             as SMTP
 import           Polysemy
-import           Polysemy.Extra
 import           Polysemy.Input
 import           Polysemy.Input.Env
-import           Polysemy.Operators
 import           SecretSanta.Backend.Email.Class
 import           SecretSanta.Effect.Email
 
@@ -23,24 +21,19 @@ data GmailSettings = GmailSettings
   deriving stock Generic
   deriving anyclass Env.FromEnv
 
-runEmailGmail
-  :: Members '[Embed IO , Input GmailSettings] r => Email ': r @> a -> r @> a
-runEmailGmail = interpret $ \case
-  SendEmail mail -> do
-    GmailSettings {..} <- input
-    let host     = T.unpack gmailHost
-        port     = fromIntegral gmailPort
-        username = T.unpack gmailUsername
-        password = T.unpack gmailPassword
-    embed @IO $ SMTP.sendMailWithLoginSTARTTLS' host port username password mail
-
 data GMail
 
 instance RunEmailBackend GMail where
   emailBackendName = "gmail"
   data EmailBackendConfig GMail = EmailGMailConfig GmailSettings
-  runEmailBackend act = do
-    EmailGMailConfig c <- input
-    runInputConst c . runEmailGmail . raiseUnder $ act
-  runEmailBackendConfig =
-    runInputEnv . contramapInput EmailGMailConfig . raiseUnder
+  runEmailBackend = interpret \case
+    SendEmail mail -> do
+      EmailGMailConfig (GmailSettings {..}) <- input
+      let host     = T.unpack gmailHost
+          port     = fromIntegral gmailPort
+          username = T.unpack gmailUsername
+          password = T.unpack gmailPassword
+      embed @IO
+        $ SMTP.sendMailWithLoginSTARTTLS' host port username password mail
+  runEmailBackendConfig = interpret \case
+    Input -> EmailGMailConfig <$> runInputEnv input
