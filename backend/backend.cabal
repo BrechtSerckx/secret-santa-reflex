@@ -127,6 +127,7 @@ library
     Polysemy.NoOp
     Polysemy.Transaction
     Polysemy.Transaction.Beam
+    SecretSanta
     SecretSanta.Data
     SecretSanta.Database
     SecretSanta.Backend.Email

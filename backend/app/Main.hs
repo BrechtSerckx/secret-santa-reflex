@@ -2,7 +2,7 @@ module Main
   ( main
   ) where
 
-import           SecretSanta.Server             ( secretSantaServer )
+import           SecretSanta                    ( run )
 
 main :: IO ()
-main = secretSantaServer
+main = run

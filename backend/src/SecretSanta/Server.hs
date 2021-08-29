@@ -37,23 +37,12 @@ type API' = API :<|> Raw
 api' :: Proxy API'
 api' = Proxy @API'
 
-secretSantaServer :: IO ()
-secretSantaServer = parseCmd >>= \case
-  Serve serveOpts@ServeOpts {..} -> case (soEmailBackend, soKVStoreBackend) of
-    (AnyEmailBackend (Proxy :: Proxy eb), AnyKVStoreBackend (cfg :: KVStoreOpts
-        kvb))
-      -> interpretBase @eb @kvb serveOpts cfg
-        $ secretSantaServer' @eb @kvb serveOpts
-  CreateDB CreateDBOpts {..} -> case cdbDatabaseBackend of
-    AnyDatabaseBackend (Proxy :: Proxy db) opts ->
-      runM . runDBConfig @db opts $ createDB @db
-
-secretSantaServer'
+secretSantaServer
   :: forall eb kvb
    . (RunEmailBackend eb, RunKVStore kvb SecretSantaStore)
   => ServeOpts
   -> BaseEffects eb kvb @> ()
-secretSantaServer' opts@ServeOpts {..} = do
+secretSantaServer opts@ServeOpts {..} = do
   requestLogger <- embed $ RL.mkRequestLogger def
   withLowerToIO $ \lowerToIO finished -> do
     Warp.run soPort
