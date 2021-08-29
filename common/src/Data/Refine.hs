@@ -81,7 +81,7 @@ unsafeRefine ctx from = case refine from of
   Success to -> to
   Failure errs ->
     let msg = T.pack $ displayException errs
-    in  throwInternalError $ serverError msg `errContext` ctx
+    in  throwErrorPure $ mkError msg `errContext` ctx
 
 newtype RefineErrors = RefineErrors { unRefineErrors :: NonEmpty Text }
   deriving newtype (Eq, Show, Semigroup)

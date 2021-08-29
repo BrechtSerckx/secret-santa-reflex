@@ -25,6 +25,7 @@ library
     Data.Validate
     Data.Refine
     Data.WithId
+    Network.Http.Error
     Text.EmailAddress
     Text.NonEmpty
     SecretSanta.Data

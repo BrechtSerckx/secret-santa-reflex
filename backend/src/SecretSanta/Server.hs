@@ -8,8 +8,8 @@ import           Polysemy.Operators
 
 import           Control.Monad.Except           ( liftEither )
 import qualified Data.Aeson                    as Aeson
-import           Data.Error
 import qualified Data.Text                     as T
+import           Network.Http.Error
 
 import qualified Network.Wai.Application.Static
                                                as Static
@@ -68,7 +68,6 @@ runInHandler lowerToIO =
     .   lowerToIO
     .   fmap (first toServantError)
     .   runError @InternalError
-    .   fromExceptionSem @InternalError
     .   fromExceptionSemVia @SomeException
           (internalError . T.pack . displayException)
 
@@ -87,9 +86,9 @@ staticServer ServeOpts {..} =
     }
 
 toServantError
-  :: forall status name
-   . (SS.IsStatusCode status, KnownSymbol name)
-  => ServerError status name
+  :: forall status a
+   . (SS.IsStatusCode status, Aeson.ToJSON a)
+  => ApiError status a
   -> SS.ServerError
 toServantError se = (SS.errorConstructor $ Proxy @status)
   { SS.errBody    = Aeson.encode se

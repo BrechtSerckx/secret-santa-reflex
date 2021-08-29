@@ -12,13 +12,13 @@ import           Polysemy.Fresh
 import           Polysemy.Input
 import           Polysemy.Operators
 
-import           Data.Error
 import           Data.Refine
 import           Data.SOP
 import           Data.Time
 import           Data.Time.MonadTime
 import qualified Data.UUID.V4                  as UUID
 import           Data.Validate
+import           Network.Http.Error
 import           Text.NonEmpty
 
 import           Network.Mail.Mime
@@ -89,11 +89,12 @@ createSecretSanta ss@(SecretSanta UnsafeSecretSanta {..}) = do
   sender     <- input @Sender
   serverTime <- getZonedTime
   case validateDateTime serverTime iTimeZone iDate iTime of
-    Success _  -> pure ()
-    Failure es -> throw @InvalidDateTimeError . serverError $ show es
+    Success _ -> pure ()
+    Failure es ->
+      throw @InvalidDateTimeError . ApiError . mkGenericError $ show es
   mMatches <- makeMatch participants
   case mMatches of
-    Nothing      -> throwInternalError $ noMatchesFound participants
+    Nothing      -> throwErrorPure $ noMatchesFound participants
     Just matches -> do
       id <- fresh
       writeSecretSanta id ss
@@ -101,8 +102,7 @@ createSecretSanta ss@(SecretSanta UnsafeSecretSanta {..}) = do
       pure id
  where
   noMatchesFound ps =
-    serverError ("No matches found: " <> show ps)
-      `errWhen` "running Secret Santa"
+    mkError ("No matches found: " <> show ps) `errWhen` "running Secret Santa"
 
 mkMail :: Sender -> Info -> (Participant, Participant) -> Mail
 mkMail (Sender sender) Info {..} (gifter, receiver) =
