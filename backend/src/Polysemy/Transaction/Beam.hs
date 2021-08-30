@@ -3,21 +3,14 @@
 module Polysemy.Transaction.Beam
   ( BeamTransaction(..)
   , beamTransact
-  , runBeamTransactionSqlite
+  , runBeamTransaction'
   , module Export
   ) where
 
+import           Database.Beam
 import           Polysemy
 import           Polysemy.Operators
 import           Polysemy.Transaction          as Export
-
-
-import           Database.Beam
-import           Database.Beam.Sqlite           ( Sqlite
-                                                , SqliteM
-                                                , runBeamSqlite
-                                                )
-import qualified Database.SQLite.Simple        as SQLite
 
 -- * Beam Transactions
 
@@ -25,8 +18,9 @@ data BeamTransaction be bm m a where
   BeamTransact ::(BeamSqlBackend be, MonadBeam be bm) => bm a -> BeamTransaction be bm m a
 makeSem ''BeamTransaction
 
-runBeamTransactionSqlite
-  :: BeamTransaction Sqlite SqliteM ': r @> a
-  -> Transaction SQLite.Connection ': r @> a
-runBeamTransactionSqlite = reinterpret $ \case
-  BeamTransact act -> transact $ \conn -> runBeamSqlite conn act
+runBeamTransaction'
+  :: (c -> forall x . m x -> IO x)
+  -> BeamTransaction be m ': r @> a
+  -> Transaction c ': r @> a
+runBeamTransaction' f = reinterpret $ \case
+  BeamTransact act -> transact $ \conn -> f conn act
