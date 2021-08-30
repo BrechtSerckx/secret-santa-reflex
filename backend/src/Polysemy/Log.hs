@@ -27,17 +27,17 @@ logMessageStdout :: MonadIO m => LogAction m Message
 logMessageStdout = contramap (T.unpack . fmtMessage) logStringStdout
 
 logMsg :: (Member (Log Message) r, HasCallStack) => Severity -> Text -> r @> ()
-logMsg severity msg =
-  log Msg { msgSeverity = severity, msgStack = callStack, msgText = msg }
+logMsg severity msg = withFrozenCallStack
+  $ log Msg { msgSeverity = severity, msgStack = callStack, msgText = msg }
 
 logDebug :: (Member (Log Message) r, HasCallStack) => Text -> r @> ()
-logDebug = logMsg Debug
+logDebug = withFrozenCallStack $ logMsg Debug
 
 logInfo :: (Member (Log Message) r, HasCallStack) => Text -> r @> ()
-logInfo = logMsg Info
+logInfo = withFrozenCallStack $ logMsg Info
 
 logWarning :: (Member (Log Message) r, HasCallStack) => Text -> r @> ()
-logWarning = logMsg Warning
+logWarning = withFrozenCallStack $ logMsg Warning
 
 logError :: (Member (Log Message) r, HasCallStack) => Text -> r @> ()
-logError = logMsg Error
+logError = withFrozenCallStack $ logMsg Error
