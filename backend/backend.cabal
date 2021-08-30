@@ -92,6 +92,7 @@ common common-build-depends
       -- logging
     , co-log-core
     , co-log-polysemy
+    , co-log
 
       -- data
     , aeson
