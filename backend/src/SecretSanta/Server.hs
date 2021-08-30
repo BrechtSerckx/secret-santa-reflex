@@ -6,6 +6,7 @@ module SecretSanta.Server
 import           Polysemy
 import           Polysemy.Error
 import           Polysemy.Input
+import           Polysemy.Log
 import           Polysemy.Operators
 
 import           Control.Monad.Except           ( liftEither )
@@ -45,6 +46,7 @@ type BaseEffects eb kvb
      , KVStoreInit kvb SecretSantaStore
      , Input (KVStoreConnection kvb)
      , Input (KVStoreConfig kvb)
+     , Log Message
      , Embed IO
      , Final IO
      ]
@@ -53,19 +55,21 @@ type API' = API :<|> Raw
 api' :: Proxy API'
 api' = Proxy @API'
 
-secretSantaServer :: ServeOpts -> '[Embed IO, Final IO] @> ()
-secretSantaServer serveOpts@ServeOpts {..} =
+secretSantaServer :: ServeOpts -> '[Log Message, Embed IO, Final IO] @> ()
+secretSantaServer serveOpts@ServeOpts {..} = do
+  logInfo "Starting server ..."
   case (soEmailBackend, soKVStoreBackend) of
     (AnyEmailBackend (Proxy :: Proxy eb), AnyKVStoreBackend (cfg :: KVStoreOpts
         kvb))
       -> secretSantaServer' @eb @kvb serveOpts cfg
+  logInfo "Stopping server ..."
 
 secretSantaServer'
   :: forall eb kvb
    . (RunEmailBackend eb, RunKVStore kvb SecretSantaStore)
   => ServeOpts
   -> KVStoreOpts kvb
-  -> [Embed IO, Final IO] @> ()
+  -> [Log Message, Embed IO, Final IO] @> ()
 secretSantaServer' opts@ServeOpts {..} cfg =
   runKVStoreConfig @kvb cfg
     . runKVStoreConnection @kvb

@@ -129,6 +129,7 @@ library
     Database.Beam.Orphans
     Polysemy.Error
     Polysemy.Input.Env
+    Polysemy.Log
     Polysemy.NoOp
     Polysemy.Transaction
     Polysemy.Transaction.Beam
