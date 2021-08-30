@@ -21,7 +21,7 @@
 - [x] catch startup errors: f.e. wrong envvar
 - [x] create/reset database through CLI commands
 - [x] fix ses emails
-- [ ] logging
+- [x] logging
 - [ ] resource pool
 - [ ] redis backend
 - [ ] pagination
@@ -29,6 +29,7 @@
 - [ ] backport beam
 - [ ] use `Polysemy.Tagged`
 - [ ] use `polysemy-time`
+- [ ] log SQL queries using logger
     
 *** Frontend
     
