@@ -42,6 +42,8 @@
       smtp-mail = self.callCabal2nix "smtp-mail" sources.smtp-mail { };
       mime-mail-ses = self.callCabal2nix "mime-mail-ses" sources.mime-mail-ses {};
 
+      co-log-polysemy = hlib.doJailbreak(self.callCabal2nix "co-log-polysemy" sources.co-log-polysemy {});
+
       # override servant version
       servant = self.callCabal2nix "servant" "${sources.servant}/servant" { };
       servant-server = hlib.dontCheck (self.callCabal2nix "servant-server" "${sources.servant}/servant-server" { });

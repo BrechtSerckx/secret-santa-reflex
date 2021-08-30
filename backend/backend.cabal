@@ -89,6 +89,10 @@ common common-build-depends
     , random
     , directory
 
+      -- logging
+    , co-log-core
+    , co-log-polysemy
+
       -- data
     , aeson
     , containers

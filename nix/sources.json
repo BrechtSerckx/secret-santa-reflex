@@ -19,6 +19,13 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz",
         "version": "0.13.1.1"
     },
+    "co-log-polysemy": {
+        "sha256": "17bcs8dvrhwfcyklknkqg11gxgxm2jaa7kbm6xx4vm1976abzwss",
+        "type": "tarball",
+        "url": "https://hackage.haskell.org/package/co-log-polysemy-0.0.1.2/co-log-polysemy-0.0.1.2.tar.gz",
+        "url_template": "https://hackage.haskell.org/package/co-log-polysemy-<version>/co-log-polysemy-<version>.tar.gz",
+        "version": "0.0.1.2"
+    },
     "haskell-libraries": {
         "ref": "trunk",
         "repo": "https://github.com/NoRedInk/haskell-libraries.git",
