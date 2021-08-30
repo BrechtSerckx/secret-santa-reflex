@@ -20,6 +20,11 @@
 - [x] revisit Refine class and types
 - [x] create/reset database through CLI commands
 - [x] fix ses emails
+- [ ] logging
+- [ ] i18n, l10n
+- [ ] frontend ui improvements?
+- [ ] closure compiler
+- [ ] createdTime, updatedTime
 
 ** Allow hosts to update the config
 
