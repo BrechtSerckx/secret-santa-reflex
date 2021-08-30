@@ -27,6 +27,8 @@
 - [ ] pagination
 - [ ] background jobs
 - [ ] backport beam
+- [ ] use `Polysemy.Tagged`
+- [ ] use `polysemy-time`
     
 *** Frontend
     
