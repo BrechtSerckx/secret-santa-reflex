@@ -95,17 +95,21 @@ secretSantaServer' opts@ServeOpts {..} cfg =
 
 
 runInHandler
-  :: Member (Final IO) r
+  :: Members '[Final IO , Log Message] r
   => (forall a . r @> a -> IO a)
   -> (forall a . Error InternalError ': r @> a -> SS.Handler a)
-runInHandler lowerToIO =
-  liftEither
-    <=< liftIO
-    .   lowerToIO
-    .   fmap (first toServantError)
-    .   runError @InternalError
-    .   fromExceptionSemVia @SomeException
+runInHandler lowerToIO act = do
+  eRes <- liftIO . lowerToIO . fmap (first toServantError) $ do
+    eRes <-
+      runError @InternalError
+      . fromExceptionSemVia @SomeException
           (internalError . T.pack . displayException)
+      $ act
+    case eRes of
+      Right _                           -> pure ()
+      Left  (ApiError (GenericError e)) -> logError $ errMessage e
+    pure eRes
+  liftEither eRes
 
 apiServer
   :: forall eb kvb
