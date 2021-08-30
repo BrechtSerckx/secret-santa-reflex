@@ -13,20 +13,19 @@ import           SecretSanta.Opts
 import           SecretSanta.Server
 
 runSecretSanta :: IO ()
-runSecretSanta = do
-  cmd <- parseCmd
+runSecretSanta = runFinal . embedToFinal $ do
   res <-
-    runFinal
-    . embedToFinal
-    . runError @ExtError
+    runError @ExtError
     . fromExceptionSemVia @SomeException (mkError . T.pack . displayException)
     . raise
-    $ case cmd of
-        Serve    serveOpts@ServeOpts {..} -> secretSantaServer serveOpts
-        CreateDB CreateDBOpts {..}        -> case cdbDatabaseBackend of
-          AnyDatabaseBackend (Proxy :: Proxy db) opts ->
-            runDBConfig @db opts $ createDB @db
+    $ do
+        cmd <- embed parseCmd
+        case cmd of
+          Serve    serveOpts@ServeOpts {..} -> secretSantaServer serveOpts
+          CreateDB CreateDBOpts {..}        -> case cdbDatabaseBackend of
+            AnyDatabaseBackend (Proxy :: Proxy db) opts ->
+              runDBConfig @db opts $ createDB @db
   case res of
-    Left  e  -> die $ errMessage e
-    Right () -> exitSuccess
+    Left  e  -> embed . die $ errMessage e
+    Right () -> embed exitSuccess
 
