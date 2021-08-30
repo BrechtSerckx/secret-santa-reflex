@@ -4,25 +4,26 @@
 DBFILE=secretsanta.db
 PORT=8000
 
-FLAGS=()
 
 # Create database
-# FLAGS+=(create-db)
-# FLAGS+=(--sqlite "$DBFILE")
+CREATE_DB_FLAGS=()
+CREATE_DB_FLAGS+=(--sqlite "$DBFILE")
 
 # Run server
-FLAGS+=(serve)
 
-FLAGS+=(--email-backend dummy)
+SERVE_FLAGS+=(--email-backend dummy)
 # FLAGS+=(--email-backend gmail)
 # FLAGS+=(--email-backend ses)
 
-FLAGS+=(--email-sender "info@secret-santa.link")
+SERVE_FLAGS+=(--email-sender "info@secret-santa.link")
 
 # FLAGS+=(--in-memory)
-FLAGS+=(--sqlite "$DBFILE")
+SERVE_FLAGS+=(--sqlite "$DBFILE")
 
-FLAGS+=(--port "$PORT")
+SERVE_FLAGS+=(--port "$PORT")
+
+# FLAGS=(create-db "${CREATE_DB_FLAGS[@]}")
+FLAGS=(serve "${SERVE_FLAGS[@]}")
 
 run_cabal_backend() {
     cabal configure

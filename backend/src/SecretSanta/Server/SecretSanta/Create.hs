@@ -10,6 +10,7 @@ import           Polysemy.Error
 import           Polysemy.Extra
 import           Polysemy.Fresh
 import           Polysemy.Input
+import           Polysemy.Log
 import           Polysemy.Operators
 
 import           Data.Refine
@@ -45,6 +46,7 @@ createSecretSantaHandler
           , KVStoreInit kv SecretSantaStore
           , Embed IO
           , Input (KVStoreConnection kv)
+          , Log Message
           ]
          r
      , RunKVStore kv SecretSantaStore
@@ -79,27 +81,39 @@ createSecretSanta
         , Email
         , GetTime
         , SecretSantaStore
+        , Log Message
         ]
        r
   => SecretSanta
   -> r @> SecretSantaId
 createSecretSanta ss@(SecretSanta UnsafeSecretSanta {..}) = do
+  logDebug "Creating Secret Santa"
   let Info {..}    = secretsantaInfo
       participants = secretsantaParticipants
-  sender     <- input @Sender
+  logDebug "Validating date"
   serverTime <- getZonedTime
   case validateDateTime serverTime iTimeZone iDate iTime of
-    Success _ -> pure ()
-    Failure es ->
+    Success _  -> logDebug "Validation successful"
+    Failure es -> do
+      logWarning "Validation failed"
       throw @InvalidDateTimeError . ApiError . mkGenericError $ show es
+  logDebug "Matching participants"
   mMatches <- makeMatch participants
-  case mMatches of
-    Nothing      -> throwErrorPure $ noMatchesFound participants
+  id       <- case mMatches of
+    Nothing -> do
+      logError "Match not found"
+      throwErrorPure $ noMatchesFound participants
     Just matches -> do
+      logDebug "Match found"
+      logDebug "Storing in database"
       id <- fresh
       writeSecretSanta id ss
+      logDebug "Sending mails to participants"
+      sender <- input @Sender
       forM_ matches $ sendEmail . mkMail sender secretsantaInfo
       pure id
+  logDebug "Created Secret Santa"
+  pure id
  where
   noMatchesFound ps =
     mkError ("No matches found: " <> show ps) `errWhen` "running Secret Santa"
