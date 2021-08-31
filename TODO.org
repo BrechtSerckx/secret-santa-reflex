@@ -22,14 +22,14 @@
 - [x] create/reset database through CLI commands
 - [x] fix ses emails
 - [x] logging
-- [ ] resource pool
+- [x] resource pool
 - [ ] redis backend
 - [ ] pagination
 - [ ] background jobs
 - [ ] backport beam
 - [ ] use `Polysemy.Tagged`
 - [ ] use `polysemy-time`
-- [ ] log SQL queries using logger
+- [x] log SQL queries using logger
     
 *** Frontend
     

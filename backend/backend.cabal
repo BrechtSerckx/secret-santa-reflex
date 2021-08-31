@@ -191,6 +191,7 @@ test-suite backend-test
     -flate-specialise
     -fspecialise-aggressively
     -fplugin=Polysemy.Plugin
+    -threaded
 
   other-modules: 
   type: exitcode-stdio-1.0

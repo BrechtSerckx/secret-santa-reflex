@@ -12,6 +12,11 @@ import qualified Database.SQLite.Simple        as SQLite
 import qualified Options.Applicative           as OA
 import           SecretSanta.Backend.KVStore.Database.Class
 
+data SqliteOpts = SqliteOpts
+  { sqliteDatabase  :: FilePath
+  , sqliteTraceConn :: Bool
+  }
+
 data Sqlite
 
 instance IsDatabaseBackend Sqlite where
@@ -23,14 +28,20 @@ instance IsDatabaseBackend Sqlite where
 
   dbSettings           = defaultMigratableDbSettings
 
-  type DBOpts Sqlite = FilePath
-  parseDBOpts =
-    OA.strOption $ mconcat [OA.long "sqlite", OA.metavar "SQLITE_DATABASE"]
+  type DBOpts Sqlite = SqliteOpts
+  parseDBOpts = do
+    sqliteDatabase <- OA.strOption
+      $ mconcat [OA.long "sqlite", OA.metavar "SQLITE_DATABASE"]
+    sqliteTraceConn <- OA.switch $ mconcat [OA.long "trace"]
+    pure SqliteOpts { .. }
 
   type DBConnection Sqlite = SQLite.Connection
-  createDBConnection db = do
-    conn <- SQLite.open db
-    SQLite.setTrace conn $ Just putStrLn
+  createDBConnection SqliteOpts {..} = do
+    conn <- SQLite.open sqliteDatabase
+    when sqliteTraceConn . SQLite.setTrace conn $ Just putStrLn
     pure conn
   closeDBConnection = SQLite.close
-  withDBConnection  = SQLite.withConnection
+  withDBConnection SqliteOpts {..} f =
+    SQLite.withConnection sqliteDatabase $ \conn -> do
+      when sqliteTraceConn . SQLite.setTrace conn $ Just putStrLn
+      f conn
