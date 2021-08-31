@@ -13,6 +13,7 @@ module SecretSanta.Backend.KVStore.Database
   ) where
 
 import qualified Data.Pool                     as Pool
+import           Data.Time                      ( NominalDiffTime )
 import "this"    Database.Beam
 -- import           SecretSanta.Backend.KVStore.Database.Postgres
 --                                                as Export
@@ -50,14 +51,48 @@ instance (IsDatabaseBackend db, ParseDatabaseBackends dbs) => ParseDatabaseBacke
     (AnyDatabaseBackend (Proxy @db) <$> parseDBOpts @db)
       <|> parseDatabaseBackends' @dbs
 
+data ConnectionPoolOpts = ConnectionPoolOpts
+  { connPoolStripes   :: Int
+  , connPoolResources :: Int
+  , connPoolKeepConn  :: NominalDiffTime
+  }
+
+pConnectionPoolOpts :: OA.Parser ConnectionPoolOpts
+pConnectionPoolOpts = do
+  connPoolStripes <- OA.option OA.auto $ mconcat
+    [ OA.long "conn-pool-stripes"
+    , OA.metavar "N_STRIPES"
+    , OA.showDefault
+    , OA.value 1
+    ]
+  connPoolResources <- OA.option OA.auto $ mconcat
+    [ OA.long "max-connnections"
+    , OA.metavar "N_RESOURCES"
+    , OA.showDefault
+    , OA.value 1
+    ]
+  connPoolKeepConn <- fmap (realToFrac @Double) . OA.option OA.auto $ mconcat
+    [ OA.long "conn-pool-keep-conn"
+    , OA.metavar "N_SECONDS"
+    , OA.showDefault
+    , OA.value 0.5
+    ]
+  pure ConnectionPoolOpts { .. }
+
 
 instance IsDatabaseBackend db => RunKVStoreBackend (KVStoreDatabase db) where
-  parseKVStoreOpts = KVStoreDatabaseOpts <$> parseDBOpts @db
+  parseKVStoreOpts = do
+    dbOpts       <- parseDBOpts @db
+    connPoolOpts <- pConnectionPoolOpts
+    pure KVStoreDatabaseOpts { .. }
   data KVStoreTransaction (KVStoreDatabase db) m a
     = KVStoreDatabaseTransaction { unDBTx :: Transaction (DBConnection db)  m a}
   data KVStoreConnection (KVStoreDatabase db) = KVStoreDatabaseConnection (DBConnection db)
   newtype KVStoreConfig (KVStoreDatabase db) = KVStoreDatabaseConfig (Pool.Pool (DBConnection db))
-  newtype KVStoreOpts (KVStoreDatabase db) = KVStoreDatabaseOpts (DBOpts db)
+  data KVStoreOpts (KVStoreDatabase db) = KVStoreDatabaseOpts
+    { dbOpts :: DBOpts db
+    , connPoolOpts :: ConnectionPoolOpts
+    }
   runKVStoreTransaction act = do
     KVStoreDatabaseConnection conn <- input
     runTransaction conn . rewrite unDBTx $ act
@@ -69,16 +104,14 @@ instance IsDatabaseBackend db => RunKVStoreBackend (KVStoreDatabase db) where
       finalize
       pure res
 
-  runKVStoreConfig (KVStoreDatabaseOpts opts) act = do
-    let nStripes   = 1
-        nResources = 1
-        keepConn   = 0.5
-    pool <- embed $ Pool.createPool (createDBConnection @db opts)
-                                    (closeDBConnection @db)
-                                    nStripes
-                                    keepConn
-                                    nResources
-    runInputConst (KVStoreDatabaseConfig pool) act
+  runKVStoreConfig KVStoreDatabaseOpts { connPoolOpts = ConnectionPoolOpts {..}, ..} act
+    = do
+      pool <- embed $ Pool.createPool (createDBConnection @db dbOpts)
+                                      (closeDBConnection @db)
+                                      connPoolStripes
+                                      connPoolKeepConn
+                                      connPoolResources
+      runInputConst (KVStoreDatabaseConfig pool) act
 
 -- | helper for implementing `runKVStore`
 runKVStore'
