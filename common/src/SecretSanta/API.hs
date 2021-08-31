@@ -10,6 +10,7 @@ module SecretSanta.API
 import           Servant.API
 
 import           Data.Error
+import           Network.Http.Error
 import           SecretSanta.Data
 
 type API = CreateSecretSantaEP
@@ -26,4 +27,4 @@ type CreateSecretSantaEP
      '[ WithStatus 200 SecretSantaId
       , InvalidDateTimeError
       ]
-type InvalidDateTimeError = ServerError 400 "INVALID_DATE_TIME"
+type InvalidDateTimeError = ApiError 400 (GenericError "INVALID_DATE_TIME")

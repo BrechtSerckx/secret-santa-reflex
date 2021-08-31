@@ -1,49 +1,86 @@
 * TODO
 
-** Create a secret santa app
+** Core design
 
-- [x] Create a reflex frontend
-- [x] Common: create a match function and a test function
-- [x] Backend: have `create` endpoint that matches and sends emails
-- [x] fix form validation
-- [ ] fix email layout
+*** Common
+    
+- [x] better error design
+- [x] nonemptytext: strip whitespace
+- [x] revisit Refine class and types
+- [ ] authentication
+- [ ] authorization
+  - user store
+  - servant auth
+    
+*** Backend
+    
 - [x] fix errors:
   - validation errors: newtype over text, displayed to the user
   - internal errors: unrecoverable, give 500 with text message
   - recoverable error: custom error type with description, maybe context, name (type) and error code (type)
-- [ ] better error design
+- [x] catch startup errors: f.e. wrong envvar
+- [x] create/reset database through CLI commands
+- [x] fix ses emails
+- [x] logging
+- [x] resource pool
+- [ ] redis backend
+- [ ] pagination
+- [ ] background jobs
+- [ ] backport beam
+- [ ] use `Polysemy.Tagged`
+- [ ] use `polysemy-time`
+- [x] log SQL queries using logger
+    
+*** Frontend
+    
+- [x] Create a reflex frontend
+- [x] fix form validation
 - [x] show which fields are required and which aren't
+- [ ] i18n, l10n
+- [ ] closure compiler
+- [ ] routing
+- [ ] backport servant-reflex
+   
+** Business
+
+*** General
+
+- [x] Common: create a match function and a test function
+- [x] Backend: have `create` endpoint that matches and sends emails
+- [ ] fix email layout
+  - [ ] mjml?
 - [x] check that the secret santa date is in the future
 - [x] display a nicer success message
-- [x] nonemptytext: strip whitespace
-- [x] revisit Refine class and types
-- [ ] create/reset database through CLI commands
-- [ ] fix ses emails
-
-** Allow hosts to update the config
-
+- [ ] frontend ui improvements?
+- [ ] createdTime, updatedTime
 - [x] Store the SS information in a database
-- [ ] authorization
-  - user store
-  - servant auth
-- [ ] endpoint to retrieve all secret santas
-  - pagination
-  - for admin user
-- [ ] redis backend
-- [ ] Also store a host-key
-- [ ] Send the host-key to the host
-- [ ] add an admin page, accessible with the host-key, where the host can update the SS info
+- [ ] email through background job
 
-** Allow participants to add a wishlist
+*** App Admin
+
+- [ ] endpoint to retrieve all secret santas
+  - [ ] pagination
+  - [ ] authorization
+  - [ ] authentication
+  - [ ] new page
+  - [ ] frontend routing
+
+*** Wishlist
 
 - [ ] Send a secret key to the participants
 - [ ] Add participant page
 - [ ] Add wishlist table
 
-** Allow hosts to check participant status
+*** Participant status
 
 - [ ] add tracking links to emails
 - [ ] add email status table
-- [ ] add info to admin page
+- [ ] add info to organizer page
 - [ ] refresh info periodically
 - [ ] add `resend` buttons
+
+*** Organizer functionality
+
+- [ ] Also store a host-key
+- [ ] Send the host-key to the host
+- [ ] add an organizer page, accessible with the host-key, where the host can update the SS info
