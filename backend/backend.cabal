@@ -110,6 +110,7 @@ common common-build-depends
     , beam-sqlite
     , sqlite-simple
     , beam-migrate
+    , resource-pool
 
 library
   import:

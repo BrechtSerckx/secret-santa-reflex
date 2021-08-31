@@ -29,7 +29,7 @@ runSecretSanta = runFinal . embedToFinal . runLogAction logMessageStdout $ do
           CreateDB CreateDBOpts {..}        -> case cdbDatabaseBackend of
             AnyDatabaseBackend (Proxy :: Proxy db) opts -> do
               logInfo "Creating database ..."
-              runDBConfig @db opts $ createDB @db
+              createDB @db opts
               logInfo "Done"
   logInfo "Have a nice day!"
   case res of

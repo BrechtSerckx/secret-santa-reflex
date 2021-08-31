@@ -12,6 +12,7 @@ module SecretSanta.Backend.KVStore.Database
   , module Export
   ) where
 
+import qualified Data.Pool                     as Pool
 import "this"    Database.Beam
 -- import           SecretSanta.Backend.KVStore.Database.Postgres
 --                                                as Export
@@ -55,21 +56,29 @@ instance IsDatabaseBackend db => RunKVStoreBackend (KVStoreDatabase db) where
   data KVStoreTransaction (KVStoreDatabase db) m a
     = KVStoreDatabaseTransaction { unDBTx :: Transaction (DBConnection db)  m a}
   data KVStoreConnection (KVStoreDatabase db) = KVStoreDatabaseConnection (DBConnection db)
-  newtype KVStoreConfig (KVStoreDatabase db) = KVStoreDatabaseConfig (DBConfig db)
+  newtype KVStoreConfig (KVStoreDatabase db) = KVStoreDatabaseConfig (Pool.Pool (DBConnection db))
   newtype KVStoreOpts (KVStoreDatabase db) = KVStoreDatabaseOpts (DBOpts db)
   runKVStoreTransaction act = do
     KVStoreDatabaseConnection conn <- input
     runTransaction conn . rewrite unDBTx $ act
   runKVStoreConnection act = do
-    KVStoreDatabaseConfig db <- input
+    KVStoreDatabaseConfig pool <- input
     withLowerToIO $ \lowerToIO finalize -> do
-      res <- withDBConnection @db db $ \conn -> do
+      res <- Pool.withResource pool $ \conn -> do
         lowerToIO $ runInputConst (KVStoreDatabaseConnection conn) act
       finalize
       pure res
 
-  runKVStoreConfig (KVStoreDatabaseOpts opts) =
-    runDBConfig @db opts . contramapInput KVStoreDatabaseConfig . raiseUnder
+  runKVStoreConfig (KVStoreDatabaseOpts opts) act = do
+    let nStripes   = 1
+        nResources = 1
+        keepConn   = 0.5
+    pool <- embed $ Pool.createPool (createDBConnection @db opts)
+                                    (closeDBConnection @db)
+                                    nStripes
+                                    keepConn
+                                    nResources
+    runInputConst (KVStoreDatabaseConfig pool) act
 
 -- | helper for implementing `runKVStore`
 runKVStore'
