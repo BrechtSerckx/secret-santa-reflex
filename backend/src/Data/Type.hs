@@ -9,8 +9,8 @@ module Data.Type
   ) where
 
 import           Data.Type.Bool                 ( If )
+import           Data.Type.Equality             ( type (==) )
 import           GHC.TypeLits
-import           Prelude                 hiding ( TypeError )
 
 type family TMap f es where
   TMap _ '[] = '[]

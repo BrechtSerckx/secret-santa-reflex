@@ -8,7 +8,6 @@ module Data.Union
 
 import           Data.SOP                      as Export
 import           Data.Type
-import           Prelude                 hiding ( TypeError )
 
 type Union = NS I
 

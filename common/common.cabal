@@ -38,7 +38,7 @@ library
     , text
     , time
     , aeson
-    , protolude
+    , relude
     , either
     , email-validate
     , extra

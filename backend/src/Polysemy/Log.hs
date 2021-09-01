@@ -7,8 +7,6 @@ module Polysemy.Log
   , module Export
   ) where
 
-import           Prelude                 hiding ( log )
-
 import           Polysemy
 import           Polysemy.Operators
 
@@ -20,7 +18,6 @@ import           Colog.Message                 as Export
                                                 )
 import           Colog.Polysemy                as Export
 
-import           Data.Functor.Contravariant
 import qualified Data.Text                     as T
 
 logMessageStdout :: MonadIO m => LogAction m Message

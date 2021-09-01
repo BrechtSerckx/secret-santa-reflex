@@ -7,7 +7,6 @@ module SecretSanta.UI.Form
 
 import           Control.Lens
 import           Control.Monad.Fix
-import           Data.Functor.Compose
 import qualified Data.Map                      as Map
 import           Data.Refine
 import qualified Data.Text                     as T
@@ -438,19 +437,19 @@ participantsWidget eAddNewParticipant layout eSubmit = do
       . Rx.current
       . Rx.ffor m
       $ Rx.mergeWith (.)
-      . map (fmap f)
+      . fmap (fmap f)
       . Map.elems
   eDeleteParticipants dParticipantMap =
     overParticipants (\(DeleteParticipant i) -> Map.delete i)
-      $   map fst3
+      $   fmap fst3
       <$> dParticipantMap
   eUpdatePNames dParticipantMap =
     overParticipants (\(UpdatePName i name) -> updateParticipantName i name)
-      $   map snd3
+      $   fmap snd3
       <$> dParticipantMap
   eUpdatePEmails dParticipantMap =
     overParticipants (\(UpdatePEmail i email) -> updateParticipantEmail i email)
-      $   map thd3
+      $   fmap thd3
       <$> dParticipantMap
   mkParticipant :: Participant' -> Refined Participant
   mkParticipant (pName, pEmail) = Participant <$> pName <*> pEmail

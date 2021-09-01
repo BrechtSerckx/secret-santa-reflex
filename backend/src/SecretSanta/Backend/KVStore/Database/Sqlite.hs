@@ -3,6 +3,7 @@ module SecretSanta.Backend.KVStore.Database.Sqlite
   ( Sqlite
   ) where
 
+import qualified Data.Text                     as T
 import           Database.Beam.Migrate
 import qualified Database.Beam.Sqlite          as SQLite
 import qualified Database.Beam.Sqlite.Connection
@@ -38,10 +39,10 @@ instance IsDatabaseBackend Sqlite where
   type DBConnection Sqlite = SQLite.Connection
   createDBConnection SqliteOpts {..} = do
     conn <- SQLite.open sqliteDatabase
-    when sqliteTraceConn . SQLite.setTrace conn $ Just putStrLn
+    when sqliteTraceConn . SQLite.setTrace conn . Just $ putStrLn . T.unpack
     pure conn
   closeDBConnection = SQLite.close
   withDBConnection SqliteOpts {..} f =
     SQLite.withConnection sqliteDatabase $ \conn -> do
-      when sqliteTraceConn . SQLite.setTrace conn $ Just putStrLn
+      when sqliteTraceConn . SQLite.setTrace conn . Just $ putStrLn . T.unpack
       f conn

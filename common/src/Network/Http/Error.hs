@@ -18,7 +18,7 @@ newtype ApiError (status :: Nat) a = ApiError
 
 
 errStatus :: forall status a . KnownNat status => ApiError status a -> Int
-errStatus _ = fromInteger . natVal $ Proxy @status
+errStatus _ = fromIntegral . natVal $ Proxy @status
 
 instance Servant.KnownStatus status => Servant.HasStatus (ApiError status a) where
   type StatusOf (ApiError status a) = status

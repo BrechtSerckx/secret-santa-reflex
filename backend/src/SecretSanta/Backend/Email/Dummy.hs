@@ -12,7 +12,7 @@ import           Text.Pretty.Simple
 runEmailPrint :: Email ': r @> a -> IO ~@ r @> a
 runEmailPrint = interpret $ \case
   SendEmail mail -> embed @IO $ do
-    putStrLn @Text @IO $ "Sending email:"
+    putStrLn "Sending email:"
     pPrint mail
 
 data Dummy

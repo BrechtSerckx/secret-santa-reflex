@@ -17,9 +17,7 @@ module Data.Refine
   ) where
 
 import           Prelude                 hiding ( Show
-                                                , from
                                                 , show
-                                                , to
                                                 )
 
 import           Control.Monad.Fail             ( fail )

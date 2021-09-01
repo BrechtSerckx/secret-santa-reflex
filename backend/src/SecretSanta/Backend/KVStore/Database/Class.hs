@@ -5,6 +5,7 @@ module SecretSanta.Backend.KVStore.Database.Class
   , createDB
   ) where
 
+import           Control.Exception              ( bracket )
 import           Control.Monad.Fail             ( MonadFail )
 import           Database.Beam
 import           Database.Beam.Migrate.Backend

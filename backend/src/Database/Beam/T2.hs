@@ -25,7 +25,7 @@ import           Database.Beam.Schema.Tables    ( Beamable(..)
                                                 , TagReducesTo
                                                 , namedSubTable
                                                 )
-import           GHC.Generics                   ( R )
+import           GHC.Generics
 
 -- * MAGIC
 

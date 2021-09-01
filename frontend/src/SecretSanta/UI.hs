@@ -8,6 +8,7 @@ import qualified Data.ByteString.Lazy          as BSL
 import qualified Reflex                        as Rx
 import qualified Reflex.Dom                    as Rx
 import qualified Servant.API                   as S
+import           Servant.API                    ( (:<|>)(..) )
 import qualified Servant.API.UVerb             as S
 import qualified Servant.Reflex                as SR
 
@@ -118,6 +119,7 @@ cCreateSecretSanta
 
 --brittany-disable-next-binding
 ( cCreateSecretSanta
+  :<|> _
   ) = client
 
 client :: forall t m . Rx.MonadWidget t m => SR.Client t m API ()

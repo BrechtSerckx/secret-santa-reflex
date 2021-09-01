@@ -13,7 +13,6 @@ module SecretSanta.Effect.Store.SecretSanta
   ) where
 
 import qualified Data.Map.Strict               as Map
-import           GHC.Err                        ( error )
 import           Prelude                 hiding ( State
                                                 , evalState
                                                 , gets

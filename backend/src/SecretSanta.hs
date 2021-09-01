@@ -2,8 +2,6 @@ module SecretSanta
   ( runSecretSanta
   ) where
 
-import           Prelude                 hiding ( log )
-
 import           Polysemy
 import           Polysemy.Error
 import           Polysemy.Log
