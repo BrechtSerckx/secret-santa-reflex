@@ -11,6 +11,11 @@
 - [ ] authorization
   - user store
   - servant auth
+- [ ] better data design: T2 is not very practical
+      differentiate between backend rows and domain data? -> good idea
+- [ ] remove protolude. Replace by relude?
+- [ ] NoFieldSelectors + classy-lenses
+- [ ] update reflex-platform submodule for newer ghc?
     
 *** Backend
     
@@ -58,7 +63,7 @@
 
 *** App Admin
 
-- [ ] endpoint to retrieve all secret santas
+- [x] endpoint to retrieve all secret santas
   - [ ] pagination
   - [ ] authorization
   - [ ] authentication
