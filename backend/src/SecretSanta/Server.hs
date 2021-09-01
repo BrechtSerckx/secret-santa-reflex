@@ -116,7 +116,7 @@ apiServer
    . RunKVStore kvb SecretSantaStore
   => ServeOpts
   -> SS.ServerT API' (Sem (Error InternalError ': BaseEffects eb kvb))
-apiServer opts = createSecretSantaHandler @kvb :<|> staticServer opts
+apiServer opts = ssServer @kvb :<|> staticServer opts
 
 staticServer :: ServeOpts -> SS.ServerT Raw (Sem r)
 staticServer ServeOpts {..} =
