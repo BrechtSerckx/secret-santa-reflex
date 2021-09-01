@@ -68,6 +68,9 @@ runSecretSantaStoreDB = interpret $ \case
   CreateCrud k v -> do
     db <- input
     beamTransact @be @bm $ insertSecretSanta db k v
+  ReadAllCrud -> do
+    db <- input
+    beamTransact @be @bm $ getAllSecretSantas db
   _ -> error "SecretSantaStoreDB: delete not implemented"
 
 insertSecretSanta
@@ -86,7 +89,20 @@ insertSecretSanta db id (SecretSanta UnsafeSecretSanta {..}) = do
     .   (id, )
     <$> secretsantaParticipants
 
+getAllSecretSantas
+  :: (BeamC be, MonadBeam be m)
   => DatabaseSettings be SecretSantaDB
+  -> m [SecretSanta]
+getAllSecretSantas db = do
+  ts :: [InfoTable Identity] <-
+    runSelectReturningList . select . all_ $ _secretsantaInfo db
+  ps :: [ParticipantTable Identity] <-
+    runSelectReturningList . select . all_ $ _secretsantaParticipants db
+  pure $ ts <&> \(T2 (id, secretsantaInfo)) ->
+    let secretsantaParticipants = mapMaybe
+          (\(T2 (id', p)) -> if id == id' then Just p else Nothing)
+          ps
+    in  SecretSanta UnsafeSecretSanta { .. }
 
 
 instance RunKVStore KVStoreState SecretSantaStore where

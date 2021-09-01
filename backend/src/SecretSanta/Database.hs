@@ -19,10 +19,13 @@ deriving anyclass instance Database be SecretSantaDB
 -- brittany-disable-next-binding
 type BeamC be
   = ( BeamSqlBackend be
+    , HasQBuilder be
     , FieldsFulfillConstraint
         (BeamSqlBackendCanSerialize be)
         InfoTable
     , FieldsFulfillConstraint
         (BeamSqlBackendCanSerialize be)
         ParticipantTable
+    , FromBackendRow be (InfoTable Identity)
+    , FromBackendRow be (ParticipantTable Identity)
     )

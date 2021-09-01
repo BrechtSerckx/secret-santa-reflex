@@ -8,7 +8,10 @@ import qualified "uuid" Data.UUID              as UUID
 import "common"  Text.EmailAddress
 import           Text.NonEmpty
 
-import           Database.Beam.Backend.SQL      ( HasSqlValueSyntax(..) )
+import           Database.Beam.Backend.SQL      ( FromBackendRow(..)
+                                                , HasSqlValueSyntax(..)
+                                                )
+import           Database.Beam.Backend.Types    ( BeamBackend )
 import           Database.Beam.Migrate          ( HasDefaultSqlDataType(..) )
 
 instance HasDefaultSqlDataType be Text => HasDefaultSqlDataType be [Char] where
@@ -21,6 +24,9 @@ deriving
 deriving
   via Refinable Text NonEmptyText
   instance HasDefaultSqlDataType be Text => HasDefaultSqlDataType be NonEmptyText
+deriving
+  via Refinable Text NonEmptyText
+  instance (BeamBackend be, FromBackendRow be Text) => FromBackendRow be NonEmptyText
 
 deriving
   via Refinable Text EmailAddress
@@ -28,6 +34,9 @@ deriving
 deriving
   via Refinable Text EmailAddress
   instance HasDefaultSqlDataType be Text => HasDefaultSqlDataType be EmailAddress
+deriving
+  via Refinable Text EmailAddress
+  instance (BeamBackend be, FromBackendRow be Text) => FromBackendRow be EmailAddress
 
 instance Refine Text UUID.UUID where
   refine   = UUID.fromText |>? "UUID parser failed"
@@ -39,4 +48,6 @@ deriving
 deriving
   via Refinable Text UUID.UUID
   instance HasDefaultSqlDataType be Text => HasDefaultSqlDataType be UUID.UUID
-
+deriving
+  via Refinable Text UUID.UUID
+  instance (BeamBackend be, FromBackendRow be Text) => FromBackendRow be UUID.UUID
