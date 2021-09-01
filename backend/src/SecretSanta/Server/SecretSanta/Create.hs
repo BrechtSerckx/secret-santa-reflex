@@ -107,7 +107,7 @@ createSecretSanta ss@(SecretSanta UnsafeSecretSanta {..}) = do
       logDebug "Match found"
       logDebug "Storing in database"
       id <- fresh
-      writeSecretSanta id ss
+      createCrud id ss
       logDebug "Sending mails to participants"
       sender <- input @Sender
       forM_ matches $ sendEmail . mkMail sender secretsantaInfo
