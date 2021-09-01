@@ -4,6 +4,7 @@ module SecretSanta.Data
   ( module Export
   , InfoTable
   , ParticipantTable
+  , PrimaryKey(..)
   ) where
 
 import           Data.Refine
@@ -14,7 +15,10 @@ import           Database.Beam                  ( Beamable
                                                 , C'(..)
                                                 , Table(..)
                                                 )
-import           Database.Beam.Backend.SQL      ( HasSqlValueSyntax(..) )
+import           Database.Beam.Backend.SQL      ( FromBackendRow(..)
+                                                , HasSqlValueSyntax(..)
+                                                )
+import           Database.Beam.Backend.Types    ( BeamBackend )
 import           Database.Beam.Migrate          ( HasDefaultSqlDataType(..) )
 import           Database.Beam.Orphans          ( )
 import           Database.Beam.T2               ( T2(..) )
@@ -25,6 +29,9 @@ deriving
 deriving
   via Refinable Double Price
   instance HasDefaultSqlDataType be Double => HasDefaultSqlDataType be Price
+deriving
+  via Refinable Double Price
+  instance (BeamBackend be, FromBackendRow be Double) => FromBackendRow be Price
 
 deriving anyclass instance Beamable SecretSantaIdT
 deriving anyclass instance Beamable InfoT

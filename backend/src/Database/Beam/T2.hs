@@ -4,6 +4,8 @@ module Database.Beam.T2
   ( T2(..)
   ) where
 
+import           Database.Beam.Backend.SQL.Row
+import           Database.Beam.Backend.Types
 import           Database.Beam.Migrate          ( BeamMigrateSqlBackend
                                                 , FieldCheck
                                                 )
@@ -82,4 +84,12 @@ instance
     , to (gDefaultTblSettingsChecks be (Proxy @(Rep (v Identity))) embedded)
     )
 
--- instance (Generic (TableSettings tbl), GDefaultTableFieldSettings (Rep (TableSettings tbl) ())) => DefaultTableFieldSettings tbl
+instance {-# OVERLAPS #-}
+  ( BeamBackend be
+  , FromBackendRow be (k Identity)
+  , FromBackendRow be (v Identity)
+  ) => FromBackendRow be (T2 k v Identity) where
+
+  fromBackendRow = fmap T2 $ (,) <$> fromBackendRow <*> fromBackendRow
+  valuesNeeded be Proxy = valuesNeeded be (Proxy @(k Identity))
+    + valuesNeeded be (Proxy @(v Identity))

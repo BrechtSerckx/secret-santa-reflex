@@ -1,16 +1,22 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 module SecretSanta.Backend.KVStore.Database
   ( KVStoreDatabase
+  , DatabaseBackends
+  , AnyDatabaseBackend(..)
   , KVStoreTransaction(..)
   , KVStoreConnection(..)
   , KVStoreConfig(..)
   , runKVStore'
   , runKVStoreInit'
+  , parseDatabaseBackends
+  , module Export
   ) where
 
+import qualified Data.Pool                     as Pool
+import           Data.Time                      ( NominalDiffTime )
 import "this"    Database.Beam
-import qualified Database.Beam.Sqlite.Connection
-                                               as Beam
-import qualified Database.SQLite.Simple        as SQLite
+-- import           SecretSanta.Backend.KVStore.Database.Postgres
+--                                                as Export
 import qualified Options.Applicative           as OA
 import           Polysemy
 import           Polysemy.Extra
@@ -19,70 +25,126 @@ import           Polysemy.Operators
 import           Polysemy.Transaction
 import           Polysemy.Transaction.Beam
 import           SecretSanta.Backend.KVStore.Class
+                                               as Export
+import           SecretSanta.Backend.KVStore.Database.Class
+                                               as Export
+import           SecretSanta.Backend.KVStore.Database.Sqlite
+                                               as Export
 import           SecretSanta.Database
 
-data KVStoreDatabase
+data KVStoreDatabase db
+type DatabaseBackends = '[Sqlite]
 
-instance RunKVStoreBackend KVStoreDatabase where
-  parseKVStoreOpts = fmap KVStoreDatabaseOpts . OA.strOption $ mconcat
-    [OA.long "sqlite", OA.metavar "SQLITE_DATABASE"]
-  data KVStoreTransaction KVStoreDatabase m a
-    = KVStoreDatabaseTransaction { unDBTx :: Transaction SQLite.Connection  m a}
-  data KVStoreConnection KVStoreDatabase = KVStoreDatabaseConnection SQLite.Connection
-  newtype KVStoreConfig KVStoreDatabase = KVStoreDatabaseConfig FilePath
-  newtype KVStoreOpts KVStoreDatabase = KVStoreDatabaseOpts FilePath
-    deriving IsString via FilePath
+data AnyDatabaseBackend where
+  AnyDatabaseBackend ::IsDatabaseBackend db => Proxy db -> DBOpts db -> AnyDatabaseBackend
+
+parseDatabaseBackends :: OA.Parser AnyDatabaseBackend
+parseDatabaseBackends = parseDatabaseBackends' @DatabaseBackends
+
+class ParseDatabaseBackends dbs where
+  parseDatabaseBackends' :: OA.Parser AnyDatabaseBackend
+
+instance ParseDatabaseBackends '[] where
+  parseDatabaseBackends' = OA.empty
+instance (IsDatabaseBackend db, ParseDatabaseBackends dbs) => ParseDatabaseBackends (db ': dbs) where
+  parseDatabaseBackends' =
+    (AnyDatabaseBackend (Proxy @db) <$> parseDBOpts @db)
+      <|> parseDatabaseBackends' @dbs
+
+data ConnectionPoolOpts = ConnectionPoolOpts
+  { connPoolStripes   :: Int
+  , connPoolResources :: Int
+  , connPoolKeepConn  :: NominalDiffTime
+  }
+
+pConnectionPoolOpts :: OA.Parser ConnectionPoolOpts
+pConnectionPoolOpts = do
+  connPoolStripes <- OA.option OA.auto $ mconcat
+    [ OA.long "conn-pool-stripes"
+    , OA.metavar "N_STRIPES"
+    , OA.showDefault
+    , OA.value 1
+    ]
+  connPoolResources <- OA.option OA.auto $ mconcat
+    [ OA.long "max-connnections"
+    , OA.metavar "N_RESOURCES"
+    , OA.showDefault
+    , OA.value 1
+    ]
+  connPoolKeepConn <- fmap (realToFrac @Double) . OA.option OA.auto $ mconcat
+    [ OA.long "conn-pool-keep-conn"
+    , OA.metavar "N_SECONDS"
+    , OA.showDefault
+    , OA.value 0.5
+    ]
+  pure ConnectionPoolOpts { .. }
+
+
+instance IsDatabaseBackend db => RunKVStoreBackend (KVStoreDatabase db) where
+  parseKVStoreOpts = do
+    dbOpts       <- parseDBOpts @db
+    connPoolOpts <- pConnectionPoolOpts
+    pure KVStoreDatabaseOpts { .. }
+  data KVStoreTransaction (KVStoreDatabase db) m a
+    = KVStoreDatabaseTransaction { unDBTx :: Transaction (DBConnection db)  m a}
+  data KVStoreConnection (KVStoreDatabase db) = KVStoreDatabaseConnection (DBConnection db)
+  newtype KVStoreConfig (KVStoreDatabase db) = KVStoreDatabaseConfig (Pool.Pool (DBConnection db))
+  data KVStoreOpts (KVStoreDatabase db) = KVStoreDatabaseOpts
+    { dbOpts :: DBOpts db
+    , connPoolOpts :: ConnectionPoolOpts
+    }
   runKVStoreTransaction act = do
     KVStoreDatabaseConnection conn <- input
-    startTransaction conn
-    eRes <- runTransaction' conn . rewrite unDBTx $ act
-    case eRes of
-      Left  _ -> rollbackTransaction conn
-      Right _ -> endTransaction conn
-    pure eRes
+    runTransaction conn . rewrite unDBTx $ act
   runKVStoreConnection act = do
-    KVStoreDatabaseConfig db <- input
+    KVStoreDatabaseConfig pool <- input
     withLowerToIO $ \lowerToIO finalize -> do
-      res <- SQLite.withConnection db $ \conn -> do
-        SQLite.setTrace conn $ Just putStrLn
+      res <- Pool.withResource pool $ \conn -> do
         lowerToIO $ runInputConst (KVStoreDatabaseConnection conn) act
       finalize
       pure res
-  runKVStoreConfig (KVStoreDatabaseOpts cfg) =
-    runInputConst $ KVStoreDatabaseConfig cfg
+
+  runKVStoreConfig KVStoreDatabaseOpts { connPoolOpts = ConnectionPoolOpts {..}, ..} act
+    = do
+      pool <- embed $ Pool.createPool (createDBConnection @db dbOpts)
+                                      (closeDBConnection @db)
+                                      connPoolStripes
+                                      connPoolKeepConn
+                                      connPoolResources
+      runInputConst (KVStoreDatabaseConfig pool) act
 
 -- | helper for implementing `runKVStore`
 runKVStore'
-  :: forall
-       store
-   . (  forall m a
-   . Input (DatabaseSettings Beam.Sqlite SecretSantaDB) m a
-  -> KVStoreInit KVStoreDatabase store m a
-  )
+  :: forall store db
+   . IsDatabaseBackend db
+  => (  forall m a
+      . Input (DatabaseSettings (BeamBackend db) SecretSantaDB) m a
+     -> KVStoreInit (KVStoreDatabase db) store m a
+     )
   -> (  forall m a
-      . KVStoreInit KVStoreDatabase store m a
-     -> Input (DatabaseSettings Beam.Sqlite SecretSantaDB) m a
+      . KVStoreInit (KVStoreDatabase db) store m a
+     -> Input (DatabaseSettings (BeamBackend db) SecretSantaDB) m a
      )
   -> ( forall
          a
          r
-      . store ': BeamTransaction Sqlite SqliteM ': Input (DatabaseSettings Sqlite SecretSantaDB) ': r @> a
-     -> BeamTransaction Sqlite SqliteM ': Input (DatabaseSettings Sqlite SecretSantaDB) ': r @> a
+      . store ': BeamTransaction (BeamBackend db) (BeamBackendM db) ': Input (DatabaseSettings (BeamBackend db) SecretSantaDB) ': r @> a
+     -> BeamTransaction (BeamBackend db) (BeamBackendM db) ': Input (DatabaseSettings (BeamBackend db) SecretSantaDB) ': r @> a
      )
   -> forall a r
    . Members
-       '[ KVStoreTransaction KVStoreDatabase
-        , KVStoreInit KVStoreDatabase store
+       '[ KVStoreTransaction (KVStoreDatabase db)
+        , KVStoreInit (KVStoreDatabase db) store
         ]
        r
   => (store ': r @> a -> r @> a)
 runKVStore' construct deconstruct runStore =
-  subsume @(KVStoreTransaction KVStoreDatabase)
+  subsume @(KVStoreTransaction (KVStoreDatabase db))
     . rewrite KVStoreDatabaseTransaction
-    . subsume @(KVStoreInit KVStoreDatabase store)
+    . subsume @(KVStoreInit (KVStoreDatabase db) store)
     . rewrite construct
     . rotateEffects2
-    . runBeamTransactionSqlite
+    . runBeamTransaction @db
     . runStore
     . raiseUnder
     . rotateEffects2
@@ -90,11 +152,13 @@ runKVStore' construct deconstruct runStore =
     . raise
 
 runKVStoreInit'
-  :: forall store
-   . (  forall m a
-   . KVStoreInit KVStoreDatabase store m a
-  -> Input (DatabaseSettings Sqlite SecretSantaDB) m a
-  )
-  -> forall r a . (KVStoreInit KVStoreDatabase store : r @> a -> r @> a)
+  :: forall store db
+   . IsDatabaseBackend db
+  => (  forall m a
+      . KVStoreInit (KVStoreDatabase db) store m a
+     -> Input (DatabaseSettings (BeamBackend db) SecretSantaDB) m a
+     )
+  -> forall r a
+   . (KVStoreInit (KVStoreDatabase db) store : r @> a -> r @> a)
 runKVStoreInit' deconstructor =
-  runInputConst secretSantaDB . rewrite deconstructor
+  runInputConst (unCheckDatabase $ dbSettings @db) . rewrite deconstructor

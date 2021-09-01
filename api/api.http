@@ -45,3 +45,6 @@ Content-Type: application/json
     }
   ]
 }
+
+# Get all secret santas
+GET :backend/api/secret-santa

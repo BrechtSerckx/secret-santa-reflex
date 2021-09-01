@@ -19,6 +19,19 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz",
         "version": "0.13.1.1"
     },
+    "co-log": {
+        "branch": "v0.4.0.1",
+        "description": "📓 Flexible and configurable modern #Haskell logging framework",
+        "homepage": "https://kowainik.github.io/projects/co-log",
+        "owner": "kowainik",
+        "ref": "v0.4.0.1",
+        "repo": "co-log",
+        "rev": "9227c7f2b06813c8a1354b1057255fab3c885c6b",
+        "sha256": "0ahj3w2zkn31wjqgaax0s0g6y0qc44ysc2ysqkz24s4l4gkkhg6q",
+        "type": "tarball",
+        "url": "https://github.com/kowainik/co-log/archive/9227c7f2b06813c8a1354b1057255fab3c885c6b.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
     "haskell-libraries": {
         "ref": "trunk",
         "repo": "https://github.com/NoRedInk/haskell-libraries.git",
@@ -32,6 +45,13 @@
         "rev": "18e466473da749673572417c97dba5df46747024",
         "tag": "refs/tags/0.1.0.2",
         "type": "git"
+    },
+    "mime-mail-ses": {
+        "sha256": "121hmphbv4xs21ldrsmkiv9mn8ipj3dxs11hpmyzbv33si2ink0r",
+        "type": "tarball",
+        "url": "https://hackage.haskell.org/package/mime-mail-ses-0.4.3/mime-mail-ses-0.4.3.tar.gz",
+        "url_template": "https://hackage.haskell.org/package/mime-mail-ses-<version>/mime-mail-ses-<version>.tar.gz",
+        "version": "0.4.3"
     },
     "niv": {
         "branch": "master",
