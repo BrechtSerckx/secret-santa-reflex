@@ -3,6 +3,7 @@
 module SecretSanta.API
   ( API
   , api
+  , SecretSantaAPI
   , CreateSecretSantaEP
   , InvalidDateTimeError
   ) where
@@ -10,9 +11,12 @@ module SecretSanta.API
 import           Servant.API
 
 import           Data.Error
+import           Network.Http.Error
 import           SecretSanta.Data
 
-type API = CreateSecretSantaEP
+type API = SecretSantaAPI
+
+type SecretSantaAPI = CreateSecretSantaEP :<|> GetSecretSantasEP
 
 api :: Proxy API
 api = Proxy @API
@@ -26,4 +30,12 @@ type CreateSecretSantaEP
      '[ WithStatus 200 SecretSantaId
       , InvalidDateTimeError
       ]
-type InvalidDateTimeError = ServerError 400 "INVALID_DATE_TIME"
+type InvalidDateTimeError = ApiError 400 (GenericError "INVALID_DATE_TIME")
+
+-- brittany-disable-next-binding
+type GetSecretSantasEP
+  =  "api"
+  :> "secret-santa"
+  :> UVerb 'GET '[JSON]
+     '[ WithStatus 200 [SecretSanta]
+      ]

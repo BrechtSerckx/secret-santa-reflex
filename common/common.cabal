@@ -19,12 +19,14 @@ build-type:          Simple
 library
   exposed-modules:
     Prelude
+    Data.Aeson
     Data.Error
     Data.Time
     Data.Time.MonadTime
     Data.Validate
     Data.Refine
     Data.WithId
+    Network.Http.Error
     Text.EmailAddress
     Text.NonEmpty
     SecretSanta.Data
@@ -36,7 +38,7 @@ library
     , text
     , time
     , aeson
-    , protolude
+    , relude
     , either
     , email-validate
     , extra

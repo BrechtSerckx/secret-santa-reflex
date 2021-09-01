@@ -1,4 +1,4 @@
-module Type.Constraint
+module Data.Constraint
   ( FoldC
   ) where
 

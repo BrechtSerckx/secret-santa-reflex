@@ -25,7 +25,7 @@ class RunKVStoreBackend kv where
     => Input (KVStoreConnection kv) ': r @> a
     -> r @> a
   runKVStoreConfig
-    :: KVStoreOpts kv
+    :: Member (Embed IO) r => KVStoreOpts kv
     -> Input (KVStoreConfig kv) ': r @> a
     -> r @> a
 

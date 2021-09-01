@@ -34,6 +34,10 @@ newtype TimeZone = TimeZone { unTimeZone :: Time.TimeZone }
 instance Show TimeZone where
   show = Time.timeZoneOffsetString . unTimeZone
 
+instance Refine Text TimeZone where
+  unrefine = show
+  refine   = readMaybe . T.unpack |>? "Reading time zone failed"
+
 instance Aeson.FromJSON TimeZone where
   parseJSON = Aeson.withText "TimeZone" $ \t ->
     case readMaybe . T.unpack $ t of
@@ -58,6 +62,10 @@ newtype Date = Date { unDate :: Time.Day }
   deriving newtype (Show, Read, Eq, Aeson.ToJSON, Aeson.FromJSON)
 validateDateMaybe :: Text -> Refined (Maybe Date)
 validateDateMaybe = readValidationMaybe
+
+instance Refine Text Date where
+  unrefine = show
+  refine   = readMaybe . T.unpack |>? "Reading date failed"
 
 newtype Time = Time { unTime :: Time.TimeOfDay }
   deriving newtype Eq

@@ -1,17 +1,14 @@
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE TypeFamilies #-}
 module Data.Error
-  ( ServerError
+  ( ExtError
   , errDescription
   , errExtendedDescription
   , errContext
   , errWhen
   , errMessage
-  , errStatus
-  , serverError
-  , InternalError
-  , internalError
-  , throwInternalError
+  , mkError
+  , throwErrorPure
+  , GenericError(..)
+  , mkGenericError
   ) where
 
 import           Control.Exception              ( throw )
@@ -21,64 +18,61 @@ import           Data.Aeson                     ( (.:)
                                                 , (.=)
                                                 )
 import qualified Data.Text                     as T
-import qualified Servant.API                   as Servant
-import qualified Servant.API.Status            as Servant
 
-data ServerError (status :: Nat) (name :: Symbol) = ServerError
+data ExtError = ExtError
   { errDescription         :: Text
   , errExtendedDescription :: Maybe Text
   }
-  deriving Show
+  deriving (Eq, Show)
 
 
-errContext :: ServerError status name -> Text -> ServerError status name
+errContext :: ExtError -> Text -> ExtError
 errContext e ctx = e { errExtendedDescription = Just $ "in context " <> ctx }
 
-errWhen :: ServerError status name -> Text -> ServerError status name
+errWhen :: ExtError -> Text -> ExtError
 errWhen e ctx = e { errExtendedDescription = Just $ "when " <> ctx }
 
-errMessage :: ServerError status name -> Text
-errMessage ServerError {..} =
+errMessage :: ExtError -> Text
+errMessage ExtError {..} =
   "Internal error: "
     <> errDescription
     <> maybe "" (" " <>) errExtendedDescription
 
-serverError :: forall status name . Text -> ServerError status name
-serverError errDescription =
-  ServerError { errDescription, errExtendedDescription = Nothing }
+mkError :: Text -> ExtError
+mkError errDescription =
+  ExtError { errDescription, errExtendedDescription = Nothing }
 
+throwErrorPure :: Exception ExtError => ExtError -> a
+throwErrorPure = throw
 
-type InternalError = ServerError 500 "INTERNAL"
-
-instance Exception InternalError where
+instance Exception ExtError where
   displayException = T.unpack . errMessage
 
-internalError :: Text -> InternalError
-internalError = serverError
-
-throwInternalError :: InternalError -> a
-throwInternalError = throw
-
-errStatus
-  :: forall status _name . KnownNat status => ServerError status _name -> Int
-errStatus _ = fromInteger . natVal $ Proxy @status
-
-instance Servant.KnownStatus status => Servant.HasStatus (ServerError status _name) where
-  type StatusOf (ServerError status _name) = status
-
-instance KnownSymbol name => Aeson.ToJSON (ServerError _status name) where
-  toJSON ServerError {..} = Aeson.object
-    [ "name" .= name
-    , "description" .= errDescription
+instance Aeson.ToPairs ExtError where
+  toPairs ExtError {..} =
+    [ "description" .= errDescription
     , "extendedDescription" .= errExtendedDescription
     ]
-    where name = symbolVal $ Proxy @name
 
-instance KnownSymbol name => Aeson.FromJSON (ServerError status name) where
-  parseJSON = Aeson.withObject ("ServerError-" <> name) $ \o -> do
-    name' <- o .: "name"
-    guard $ name == name'
+instance Aeson.FromJSON ExtError where
+  parseJSON = Aeson.withObject "ExtError" $ \o -> do
     errDescription         <- o .: "description"
     errExtendedDescription <- o .:? "extendedDescription"
-    pure ServerError { .. }
-    where name = symbolVal $ Proxy @name
+    pure ExtError { .. }
+
+newtype GenericError (code :: Symbol) = GenericError
+  { unGenericError :: ExtError } deriving newtype (Eq, Show, Exception)
+
+mkGenericError :: Text -> GenericError code
+mkGenericError = GenericError . mkError
+
+instance KnownSymbol code => Aeson.ToJSON (GenericError code) where
+  toJSON (GenericError err) =
+    Aeson.object $ ["code" .= symbolVal (Proxy @code)] <> Aeson.toPairs err
+
+instance KnownSymbol code => Aeson.FromJSON (GenericError code) where
+  parseJSON v = flip (Aeson.withObject "GenericError") v $ \o -> do
+    code <- o .: "code"
+    guard $ code == symbolVal (Proxy @code)
+    err <- Aeson.parseJSON v
+    pure $ GenericError err

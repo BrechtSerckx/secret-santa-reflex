@@ -1,30 +1,31 @@
 module SecretSanta.Effect.Store.SecretSanta
   ( SecretSantaStore
-  , runSecretSantaStoreAsState
-  , runSecretSantaStorePurely
-  , runSecretSantaStoreDB
-  , writeSecretSanta
+  , CrudStore(..)
+  , createCrud
+  , readCrud
+  , readAllCrud
+  , updateCrud
+  , deleteCrud
+  , runCrudStoreAsState
   , KVStoreInit
   , runKVStore
   , runKVStoreInit
   ) where
 
 import qualified Data.Map.Strict               as Map
-import           GHC.Err                        ( error )
 import           Prelude                 hiding ( State
                                                 , evalState
+                                                , gets
+                                                , modify
                                                 )
 
 import           Polysemy
 import           Polysemy.Input
-import           Polysemy.KVStore
 import           Polysemy.Operators
 import           Polysemy.State
 import           Polysemy.Transaction.Beam
 
 import "this"    Database.Beam
-import qualified Database.Beam.Sqlite.Connection
-                                               as Beam
 
 import           SecretSanta.Backend.KVStore.Class
 import           SecretSanta.Backend.KVStore.Database
@@ -32,19 +33,25 @@ import           SecretSanta.Backend.KVStore.State
 import           SecretSanta.Data
 import           SecretSanta.Database
 
-type SecretSantaStore = KVStore SecretSantaId SecretSanta
+type SecretSantaStore = CrudStore SecretSantaId SecretSanta
 type SecretSantaMap = Map SecretSantaId SecretSanta
 
-writeSecretSanta :: SecretSantaId -> SecretSanta -> SecretSantaStore -@> ()
-writeSecretSanta = writeKV
+data CrudStore k v m a where
+  CreateCrud ::k -> v -> CrudStore k v m ()
+  ReadCrud ::k  -> CrudStore k v m (Maybe v)
+  ReadAllCrud ::CrudStore k v m [v]
+  UpdateCrud ::k -> v -> CrudStore k v m ()
+  DeleteCrud ::k -> CrudStore k v m ()
+makeSem ''CrudStore
 
-runSecretSantaStoreAsState
-  :: SecretSantaStore ': r @> a -> State SecretSantaMap ': r @> a
-runSecretSantaStoreAsState = runKVStoreAsState
-
-runSecretSantaStorePurely
-  :: SecretSantaMap -> SecretSantaStore ': r @> a -> r @> (SecretSantaMap, a)
-runSecretSantaStorePurely = runKVStorePurely
+runCrudStoreAsState
+  :: Ord k => CrudStore k v ': r @> a -> State (Map k v) ': r @> a
+runCrudStoreAsState = reinterpret $ \case
+  CreateCrud k v -> modify $ Map.insert k v
+  ReadCrud k     -> gets $ Map.lookup k
+  ReadAllCrud    -> gets Map.elems
+  UpdateCrud k v -> modify $ Map.insert k v
+  DeleteCrud k   -> modify $ Map.delete k
 
 runSecretSantaStoreDB
   :: forall be bm r a
@@ -57,11 +64,13 @@ runSecretSantaStoreDB
   => SecretSantaStore ': r @> a
   -> r @> a
 runSecretSantaStoreDB = interpret $ \case
-  UpdateKV k (Just v) -> do
+  CreateCrud k v -> do
     db <- input
     beamTransact @be @bm $ insertSecretSanta db k v
-  UpdateKV _k Nothing -> error "SecretSantaStoreDB: delete not implemented"
-  LookupKV _k         -> error "SecretSantaStoreDB: lookup not implemented"
+  ReadAllCrud -> do
+    db <- input
+    beamTransact @be @bm $ getAllSecretSantas db
+  _ -> error "SecretSantaStoreDB: delete not implemented"
 
 insertSecretSanta
   :: (BeamC be, MonadBeam be m)
@@ -70,55 +79,59 @@ insertSecretSanta
   -> SecretSanta
   -> m ()
 insertSecretSanta db id (SecretSanta UnsafeSecretSanta {..}) = do
-  runInsert $ insertInfo db id secretsantaInfo
-  runInsert $ insertParticipants db id secretsantaParticipants
+  runInsert $ insert (_secretsantaInfo db) . insertValues . pure $ T2
+    (id, secretsantaInfo)
+  runInsert
+    .   insert (_secretsantaParticipants db)
+    .   insertValues
+    $   T2
+    .   (id, )
+    <$> secretsantaParticipants
 
-insertInfo
-  :: BeamC be
+getAllSecretSantas
+  :: (BeamC be, MonadBeam be m)
   => DatabaseSettings be SecretSantaDB
-  -> SecretSantaId
-  -> Info
-  -> SqlInsert be InfoTable
-insertInfo db id val =
-  insert (_secretsantaInfo db) . insertValues . pure $ T2 (id, val)
-
-insertParticipants
-  :: BeamC be
-  => DatabaseSettings be SecretSantaDB
-  -> SecretSantaId
-  -> Participants
-  -> SqlInsert be ParticipantTable
-insertParticipants db id ps =
-  insert (_secretsantaParticipants db) . insertValues . fmap T2 $ (id, ) <$> ps
+  -> m [SecretSanta]
+getAllSecretSantas db = do
+  ts :: [InfoTable Identity] <-
+    runSelectReturningList . select . all_ $ _secretsantaInfo db
+  ps :: [ParticipantTable Identity] <-
+    runSelectReturningList . select . all_ $ _secretsantaParticipants db
+  pure $ ts <&> \(T2 (id, secretsantaInfo)) ->
+    let secretsantaParticipants = mapMaybe
+          (\(T2 (id', p)) -> if id == id' then Just p else Nothing)
+          ps
+    in  SecretSanta UnsafeSecretSanta { .. }
 
 
 instance RunKVStore KVStoreState SecretSantaStore where
   data KVStoreInit KVStoreState SecretSantaStore m a
     = SecretSantaStoreStateInit { unSecretSantaStoreStateInit :: State SecretSantaMap m a}
   runKVStore =
-    subsume . rewrite SecretSantaStoreStateInit . runSecretSantaStoreAsState
+    subsume . rewrite SecretSantaStoreStateInit . runCrudStoreAsState
   runKVStoreInit = evalState Map.empty . rewrite unSecretSantaStoreStateInit
 
-instance RunKVStore KVStoreDatabase SecretSantaStore where
-  data KVStoreInit KVStoreDatabase SecretSantaStore m a
+instance IsDatabaseBackend db => RunKVStore (KVStoreDatabase db) SecretSantaStore where
+  data KVStoreInit (KVStoreDatabase db) SecretSantaStore m a
     = SecretSantaStoreDatabaseInit
-    { unSecretSantaStoreDatabaseInit :: Input (DatabaseSettings Beam.Sqlite SecretSantaDB) m a
+    { unSecretSantaStoreDatabaseInit :: Input (DatabaseSettings (BeamBackend db) SecretSantaDB) m a
     }
   runKVStore
     :: forall r a
      . Members
-         '[ KVStoreTransaction KVStoreDatabase
-          , KVStoreInit KVStoreDatabase SecretSantaStore
+         '[ KVStoreTransaction (KVStoreDatabase db)
+          , KVStoreInit (KVStoreDatabase db) SecretSantaStore
           ]
          r
     => SecretSantaStore ':r @> a
     -> r @> a
-  runKVStore = runKVStore' SecretSantaStoreDatabaseInit
-                           unSecretSantaStoreDatabaseInit
-                           (runSecretSantaStoreDB @Beam.Sqlite @Beam.SqliteM)
+  runKVStore = runKVStore'
+    SecretSantaStoreDatabaseInit
+    unSecretSantaStoreDatabaseInit
+    (runSecretSantaStoreDB @(BeamBackend db) @(BeamBackendM db))
 
   runKVStoreInit
     :: forall r a
-     . KVStoreInit KVStoreDatabase SecretSantaStore ': r @> a
+     . KVStoreInit (KVStoreDatabase db) SecretSantaStore ': r @> a
     -> r @> a
   runKVStoreInit = runKVStoreInit' unSecretSantaStoreDatabaseInit
