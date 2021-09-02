@@ -17,8 +17,8 @@ SERVE_FLAGS+=(--email-backend dummy)
 
 SERVE_FLAGS+=(--email-sender "info@secret-santa.link")
 
-# FLAGS+=(--in-memory)
-SERVE_FLAGS+=(--sqlite "$DBFILE" --trace)
+SERVE_FLAGS+=(--in-memory)
+# SERVE_FLAGS+=(--sqlite "$DBFILE" --trace)
 
 SERVE_FLAGS+=(--port "$PORT")
 
