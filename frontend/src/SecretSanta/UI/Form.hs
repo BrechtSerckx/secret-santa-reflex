@@ -268,7 +268,7 @@ timeWidget eSubmit = do
       (setValidationAttrs, dRefinedInput) <- mkSimpleValidation
         eSubmit
         wUnvalidatedInput
-        validateTimeMaybe
+        refineTextMaybe
   pure . Rx.current $ dRefinedInput
 
 locationWidget

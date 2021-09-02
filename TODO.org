@@ -18,7 +18,7 @@
       --> wontfix: NoFieldSelectors needs GHC 9.2, generic-lens is not very useful without it
 - [ ] update reflex-platform submodule for newer ghc?
       --> wontfix: too hard, wait for reflex to update
-- [ ] remove custom show instances, use other (refine?) typeclass
+- [x] remove custom show instances, use other (refine?) typeclass
     
 *** Backend
     
