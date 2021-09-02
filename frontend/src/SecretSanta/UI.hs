@@ -102,7 +102,7 @@ parseReqResult = \case
 cCreateSecretSanta
   :: forall t m
    . Rx.MonadWidget t m
-  => Rx.Dynamic t (Either Text SecretSanta)
+  => Rx.Dynamic t (Either Text SecretSantaCreate)
   -> Rx.Event t ()
   -> m
        ( Rx.Event

@@ -29,6 +29,8 @@ import           Data.Validate
 class Refine from to | to -> from where
 
   refine :: from -> Validation RefineErrors to
+  default refine :: Coercible to from => from -> Validation RefineErrors to
+  refine = pure . coerce @from @to
 
   unrefine :: to -> from
   default unrefine :: Coercible to from => to -> from

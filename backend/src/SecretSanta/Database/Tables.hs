@@ -11,16 +11,18 @@ import           Database.Beam.Orphans          ( )
 import "common"  SecretSanta.Data
 
 data InfoT f = InfoRow
-  { iId         :: C f SecretSantaId
-  , eventName   :: C f EventName
-  , hostName    :: C f HostName
-  , hostEmail   :: C f HostEmail
-  , timeZone    :: C f Time.TimeZone
-  , mDate       :: C f (Maybe Time.Date)
-  , mTime       :: C f (Maybe Time.Time)
-  , mLocation   :: C f (Maybe Location)
-  , mPrice      :: C f (Maybe Price)
-  , description :: C f Description
+  { iId           :: C f SecretSantaId
+  , eventName     :: C f EventName
+  , hostName      :: C f HostName
+  , hostEmail     :: C f HostEmail
+  , timeZone      :: C f Time.TimeZone
+  , mDate         :: C f (Maybe Time.Date)
+  , mTime         :: C f (Maybe Time.Time)
+  , mLocation     :: C f (Maybe Location)
+  , mPrice        :: C f (Maybe Price)
+  , description   :: C f Description
+  , createdAt     :: C f Time.UTCTime
+  , lastUpdatedAt :: C f Time.UTCTime
   }
   deriving stock Generic
   deriving anyclass Beamable

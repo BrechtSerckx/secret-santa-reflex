@@ -54,6 +54,7 @@ library
     DeriveAnyClass
     DeriveGeneric
     DerivingVia
+    DuplicateRecordFields
     GADTs
     GeneralizedNewtypeDeriving
     FlexibleContexts

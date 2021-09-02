@@ -23,7 +23,8 @@ import           SecretSanta.Data
 data Submit = Submit
   deriving (Eq, Show)
 
-formWidget :: forall t m . Rx.MonadWidget t m => m (Rx.Event t SecretSanta)
+formWidget
+  :: forall t m . Rx.MonadWidget t m => m (Rx.Event t SecretSantaCreate)
 formWidget = do
   Rx.el "form" $ do
     rec
@@ -117,10 +118,10 @@ formWidget = do
             mPrice      <- Compose $ withFieldLabel "Price" <$> bPrice
             description <-
               Compose $ withFieldLabel "Description" <$> bDescription
-            pure Info { .. }
+            pure InfoCreate { .. }
           participants <-
             Compose $ withFieldLabel "Participants" <$> bParticipants
-          pure UnsafeSecretSanta { .. }
+          pure UnsafeSecretSantaCreate { .. }
         eForm = Rx.tag bForm eSubmit
     pure . Rx.fforMaybe eForm $ \case
       Failure _ -> Nothing

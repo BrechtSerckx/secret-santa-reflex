@@ -12,12 +12,13 @@ module SecretSanta.Effect.Store.SecretSanta
   , runKVStoreInit
   ) where
 
-import qualified Data.Map.Strict               as Map
 import           Polysemy
 import           Polysemy.Input
 import           Polysemy.Operators
 import           Polysemy.State
 import           Polysemy.Transaction.Beam
+
+import qualified Data.Map.Strict               as Map
 
 import "this"    Database.Beam
 
@@ -73,7 +74,7 @@ insertSecretSanta
   -> SecretSantaId
   -> SecretSanta
   -> m ()
-insertSecretSanta db id (SecretSanta UnsafeSecretSanta {..}) = do
+insertSecretSanta db id (SecretSanta {..}) = do
   let Info {..} = info
   runInsert . insert (_secretsantaInfo db) . insertValues $ pure InfoRow
     { iId = id
@@ -94,7 +95,7 @@ getAllSecretSantas db = do
     db
   ps :: [ParticipantRow] <-
     runSelectReturningList . select . all_ $ _secretsantaParticipants db
-  pure $ is <&> \InfoRow {..} -> SecretSanta UnsafeSecretSanta
+  pure $ is <&> \InfoRow {..} -> SecretSanta
     { info         = Info { .. }
     , participants = mapMaybe
       (\ParticipantRow {..} ->

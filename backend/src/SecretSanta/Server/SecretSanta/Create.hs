@@ -51,7 +51,7 @@ createSecretSantaHandler
          r
      , RunKVStore kv SecretSantaStore
      )
-  => SecretSanta
+  => SecretSantaCreate
   -> Error InternalError ': r @> Union '[WithStatus 200 SecretSantaId, InvalidDateTimeError]
 createSecretSantaHandler ss = do
   env :: Envelope '[InvalidDateTimeError] SecretSantaId <-
@@ -84,11 +84,11 @@ createSecretSanta
         , Log Message
         ]
        r
-  => SecretSanta
+  => SecretSantaCreate
   -> r @> SecretSantaId
-createSecretSanta ss@(SecretSanta UnsafeSecretSanta {..}) = do
+createSecretSanta (unrefine -> UnsafeSecretSantaCreate {..}) = do
   logDebug "Creating Secret Santa"
-  let Info {..} = info
+  let InfoCreate {..} = info
   logDebug "Validating date"
   serverTime <- getZonedTime
   case validateDateTime serverTime timeZone mDate mTime of
@@ -106,7 +106,13 @@ createSecretSanta ss@(SecretSanta UnsafeSecretSanta {..}) = do
       logDebug "Match found"
       logDebug "Storing in database"
       id <- fresh
-      createCrud id ss
+      createCrud id $ SecretSanta
+        { info = Info { createdAt     = zonedTimeToUTC serverTime
+                      , lastUpdatedAt = zonedTimeToUTC serverTime
+                      , ..
+                      }
+        , ..
+        }
       logDebug "Sending mails to participants"
       sender <- input @Sender
       forM_ matches $ sendEmail . mkMail sender info
@@ -117,8 +123,8 @@ createSecretSanta ss@(SecretSanta UnsafeSecretSanta {..}) = do
   noMatchesFound ps =
     mkError ("No matches found: " <> show ps) `errWhen` "running Secret Santa"
 
-mkMail :: Sender -> Info -> (Participant, Participant) -> Mail
-mkMail (Sender sender) Info {..} (gifter, receiver) =
+mkMail :: Sender -> InfoCreate -> (Participant, Participant) -> Mail
+mkMail (Sender sender) InfoCreate {..} (gifter, receiver) =
   let toAddress = Address { addressName  = Just . unNonEmptyText $ name gifter
                           , addressEmail = unrefine $ email gifter
                           }

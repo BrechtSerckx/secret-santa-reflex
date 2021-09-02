@@ -45,3 +45,7 @@ deriving
 deriving
   via Refinable Text Time
   instance (BeamBackend be, FromBackendRow be Text) => FromBackendRow be Time
+
+instance HasDefaultSqlDataType be [Char] => HasDefaultSqlDataType be UTCTime where
+  defaultSqlDataType Proxy proxy embedded =
+    defaultSqlDataType (Proxy @[Char]) proxy embedded

@@ -1,10 +1,12 @@
 {-# LANGUAGE RankNTypes #-}
 module SecretSanta.Data
   ( SecretSantaId(..)
-  , UnsafeSecretSanta(..)
   , SecretSanta(..)
+  , SecretSantaCreate
+  , UnsafeSecretSantaCreate(..)
   , validateSecretSanta
   , Info(..)
+  , InfoCreate(..)
   , Participants
   , EventName
   , validateEventName
@@ -47,7 +49,7 @@ newtype SecretSantaId = SecretSantaId { unSecretSantaId :: UUID }
 -- * Secret Santa
 
 -- | Base secret santa
-data UnsafeSecretSanta = UnsafeSecretSanta
+data SecretSanta = SecretSanta
   { info         :: Info
   , participants :: Participants
   }
@@ -55,28 +57,53 @@ data UnsafeSecretSanta = UnsafeSecretSanta
   deriving stock (Show, Eq)
   deriving anyclass (Aeson.ToJSON, Aeson.FromJSON)
 
+-- | Base secret santa
+data UnsafeSecretSantaCreate = UnsafeSecretSantaCreate
+  { info         :: InfoCreate
+  , participants :: Participants
+  }
+  deriving Generic
+  deriving stock (Show, Eq)
+  deriving anyclass (Aeson.FromJSON, Aeson.ToJSON)
+
 -- | Secret santa with checked participants
-newtype SecretSanta = SecretSanta { unSecretSanta :: UnsafeSecretSanta}
+newtype SecretSantaCreate = SecretSantaCreate { unSecretSanta :: UnsafeSecretSantaCreate}
   deriving stock Generic
   deriving newtype (Show, Eq)
-  deriving (Aeson.ToJSON, Aeson.FromJSON) via Refinable UnsafeSecretSanta SecretSanta
+  deriving (Aeson.FromJSON, Aeson.ToJSON) via Refinable UnsafeSecretSantaCreate SecretSantaCreate
 
-instance Refine UnsafeSecretSanta SecretSanta where
-  refine ss@UnsafeSecretSanta {..} = do
+instance Refine UnsafeSecretSantaCreate SecretSantaCreate where
+  refine ss@UnsafeSecretSantaCreate {..} = do
     not (unique $ name <$> participants) |> "Participant names must be unique."
     not (unique $ email <$> participants)
       |> "Participant emails must be unique."
     (length participants < 3)
       |> "There must be at least 3 participants to ensure random matches."
-    pure $ SecretSanta ss
+    pure $ SecretSantaCreate ss
     where unique l = length l == length (L.nub l)
 
-validateSecretSanta :: UnsafeSecretSanta -> Refined SecretSanta
+validateSecretSanta :: UnsafeSecretSantaCreate -> Refined SecretSantaCreate
 validateSecretSanta = refine
 
 -- * Secret santa information
 
 data Info = Info
+  { eventName     :: EventName
+  , hostName      :: HostName
+  , hostEmail     :: HostEmail
+  , timeZone      :: Time.TimeZone
+  , mDate         :: Maybe Time.Date
+  , mTime         :: Maybe Time.Time
+  , mLocation     :: Maybe Location
+  , mPrice        :: Maybe Price
+  , description   :: Description
+  , createdAt     :: Time.UTCTime
+  , lastUpdatedAt :: Time.UTCTime
+  }
+  deriving stock (Generic, Show, Eq)
+  deriving anyclass (Aeson.FromJSON, Aeson.ToJSON)
+
+data InfoCreate = InfoCreate
   { eventName   :: EventName
   , hostName    :: HostName
   , hostEmail   :: HostEmail
