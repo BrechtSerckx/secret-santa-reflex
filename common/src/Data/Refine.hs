@@ -16,10 +16,6 @@ module Data.Refine
   , mappendMaybeErrors
   ) where
 
-import           Prelude                 hiding ( Show
-                                                , show
-                                                )
-
 import           Control.Monad.Fail             ( fail )
 import qualified Data.Aeson                    as Aeson
 import           Data.Coerce                    ( Coercible
@@ -29,7 +25,6 @@ import           Data.Error
 import           Data.String                    ( IsString(..) )
 import qualified Data.Text                     as T
 import           Data.Validate
-import           Text.Show
 
 class Refine from to | to -> from where
 
@@ -85,10 +80,7 @@ unsafeRefine ctx from = case refine from of
     in  throwErrorPure $ mkError msg `errContext` ctx
 
 newtype RefineErrors = RefineErrors { unRefineErrors :: NonEmpty Text }
-  deriving newtype (Eq, Semigroup)
-
-instance Show RefineErrors where
-  show (RefineErrors errs) = T.unpack $ renderRefineErrors errs
+  deriving newtype (Eq, Semigroup, Show)
 
 instance IsString RefineErrors where
   fromString = RefineErrors . pure . T.pack

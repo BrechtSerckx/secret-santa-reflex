@@ -5,6 +5,17 @@ module Prelude
 
 
 import           Data.Default.Class            as Export
+import           Data.String                   as Export
+                                                ( IsString(..)
+                                                , String
+                                                )
+import           Data.Tuple.Extra              as Export
+                                         hiding ( (&&&)
+                                                , first
+                                                , second
+                                                )
+import           GHC.Exts                      as Export
+                                                ( IsList(..) )
 import           GHC.Generics                  as Export
                                                 ( Generic )
 import           GHC.TypeLits                  as Export
@@ -13,13 +24,12 @@ import           GHC.TypeLits                  as Export
                                                 , symbolVal
                                                 )
 import           Relude                        as Export
-                                         hiding ( id )
-
-
-import           Data.Tuple.Extra              as Export
-                                         hiding ( (&&&)
-                                                , first
-                                                , second
+                                         hiding ( State
+                                                , evalState
+                                                , gets
+                                                , id
+                                                , modify
+                                                , toList
                                                 )
 
 headMay :: [b] -> Maybe b

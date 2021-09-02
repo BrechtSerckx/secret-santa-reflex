@@ -13,12 +13,6 @@ module SecretSanta.Effect.Store.SecretSanta
   ) where
 
 import qualified Data.Map.Strict               as Map
-import           Prelude                 hiding ( State
-                                                , evalState
-                                                , gets
-                                                , modify
-                                                )
-
 import           Polysemy
 import           Polysemy.Input
 import           Polysemy.Operators
