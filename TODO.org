@@ -36,6 +36,8 @@
 - [ ] use `Polysemy.Tagged`
 - [ ] use `polysemy-time`
 - [x] log SQL queries using logger
+- [ ] tests
+- [ ] beam-specific kvstore backend instead of database backend?
     
 *** Frontend
     
