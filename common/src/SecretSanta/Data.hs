@@ -39,7 +39,7 @@ import           Text.NonEmpty
 
 newtype Sender = Sender EmailAddress
 
-newtype SecretSantaId = SecretSantaId { secretsantaId :: UUID }
+newtype SecretSantaId = SecretSantaId { unSecretSantaId :: UUID }
   deriving stock Generic
   deriving newtype (Eq, Ord, Show)
   deriving newtype (Aeson.ToJSON, Aeson.FromJSON)
@@ -48,8 +48,8 @@ newtype SecretSantaId = SecretSantaId { secretsantaId :: UUID }
 
 -- | Base secret santa
 data UnsafeSecretSanta = UnsafeSecretSanta
-  { secretsantaInfo         :: Info
-  , secretsantaParticipants :: Participants
+  { info         :: Info
+  , participants :: Participants
   }
   deriving Generic
   deriving stock (Show, Eq)
@@ -63,11 +63,10 @@ newtype SecretSanta = SecretSanta { unSecretSanta :: UnsafeSecretSanta}
 
 instance Refine UnsafeSecretSanta SecretSanta where
   refine ss@UnsafeSecretSanta {..} = do
-    not (unique $ pName <$> secretsantaParticipants)
-      |> "Participant names must be unique."
-    not (unique $ pEmail <$> secretsantaParticipants)
+    not (unique $ name <$> participants) |> "Participant names must be unique."
+    not (unique $ email <$> participants)
       |> "Participant emails must be unique."
-    (length secretsantaParticipants < 3)
+    (length participants < 3)
       |> "There must be at least 3 participants to ensure random matches."
     pure $ SecretSanta ss
     where unique l = length l == length (L.nub l)
@@ -78,15 +77,15 @@ validateSecretSanta = refine
 -- * Secret santa information
 
 data Info = Info
-  { iEventName   :: EventName
-  , iHostName    :: HostName
-  , iHostEmail   :: HostEmail
-  , iTimeZone    :: Time.TimeZone
-  , iDate        :: Maybe Time.Date
-  , iTime        :: Maybe Time.Time
-  , iLocation    :: Maybe Location
-  , iPrice       :: Maybe Price
-  , iDescription :: Description
+  { eventName   :: EventName
+  , hostName    :: HostName
+  , hostEmail   :: HostEmail
+  , timeZone    :: Time.TimeZone
+  , mDate       :: Maybe Time.Date
+  , mTime       :: Maybe Time.Time
+  , mLocation   :: Maybe Location
+  , mPrice      :: Maybe Price
+  , description :: Description
   }
   deriving stock (Generic, Show, Eq)
   deriving anyclass (Aeson.FromJSON, Aeson.ToJSON)
@@ -136,8 +135,8 @@ validateDescription = refine
 -- ** Participants
 
 data Participant = Participant
-  { pName  :: PName
-  , pEmail :: PEmail
+  { name  :: PName
+  , email :: PEmail
   }
   deriving stock (Generic, Show, Eq)
   deriving anyclass (Aeson.FromJSON, Aeson.ToJSON)

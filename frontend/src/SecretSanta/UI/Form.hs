@@ -50,12 +50,12 @@ formWidget = do
           wDate' <- field . control $ dateWidget eSubmit
           wTime' <- field . control $ timeWidget eSubmit
           pure (wDate', wTime')
-      iTimeZone  <- liftIO getTimeZone
+      timeZone   <- liftIO getTimeZone
       clientTime <- liftIO getZonedTime
       let bDateTimeErrs =
             fmap (`bindValidation` identity)
               .   getCompose
-              $   validateDateTime clientTime iTimeZone
+              $   validateDateTime clientTime timeZone
               <$> Compose bDate
               <*> Compose bTime
           eDateTimeErrs = getFailure <$> Rx.tag bDateTimeErrs eSubmit
@@ -107,18 +107,18 @@ formWidget = do
       -- get an error message below the submit button, but we can submit.
       -- Ideally we should disable the submit button
         bForm = fmap (`bindValidation` validateSecretSanta) . getCompose $ do
-          secretsantaInfo <- do
-            iEventName   <- Compose $ withFieldLabel "Event name" <$> bEventName
-            iHostName    <- Compose $ withFieldLabel "Your name" <$> bHostName
-            iHostEmail   <- Compose $ withFieldLabel "Your email" <$> bHostEmail
-            iDate        <- Compose $ withFieldLabel "Date" <$> bDate
-            iTime        <- Compose $ withFieldLabel "Time" <$> bTime
-            iLocation    <- Compose $ withFieldLabel "Location" <$> bLocation
-            iPrice       <- Compose $ withFieldLabel "Price" <$> bPrice
-            iDescription <-
+          info <- do
+            eventName   <- Compose $ withFieldLabel "Event name" <$> bEventName
+            hostName    <- Compose $ withFieldLabel "Your name" <$> bHostName
+            hostEmail   <- Compose $ withFieldLabel "Your email" <$> bHostEmail
+            mDate       <- Compose $ withFieldLabel "Date" <$> bDate
+            mTime       <- Compose $ withFieldLabel "Time" <$> bTime
+            mLocation   <- Compose $ withFieldLabel "Location" <$> bLocation
+            mPrice      <- Compose $ withFieldLabel "Price" <$> bPrice
+            description <-
               Compose $ withFieldLabel "Description" <$> bDescription
             pure Info { .. }
-          secretsantaParticipants <-
+          participants <-
             Compose $ withFieldLabel "Participants" <$> bParticipants
           pure UnsafeSecretSanta { .. }
         eForm = Rx.tag bForm eSubmit

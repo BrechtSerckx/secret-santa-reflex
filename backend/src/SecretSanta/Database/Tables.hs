@@ -11,16 +11,16 @@ import           Database.Beam.Orphans          ( )
 import "common"  SecretSanta.Data
 
 data InfoT f = InfoRow
-  { iId          :: C f SecretSantaId
-  , iEventName   :: C f EventName
-  , iHostName    :: C f HostName
-  , iHostEmail   :: C f HostEmail
-  , iTimeZone    :: C f Time.TimeZone
-  , iDate        :: C f (Maybe Time.Date)
-  , iTime        :: C f (Maybe Time.Time)
-  , iLocation    :: C f (Maybe Location)
-  , iPrice       :: C f (Maybe Price)
-  , iDescription :: C f Description
+  { iId         :: C f SecretSantaId
+  , eventName   :: C f EventName
+  , hostName    :: C f HostName
+  , hostEmail   :: C f HostEmail
+  , timeZone    :: C f Time.TimeZone
+  , mDate       :: C f (Maybe Time.Date)
+  , mTime       :: C f (Maybe Time.Time)
+  , mLocation   :: C f (Maybe Location)
+  , mPrice      :: C f (Maybe Price)
+  , description :: C f Description
   }
   deriving stock Generic
   deriving anyclass Beamable
@@ -33,9 +33,9 @@ instance Table InfoT where
 
 
 data ParticipantT f = ParticipantRow
-  { pId    :: C f SecretSantaId
-  , pName  :: C f PName
-  , pEmail :: C f PEmail
+  { pId   :: C f SecretSantaId
+  , name  :: C f PName
+  , email :: C f PEmail
   }
   deriving stock Generic
   deriving anyclass Beamable
@@ -45,4 +45,4 @@ type ParticipantRow = ParticipantT Identity
 instance Table ParticipantT where
   data PrimaryKey ParticipantT f = ParticipantId (C f SecretSantaId) (C f PName)
     deriving (Generic, Beamable)
-  primaryKey ParticipantRow {..} = ParticipantId pId pName
+  primaryKey ParticipantRow {..} = ParticipantId pId name

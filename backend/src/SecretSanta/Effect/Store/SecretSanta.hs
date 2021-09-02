@@ -80,7 +80,7 @@ insertSecretSanta
   -> SecretSanta
   -> m ()
 insertSecretSanta db id (SecretSanta UnsafeSecretSanta {..}) = do
-  let Info {..} = secretsantaInfo
+  let Info {..} = info
   runInsert . insert (_secretsantaInfo db) . insertValues $ pure InfoRow
     { iId = id
     , ..
@@ -88,7 +88,7 @@ insertSecretSanta db id (SecretSanta UnsafeSecretSanta {..}) = do
   runInsert
     .   insert (_secretsantaParticipants db)
     .   insertValues
-    $   secretsantaParticipants
+    $   participants
     <&> \Participant {..} -> ParticipantRow { pId = id, .. }
 
 getAllSecretSantas
@@ -101,8 +101,8 @@ getAllSecretSantas db = do
   ps :: [ParticipantRow] <-
     runSelectReturningList . select . all_ $ _secretsantaParticipants db
   pure $ is <&> \InfoRow {..} -> SecretSanta UnsafeSecretSanta
-    { secretsantaInfo         = Info { .. }
-    , secretsantaParticipants = mapMaybe
+    { info         = Info { .. }
+    , participants = mapMaybe
       (\ParticipantRow {..} ->
         if iId == pId then Just Participant { .. } else Nothing
       )

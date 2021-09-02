@@ -88,11 +88,10 @@ createSecretSanta
   -> r @> SecretSantaId
 createSecretSanta ss@(SecretSanta UnsafeSecretSanta {..}) = do
   logDebug "Creating Secret Santa"
-  let Info {..}    = secretsantaInfo
-      participants = secretsantaParticipants
+  let Info {..} = info
   logDebug "Validating date"
   serverTime <- getZonedTime
-  case validateDateTime serverTime iTimeZone iDate iTime of
+  case validateDateTime serverTime timeZone mDate mTime of
     Success _  -> logDebug "Validation successful"
     Failure es -> do
       logWarning "Validation failed"
@@ -110,7 +109,7 @@ createSecretSanta ss@(SecretSanta UnsafeSecretSanta {..}) = do
       createCrud id ss
       logDebug "Sending mails to participants"
       sender <- input @Sender
-      forM_ matches $ sendEmail . mkMail sender secretsantaInfo
+      forM_ matches $ sendEmail . mkMail sender info
       pure id
   logDebug "Created Secret Santa"
   pure id
@@ -120,45 +119,37 @@ createSecretSanta ss@(SecretSanta UnsafeSecretSanta {..}) = do
 
 mkMail :: Sender -> Info -> (Participant, Participant) -> Mail
 mkMail (Sender sender) Info {..} (gifter, receiver) =
-  let toAddress =
-        Address { addressName = Just gifterName, addressEmail = gifterEmail }
+  let toAddress = Address { addressName  = Just . unNonEmptyText $ name gifter
+                          , addressEmail = unrefine $ email gifter
+                          }
       fromAddress = Address { addressName  = Just "Secret Santa"
                             , addressEmail = unrefine sender
                             }
       subject = "Secret Santa"
       html :: Html = [shamlet|
-        <p>Hi #{gifterName},
-        <p>#{hostName} invited you to <b>#{eventName}</b>:
+        <p>Hi #{unNonEmptyText $ name gifter},
+        <p>#{unNonEmptyText hostName} invited you to <b>#{unNonEmptyText eventName}</b>:
         <p>Description:
-        <p>#{description}
+        <p>#{unNonEmptyText description}
 
-        <p> For this event, you are chosen to buy a present for <b>#{receiverName}</b>.
+        <p> For this event, you are chosen to buy a present for <b>#{unNonEmptyText $ name receiver}</b>.
             Someone else will buy a present for you in return!
 
-        <p>Additional info about <b>#{eventName}</b>:
+        <p>Additional info about <b>#{unNonEmptyText eventName}</b>:
           <ul>
-            <li>Host: #{hostName} - #{hostEmail}
+            <li>Host: #{unNonEmptyText hostName} - #{unrefine hostEmail}
             $maybe date <- mDate 
-              <li>Date: #{date}
+              <li>Date: #{showt date}
             $maybe time <- mTime 
-              <li>Time: #{time}
+              <li>Time: #{showt time}
             $maybe location <- mLocation 
-              <li>Location: #{location}
+              <li>Location: #{unNonEmptyText location}
             $maybe price <- mPrice 
-              <li>Price: #{price}
+              <li>Price: #{showt price}
         |]
       plainBody = BlazeText.renderMarkup html
       htmlBody  = BlazeHtml.renderHtml html
   in  simpleMailInMemory toAddress fromAddress subject plainBody htmlBody []
  where
-  eventName            = unNonEmptyText iEventName
-  hostName             = unNonEmptyText iHostName
-  hostEmail            = unrefine iHostEmail
-  mDate :: Maybe Text  = show <$> iDate
-  mTime :: Maybe Text  = show <$> iTime
-  mLocation            = unNonEmptyText <$> iLocation
-  mPrice :: Maybe Text = show <$> iPrice
-  description          = unNonEmptyText iDescription
-  gifterName           = unNonEmptyText . pName $ gifter
-  gifterEmail          = unrefine . pEmail $ gifter
-  receiverName         = unNonEmptyText . pName $ receiver
+  showt :: Show a => a -> Text
+  showt = show

@@ -14,8 +14,10 @@
 - [x] better data design: T2 is not very practical
       differentiate between backend rows and domain data? -> good idea
 - [x] remove protolude. Replace by relude?
-- [ ] NoFieldSelectors + classy-lenses
+- [ ] NoFieldSelectors + generic-lens
+      --> wontfix: NoFieldSelectors needs GHC 9.2, generic-lens is not very useful without it
 - [ ] update reflex-platform submodule for newer ghc?
+      --> wontfix: too hard, wait for reflex to update
 - [ ] remove custom show instances, use other (refine?) typeclass
     
 *** Backend

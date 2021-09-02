@@ -43,6 +43,7 @@ library
     , email-validate
     , extra
     , uuid
+    , generic-lens
   ghc-options:         
     -Wall
   hs-source-dirs: src
