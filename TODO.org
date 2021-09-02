@@ -11,7 +11,7 @@
 - [ ] authorization
   - user store
   - servant auth
-- [ ] better data design: T2 is not very practical
+- [x] better data design: T2 is not very practical
       differentiate between backend rows and domain data? -> good idea
 - [x] remove protolude. Replace by relude?
 - [ ] NoFieldSelectors + classy-lenses

@@ -5,13 +5,13 @@ module SecretSanta.Database
 
 
 import "this"    Database.Beam
-import           SecretSanta.Data
+import           SecretSanta.Database.Tables
 
 -- * Database
 
 data SecretSantaDB f = SecretSantaDB
-  { _secretsantaInfo         :: f (TableEntity InfoTable)
-  , _secretsantaParticipants :: f (TableEntity ParticipantTable)
+  { _secretsantaInfo         :: f (TableEntity InfoT)
+  , _secretsantaParticipants :: f (TableEntity ParticipantT)
   }
   deriving Generic
 deriving anyclass instance Database be SecretSantaDB
@@ -22,10 +22,10 @@ type BeamC be
     , HasQBuilder be
     , FieldsFulfillConstraint
         (BeamSqlBackendCanSerialize be)
-        InfoTable
+        InfoT
     , FieldsFulfillConstraint
         (BeamSqlBackendCanSerialize be)
-        ParticipantTable
-    , FromBackendRow be (InfoTable Identity)
-    , FromBackendRow be (ParticipantTable Identity)
+        ParticipantT
+    , FromBackendRow be (InfoT Identity)
+    , FromBackendRow be (ParticipantT Identity)
     )

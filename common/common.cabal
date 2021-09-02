@@ -42,7 +42,6 @@ library
     , either
     , email-validate
     , extra
-    , beam-core
     , uuid
   ghc-options:         
     -Wall

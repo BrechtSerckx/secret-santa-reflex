@@ -5,6 +5,7 @@ module Database.Beam.Orphans
 
 import           Data.Refine
 import qualified "uuid" Data.UUID              as UUID
+import "common"  SecretSanta.Data
 import "common"  Text.EmailAddress
 import           Text.NonEmpty
 
@@ -51,3 +52,23 @@ deriving
 deriving
   via Refinable Text UUID.UUID
   instance (BeamBackend be, FromBackendRow be Text) => FromBackendRow be UUID.UUID
+
+deriving
+  via Refinable Double Price
+  instance HasSqlValueSyntax be Double => HasSqlValueSyntax be Price
+deriving
+  via Refinable Double Price
+  instance HasDefaultSqlDataType be Double => HasDefaultSqlDataType be Price
+deriving
+  via Refinable Double Price
+  instance (BeamBackend be, FromBackendRow be Double) => FromBackendRow be Price
+
+deriving
+  via UUID.UUID
+  instance HasSqlValueSyntax be UUID.UUID => HasSqlValueSyntax be SecretSantaId
+deriving
+  via UUID.UUID
+  instance HasDefaultSqlDataType be UUID.UUID => HasDefaultSqlDataType be SecretSantaId
+deriving
+  via UUID.UUID
+  instance (BeamBackend be, FromBackendRow be UUID.UUID) => FromBackendRow be SecretSantaId

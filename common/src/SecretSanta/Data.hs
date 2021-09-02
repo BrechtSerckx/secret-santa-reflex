@@ -1,15 +1,10 @@
 {-# LANGUAGE RankNTypes #-}
 module SecretSanta.Data
-  ( SecretSantaIdT(..)
-  , SecretSantaId
-  , UnsafeSecretSantaT(..)
-  , UnsafeSecretSanta
-  , SecretSantaT(..)
-  , SecretSanta
+  ( SecretSantaId(..)
+  , UnsafeSecretSanta(..)
+  , SecretSanta(..)
   , validateSecretSanta
-  , InfoT(..)
-  , Info
-  , ParticipantsT
+  , Info(..)
   , Participants
   , EventName
   , validateEventName
@@ -23,8 +18,7 @@ module SecretSanta.Data
   , validatePriceMaybe
   , Description
   , validateDescription
-  , ParticipantT(..)
-  , Participant
+  , Participant(..)
   , PName
   , validatePName
   , validatePNameUnique
@@ -40,45 +34,32 @@ import           Data.Refine
 import qualified "this" Data.Time              as Time
 import           Data.UUID
 import           Data.Validate
-import           Database.Beam
 import           Text.EmailAddress
 import           Text.NonEmpty
 
 newtype Sender = Sender EmailAddress
 
-newtype SecretSantaIdT f = SecretSantaId { secretsantaId :: C f UUID }
+newtype SecretSantaId = SecretSantaId { secretsantaId :: UUID }
   deriving stock Generic
-type SecretSantaId = SecretSantaIdT Identity
-deriving newtype instance Eq SecretSantaId
-deriving newtype instance Ord SecretSantaId
-deriving newtype instance Show SecretSantaId
-deriving newtype instance Aeson.ToJSON SecretSantaId
-deriving newtype instance Aeson.FromJSON SecretSantaId
+  deriving newtype (Eq, Ord, Show)
+  deriving newtype (Aeson.ToJSON, Aeson.FromJSON)
 
 -- * Secret Santa
 
 -- | Base secret santa
-data UnsafeSecretSantaT f = UnsafeSecretSanta
-  { secretsantaInfo         :: InfoT f
-  , secretsantaParticipants :: ParticipantsT f
+data UnsafeSecretSanta = UnsafeSecretSanta
+  { secretsantaInfo         :: Info
+  , secretsantaParticipants :: Participants
   }
   deriving Generic
-type UnsafeSecretSanta = UnsafeSecretSantaT Identity
-
-deriving stock instance Show UnsafeSecretSanta
-deriving stock instance Eq UnsafeSecretSanta
-deriving anyclass instance Aeson.ToJSON UnsafeSecretSanta
-deriving anyclass instance Aeson.FromJSON UnsafeSecretSanta
+  deriving stock (Show, Eq)
+  deriving anyclass (Aeson.ToJSON, Aeson.FromJSON)
 
 -- | Secret santa with checked participants
-newtype SecretSantaT f = SecretSanta { unSecretSanta :: UnsafeSecretSantaT f}
-  deriving Generic
-type SecretSanta = SecretSantaT Identity
-
-deriving newtype instance Show SecretSanta
-deriving newtype instance Eq SecretSanta
-deriving via Refinable UnsafeSecretSanta SecretSanta instance Aeson.ToJSON SecretSanta
-deriving via Refinable UnsafeSecretSanta SecretSanta instance Aeson.FromJSON SecretSanta
+newtype SecretSanta = SecretSanta { unSecretSanta :: UnsafeSecretSanta}
+  deriving stock Generic
+  deriving newtype (Show, Eq)
+  deriving (Aeson.ToJSON, Aeson.FromJSON) via Refinable UnsafeSecretSanta SecretSanta
 
 instance Refine UnsafeSecretSanta SecretSanta where
   refine ss@UnsafeSecretSanta {..} = do
@@ -96,31 +77,23 @@ validateSecretSanta = refine
 
 -- * Secret santa information
 
-data InfoT f = Info
-  { iEventName   :: C f EventName
-  , iHostName    :: C f HostName
-  , iHostEmail   :: C f HostEmail
-  , iTimeZone    :: C f Time.TimeZone
-  , iDate        :: C f (Maybe Time.Date)
-  , iTime        :: C f (Maybe Time.Time)
-  , iLocation    :: C f (Maybe Location)
-  , iPrice       :: C f (Maybe Price)
-  , iDescription :: C f Description
+data Info = Info
+  { iEventName   :: EventName
+  , iHostName    :: HostName
+  , iHostEmail   :: HostEmail
+  , iTimeZone    :: Time.TimeZone
+  , iDate        :: Maybe Time.Date
+  , iTime        :: Maybe Time.Time
+  , iLocation    :: Maybe Location
+  , iPrice       :: Maybe Price
+  , iDescription :: Description
   }
-  deriving stock Generic
-type Info = InfoT Identity
-
-deriving stock instance Show Info
-deriving stock instance Eq Info
-deriving anyclass instance Aeson.FromJSON Info
-deriving anyclass instance Aeson.ToJSON Info
+  deriving stock (Generic, Show, Eq)
+  deriving anyclass (Aeson.FromJSON, Aeson.ToJSON)
 
 -- * Secret santa participants
 
-type ParticipantsT f = C f [Participant]
-type Participants = ParticipantsT Identity
-
-
+type Participants = [Participant]
 
 -- ** Basic information
 
@@ -162,17 +135,12 @@ validateDescription = refine
 
 -- ** Participants
 
-data ParticipantT f = Participant
-  { pName  :: C f PName
-  , pEmail :: C f PEmail
+data Participant = Participant
+  { pName  :: PName
+  , pEmail :: PEmail
   }
-  deriving stock Generic
-
-type Participant = ParticipantT Identity
-deriving stock instance Show Participant
-deriving stock instance Eq Participant
-deriving anyclass instance Aeson.FromJSON Participant
-deriving anyclass instance Aeson.ToJSON Participant
+  deriving stock (Generic, Show, Eq)
+  deriving anyclass (Aeson.FromJSON, Aeson.ToJSON)
 
 type PName = NonEmptyText
 

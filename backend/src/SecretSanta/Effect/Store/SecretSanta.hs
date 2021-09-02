@@ -32,6 +32,7 @@ import           SecretSanta.Backend.KVStore.Database
 import           SecretSanta.Backend.KVStore.State
 import           SecretSanta.Data
 import           SecretSanta.Database
+import           SecretSanta.Database.Tables
 
 type SecretSantaStore = CrudStore SecretSantaId SecretSanta
 type SecretSantaMap = Map SecretSantaId SecretSanta
@@ -79,30 +80,34 @@ insertSecretSanta
   -> SecretSanta
   -> m ()
 insertSecretSanta db id (SecretSanta UnsafeSecretSanta {..}) = do
-  runInsert $ insert (_secretsantaInfo db) . insertValues . pure $ T2
-    (id, secretsantaInfo)
+  let Info {..} = secretsantaInfo
+  runInsert . insert (_secretsantaInfo db) . insertValues $ pure InfoRow
+    { iId = id
+    , ..
+    }
   runInsert
     .   insert (_secretsantaParticipants db)
     .   insertValues
-    $   T2
-    .   (id, )
-    <$> secretsantaParticipants
+    $   secretsantaParticipants
+    <&> \Participant {..} -> ParticipantRow { pId = id, .. }
 
 getAllSecretSantas
   :: (BeamC be, MonadBeam be m)
   => DatabaseSettings be SecretSantaDB
   -> m [SecretSanta]
 getAllSecretSantas db = do
-  ts :: [InfoTable Identity] <-
-    runSelectReturningList . select . all_ $ _secretsantaInfo db
-  ps :: [ParticipantTable Identity] <-
+  is :: [InfoRow] <- runSelectReturningList . select . all_ $ _secretsantaInfo
+    db
+  ps :: [ParticipantRow] <-
     runSelectReturningList . select . all_ $ _secretsantaParticipants db
-  pure $ ts <&> \(T2 (id, secretsantaInfo)) ->
-    let secretsantaParticipants = mapMaybe
-          (\(T2 (id', p)) -> if id == id' then Just p else Nothing)
-          ps
-    in  SecretSanta UnsafeSecretSanta { .. }
-
+  pure $ is <&> \InfoRow {..} -> SecretSanta UnsafeSecretSanta
+    { secretsantaInfo         = Info { .. }
+    , secretsantaParticipants = mapMaybe
+      (\ParticipantRow {..} ->
+        if iId == pId then Just Participant { .. } else Nothing
+      )
+      ps
+    }
 
 instance RunKVStore KVStoreState SecretSantaStore where
   data KVStoreInit KVStoreState SecretSantaStore m a

@@ -135,8 +135,8 @@ library
     Polysemy.Transaction
     Polysemy.Transaction.Beam
     SecretSanta
-    SecretSanta.Data
     SecretSanta.Database
+    SecretSanta.Database.Tables
     SecretSanta.Backend.Email
     SecretSanta.Backend.Email.Class
     SecretSanta.Backend.Email.Dummy
