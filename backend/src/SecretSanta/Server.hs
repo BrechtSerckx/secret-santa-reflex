@@ -36,6 +36,7 @@ import           SecretSanta.Data
 import           SecretSanta.Effect.Email
 import           SecretSanta.Effect.Time
 import           SecretSanta.Opts
+import           SecretSanta.Server.Auth
 import           SecretSanta.Server.SecretSanta
 
 type BaseEffects eb kvb
@@ -52,8 +53,6 @@ type BaseEffects eb kvb
      ]
 
 type API' = API :<|> Raw
-api' :: Proxy API'
-api' = Proxy @API'
 
 secretSantaServer :: ServeOpts -> '[Log Message, Embed IO, Final IO] @> ()
 secretSantaServer serveOpts@ServeOpts {..} = do
@@ -85,14 +84,16 @@ secretSantaServer' opts@ServeOpts {..} cfg =
             . requestLogger
             . CORS.cors (const $ Just corsPolicy)
             . SO.provideOptions api
-            . SS.serve api'
-            . SS.hoistServer api' (runInHandler lowerToIO)
+            . SS.serveWithContext (Proxy @API')
+                                  (tokenAuthHandler SS.:. SS.EmptyContext)
+            . SS.hoistServerWithContext (Proxy @API')
+                                        (Proxy @'[TokenAuthHandler])
+                                        (runInHandler lowerToIO)
             $ apiServer @eb @kvb opts
           finished
  where
   corsPolicy =
     CORS.simpleCorsResourcePolicy { CORS.corsRequestHeaders = ["content-type"] }
-
 
 runInHandler
   :: Members '[Final IO , Log Message] r

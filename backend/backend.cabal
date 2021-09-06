@@ -156,6 +156,7 @@ library
     SecretSanta.Effect.Time
     SecretSanta.Opts
     SecretSanta.Server
+    SecretSanta.Server.Auth
     SecretSanta.Server.SecretSanta
     SecretSanta.Server.SecretSanta.Create
     Servant.Server

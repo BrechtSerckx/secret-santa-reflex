@@ -36,6 +36,7 @@ type InvalidDateTimeError = ApiError 400 (GenericError "INVALID_DATE_TIME")
 type GetSecretSantasEP
   =  "api"
   :> "secret-santa"
+  :> AuthProtect "token"
   :> UVerb 'GET '[JSON]
      '[ WithStatus 200 [SecretSanta]
       ]

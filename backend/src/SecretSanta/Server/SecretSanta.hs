@@ -17,6 +17,7 @@ import           SecretSanta.Backend.KVStore
 import           SecretSanta.Data
 import           SecretSanta.Effect.Email
 import           SecretSanta.Effect.Time
+import           SecretSanta.Server.Auth        ( )
 import           SecretSanta.Server.SecretSanta.Create
 
 ssServer
@@ -47,8 +48,9 @@ getSecretSantas
      , RunKVStoreBackend kvb
      , RunKVStores kvb
      )
-  => r @> Union '[WithStatus 200 [SecretSanta]]
-getSecretSantas = do
+  => ()
+  -> r @> Union '[WithStatus 200 [SecretSanta]]
+getSecretSantas () = do
   env :: Envelope '[] [SecretSanta] <-
     runKVStoreTransaction @kvb
     . fmap Right
