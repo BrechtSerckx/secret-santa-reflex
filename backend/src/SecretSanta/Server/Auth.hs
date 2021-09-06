@@ -8,9 +8,11 @@ import           Servant.API                    ( AuthProtect )
 import qualified Servant.Server.Experimental.Auth
                                                as SS
 
-type instance SS.AuthServerData (AuthProtect "token") = ()
+import           SecretSanta.API                ( TokenAuth )
+
+type instance SS.AuthServerData (AuthProtect TokenAuth) = ()
 type TokenAuthHandler
-  = SS.AuthHandler Wai.Request (SS.AuthServerData (AuthProtect "token"))
+  = SS.AuthHandler Wai.Request (SS.AuthServerData (AuthProtect TokenAuth))
 
 tokenAuthHandler :: SS.AuthHandler Wai.Request ()
 tokenAuthHandler = SS.mkAuthHandler . const $ pure ()

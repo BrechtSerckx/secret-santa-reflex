@@ -3,6 +3,7 @@
 module SecretSanta.API
   ( API
   , api
+  , TokenAuth
   , SecretSantaAPI
   , CreateSecretSantaEP
   , InvalidDateTimeError
@@ -21,6 +22,8 @@ type SecretSantaAPI = CreateSecretSantaEP :<|> GetSecretSantasEP
 api :: Proxy API
 api = Proxy @API
 
+data TokenAuth
+
 -- brittany-disable-next-binding
 type CreateSecretSantaEP
   =  "api"
@@ -36,7 +39,7 @@ type InvalidDateTimeError = ApiError 400 (GenericError "INVALID_DATE_TIME")
 type GetSecretSantasEP
   =  "api"
   :> "secret-santa"
-  :> AuthProtect "token"
+  :> AuthProtect TokenAuth
   :> UVerb 'GET '[JSON]
      '[ WithStatus 200 [SecretSanta]
       ]
