@@ -1,5 +1,6 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE TypeFamilies #-}
 module SecretSanta.UI where
 
 import qualified "common" Data.Aeson           as Aeson
@@ -125,3 +126,6 @@ cCreateSecretSanta
 client :: forall t m . Rx.MonadWidget t m => SR.Client t m API ()
 client = SR.client api (Proxy @m) (Proxy @()) $ Rx.constDyn baseUrl
 
+instance SR.AuthClient TokenAuth where
+  type AuthClientData TokenAuth = ()
+  mkAuthReq = const identity
