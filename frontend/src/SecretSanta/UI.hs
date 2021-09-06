@@ -127,5 +127,5 @@ client :: forall t m . Rx.MonadWidget t m => SR.Client t m API ()
 client = SR.client api (Proxy @m) (Proxy @()) $ Rx.constDyn baseUrl
 
 instance SR.AuthClient TokenAuth where
-  type AuthClientData TokenAuth = ()
+  type AuthClientData TokenAuth = TokenAuthData
   mkAuthReq = const identity

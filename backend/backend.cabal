@@ -57,6 +57,7 @@ common common-build-depends
       base-noprelude >=4.12 && <4.13
     , common
       -- server
+    , http-types
     , wai
     , wai-extra
     , wai-app-static

@@ -48,9 +48,9 @@ getSecretSantas
      , RunKVStoreBackend kvb
      , RunKVStores kvb
      )
-  => ()
+  => TokenAuthData
   -> r @> Union '[WithStatus 200 [SecretSanta]]
-getSecretSantas () = do
+getSecretSantas token = do
   env :: Envelope '[] [SecretSanta] <-
     runKVStoreTransaction @kvb
     . fmap Right

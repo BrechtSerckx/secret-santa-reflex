@@ -4,6 +4,7 @@ module SecretSanta.API
   ( API
   , api
   , TokenAuth
+  , TokenAuthData
   , SecretSantaAPI
   , CreateSecretSantaEP
   , InvalidDateTimeError
@@ -23,6 +24,7 @@ api :: Proxy API
 api = Proxy @API
 
 data TokenAuth
+type TokenAuthData = Text
 
 -- brittany-disable-next-binding
 type CreateSecretSantaEP

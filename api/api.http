@@ -48,3 +48,4 @@ Content-Type: application/json
 
 # Get all secret santas
 GET :backend/api/secret-santa
+Authorization: i-am-ze-admin
