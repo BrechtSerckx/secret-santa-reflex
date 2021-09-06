@@ -18,6 +18,14 @@ import qualified Servant.Foreign               as SF
 import qualified Servant.Foreign.Internal      as SF
 
 instance
+  ( SF.HasForeign lang ftype api
+  )
+  => SF.HasForeign (lang::k) ftype (S.AuthProtect (auth :: authk) S.:> api) where
+  type Foreign ftype (S.AuthProtect (auth :: authk) S.:> api)
+    = SF.Foreign ftype api
+  foreignFor lang ftype Proxy req = SF.foreignFor lang ftype (Proxy @api) req
+
+instance
   ( SF.HasForeignType lang ftype as
   , SF.ReflectMethod method
   , S.Elem SF.JSON list

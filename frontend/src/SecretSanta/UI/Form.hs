@@ -7,7 +7,6 @@ module SecretSanta.UI.Form
 
 import           Control.Lens
 import           Control.Monad.Fix
-import           Data.Functor.Compose
 import qualified Data.Map                      as Map
 import           Data.Refine
 import qualified Data.Text                     as T
@@ -24,7 +23,8 @@ import           SecretSanta.Data
 data Submit = Submit
   deriving (Eq, Show)
 
-formWidget :: forall t m . Rx.MonadWidget t m => m (Rx.Event t SecretSanta)
+formWidget
+  :: forall t m . Rx.MonadWidget t m => m (Rx.Event t SecretSantaCreate)
 formWidget = do
   Rx.el "form" $ do
     rec
@@ -51,12 +51,12 @@ formWidget = do
           wDate' <- field . control $ dateWidget eSubmit
           wTime' <- field . control $ timeWidget eSubmit
           pure (wDate', wTime')
-      iTimeZone  <- liftIO getTimeZone
+      timeZone   <- liftIO getTimeZone
       clientTime <- liftIO getZonedTime
       let bDateTimeErrs =
             fmap (`bindValidation` identity)
               .   getCompose
-              $   validateDateTime clientTime iTimeZone
+              $   validateDateTime clientTime timeZone
               <$> Compose bDate
               <*> Compose bTime
           eDateTimeErrs = getFailure <$> Rx.tag bDateTimeErrs eSubmit
@@ -108,20 +108,20 @@ formWidget = do
       -- get an error message below the submit button, but we can submit.
       -- Ideally we should disable the submit button
         bForm = fmap (`bindValidation` validateSecretSanta) . getCompose $ do
-          secretsantaInfo <- do
-            iEventName   <- Compose $ withFieldLabel "Event name" <$> bEventName
-            iHostName    <- Compose $ withFieldLabel "Your name" <$> bHostName
-            iHostEmail   <- Compose $ withFieldLabel "Your email" <$> bHostEmail
-            iDate        <- Compose $ withFieldLabel "Date" <$> bDate
-            iTime        <- Compose $ withFieldLabel "Time" <$> bTime
-            iLocation    <- Compose $ withFieldLabel "Location" <$> bLocation
-            iPrice       <- Compose $ withFieldLabel "Price" <$> bPrice
-            iDescription <-
+          info <- do
+            eventName   <- Compose $ withFieldLabel "Event name" <$> bEventName
+            hostName    <- Compose $ withFieldLabel "Your name" <$> bHostName
+            hostEmail   <- Compose $ withFieldLabel "Your email" <$> bHostEmail
+            mDate       <- Compose $ withFieldLabel "Date" <$> bDate
+            mTime       <- Compose $ withFieldLabel "Time" <$> bTime
+            mLocation   <- Compose $ withFieldLabel "Location" <$> bLocation
+            mPrice      <- Compose $ withFieldLabel "Price" <$> bPrice
+            description <-
               Compose $ withFieldLabel "Description" <$> bDescription
-            pure Info { .. }
-          secretsantaParticipants <-
+            pure InfoCreate { .. }
+          participants <-
             Compose $ withFieldLabel "Participants" <$> bParticipants
-          pure UnsafeSecretSanta { .. }
+          pure UnsafeSecretSantaCreate { .. }
         eForm = Rx.tag bForm eSubmit
     pure . Rx.fforMaybe eForm $ \case
       Failure _ -> Nothing
@@ -269,7 +269,7 @@ timeWidget eSubmit = do
       (setValidationAttrs, dRefinedInput) <- mkSimpleValidation
         eSubmit
         wUnvalidatedInput
-        validateTimeMaybe
+        refineTextMaybe
   pure . Rx.current $ dRefinedInput
 
 locationWidget
@@ -438,19 +438,19 @@ participantsWidget eAddNewParticipant layout eSubmit = do
       . Rx.current
       . Rx.ffor m
       $ Rx.mergeWith (.)
-      . map (fmap f)
+      . fmap (fmap f)
       . Map.elems
   eDeleteParticipants dParticipantMap =
     overParticipants (\(DeleteParticipant i) -> Map.delete i)
-      $   map fst3
+      $   fmap fst3
       <$> dParticipantMap
   eUpdatePNames dParticipantMap =
     overParticipants (\(UpdatePName i name) -> updateParticipantName i name)
-      $   map snd3
+      $   fmap snd3
       <$> dParticipantMap
   eUpdatePEmails dParticipantMap =
     overParticipants (\(UpdatePEmail i email) -> updateParticipantEmail i email)
-      $   map thd3
+      $   fmap thd3
       <$> dParticipantMap
   mkParticipant :: Participant' -> Refined Participant
   mkParticipant (pName, pEmail) = Participant <$> pName <*> pEmail

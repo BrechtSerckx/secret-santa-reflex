@@ -11,6 +11,7 @@
 {-# LANGUAGE Rank2Types                 #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE TupleSections              #-}
+{-# LANGUAGE TypeApplications               #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE UndecidableInstances       #-}
@@ -33,6 +34,7 @@ module Servant.Reflex
   , toHeaders
   , HasClient
   , Client
+  , AuthClient(..)
   , module Servant.Common.Req
   , module Servant.Common.BaseUrl
   ) where
@@ -64,7 +66,7 @@ import           Network.HTTP.Media             ( MediaType )
 import           Network.HTTP.Types             ( Status
                                                 , mkStatus
                                                 )
-import           Servant.API             ((:<|>)(..),(:>), BasicAuth,
+import           Servant.API             ((:<|>)(..),(:>), AuthProtect, BasicAuth,
                                           BasicAuthData, BuildHeadersTo(..),
                                           Capture, contentType, Header,
                                           Headers(..), HttpVersion, IsSecure,
@@ -624,6 +626,24 @@ type family HasCookieAuth xs :: Constraint where
 
 class CookieAuthNotEnabled
 
+
+-- * generalized auth
+
+
+class AuthClient (auth :: k) where
+  type AuthClientData (auth :: k) :: *
+  mkAuthReq :: Dynamic t (AuthClientData auth) -> Req t -> Req t
+
+instance (HasClient t m api tag, Reflex t, AuthClient auth)
+      => HasClient t m (AuthProtect (auth :: k) :> api) tag where
+
+  type Client t m (AuthProtect auth :> api) tag = Dynamic t (AuthClientData auth)
+                                               -> Client t m api tag
+
+  clientWithRouteAndResultHandler Proxy q t req baseurl opts wrap authdata =
+    clientWithRouteAndResultHandler (Proxy :: Proxy api) q t req' baseurl opts wrap
+      where
+        req'    = mkAuthReq @k @auth authdata req
 
 -- * servant-uverb
 

@@ -1,18 +1,21 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE TypeFamilies #-}
 module SecretSanta.UI where
 
-import qualified Data.Aeson                    as Aeson
+import qualified "common" Data.Aeson           as Aeson
 import qualified Data.ByteString.Lazy          as BSL
 
 import qualified Reflex                        as Rx
 import qualified Reflex.Dom                    as Rx
 import qualified Servant.API                   as S
+import           Servant.API                    ( (:<|>)(..) )
 import qualified Servant.API.UVerb             as S
 import qualified Servant.Reflex                as SR
 
 import           Config                         ( baseUrl )
-import           Data.Error
+import           Network.Http.Error
+
 import           SecretSanta.API
 import           SecretSanta.Data
 import           SecretSanta.UI.Form
@@ -62,8 +65,8 @@ bodyWidget = Rx.elClass "section" "section" . Rx.elClass "div" "container" $ do
     Left err -> displayErr err
     Right u ->
       fromMaybe
-          (         throwInternalError
-          $         serverError "Unexpected return type"
+          (         throwErrorPure
+          $         mkError "Unexpected return type"
           `errWhen` "making secret-santa return widget"
           )
         . foldl' @[] (<|>) Nothing
@@ -72,7 +75,11 @@ bodyWidget = Rx.elClass "section" "section" . Rx.elClass "div" "container" $ do
               .  Rx.text
               $  "Secret Santa successfully submitted! Id: "
               <> show id
-          , S.matchUnion @InvalidDateTimeError u <&> displayErr . errMessage
+          , S.matchUnion @InvalidDateTimeError u
+          <&> displayErr
+          .   errMessage
+          .   unGenericError
+          .   unApiError
           ]
  where
   displayErr = Rx.elClass "div" "notification is-danger" . Rx.el "p" . Rx.text
@@ -88,7 +95,7 @@ parseReqResult = \case
       Rx.XhrResponseBody_Blob    _ -> "<blob>"
       Rx.XhrResponseBody_ArrayBuffer t ->
         case Aeson.decode' @InternalError $ BSL.fromStrict t of
-          Just e  -> errMessage e
+          Just e  -> errMessage . unGenericError $ unApiError e
           Nothing -> "<arraybuffer>"
   SR.RequestFailure _ err -> Left err
 
@@ -96,7 +103,7 @@ parseReqResult = \case
 cCreateSecretSanta
   :: forall t m
    . Rx.MonadWidget t m
-  => Rx.Dynamic t (Either Text SecretSanta)
+  => Rx.Dynamic t (Either Text SecretSantaCreate)
   -> Rx.Event t ()
   -> m
        ( Rx.Event
@@ -113,8 +120,12 @@ cCreateSecretSanta
 
 --brittany-disable-next-binding
 ( cCreateSecretSanta
+  :<|> _
   ) = client
 
 client :: forall t m . Rx.MonadWidget t m => SR.Client t m API ()
 client = SR.client api (Proxy @m) (Proxy @()) $ Rx.constDyn baseUrl
 
+instance SR.AuthClient TokenAuth where
+  type AuthClientData TokenAuth = TokenAuthData
+  mkAuthReq = const identity

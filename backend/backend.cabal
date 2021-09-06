@@ -57,6 +57,7 @@ common common-build-depends
       base-noprelude >=4.12 && <4.13
     , common
       -- server
+    , http-types
     , wai
     , wai-extra
     , wai-app-static
@@ -89,6 +90,11 @@ common common-build-depends
     , random
     , directory
 
+      -- logging
+    , co-log-core
+    , co-log-polysemy
+    , co-log
+
       -- data
     , aeson
     , containers
@@ -105,6 +111,7 @@ common common-build-depends
     , beam-sqlite
     , sqlite-simple
     , beam-migrate
+    , resource-pool
 
 library
   import:
@@ -113,18 +120,24 @@ library
   hs-source-dirs:
     src
   exposed-modules:
+    Data.Constraint
     Data.Refine
     Data.Time
+    Data.Type
+    Data.Union
     Data.WithId
     Database.Beam
     Database.Beam.T2
     Database.Beam.Orphans
+    Polysemy.Error
+    Polysemy.Input.Env
+    Polysemy.Log
+    Polysemy.NoOp
     Polysemy.Transaction
     Polysemy.Transaction.Beam
-    Polysemy.Input.Env
-    Polysemy.NoOp
-    SecretSanta.Data
+    SecretSanta
     SecretSanta.Database
+    SecretSanta.Database.Tables
     SecretSanta.Backend.Email
     SecretSanta.Backend.Email.Class
     SecretSanta.Backend.Email.Dummy
@@ -134,18 +147,21 @@ library
     SecretSanta.Backend.KVStore.Class
     SecretSanta.Backend.KVStore.State
     SecretSanta.Backend.KVStore.Database
+    SecretSanta.Backend.KVStore.Database.Class
+    SecretSanta.Backend.KVStore.Database.Sqlite
+    SecretSanta.Backend.KVStore.Database.Postgres
     SecretSanta.Effect.Email
     SecretSanta.Effect.Match
     SecretSanta.Effect.Store
     SecretSanta.Effect.Store.SecretSanta
     SecretSanta.Effect.Time
-    SecretSanta.Interpret
     SecretSanta.Opts
     SecretSanta.Server
+    SecretSanta.Server.Auth
     SecretSanta.Server.SecretSanta
     SecretSanta.Server.SecretSanta.Create
     Servant.Server
-    Type.Constraint
+    System.Envy
   ghc-options:
     -O2
     -flate-specialise
@@ -177,6 +193,7 @@ test-suite backend-test
     -flate-specialise
     -fspecialise-aggressively
     -fplugin=Polysemy.Plugin
+    -threaded
 
   other-modules: 
   type: exitcode-stdio-1.0

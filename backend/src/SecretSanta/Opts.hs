@@ -1,6 +1,8 @@
 module SecretSanta.Opts
-  ( Opts(..)
-  , parseOpts
+  ( ServeOpts(..)
+  , parseCmd
+  , Cmd(..)
+  , CreateDBOpts(..)
   ) where
 
 import           Data.Refine
@@ -9,32 +11,69 @@ import qualified Data.Text                     as T
 import           Data.Validate
 import qualified Network.Wai.Handler.Warp      as Warp
 import qualified Options.Applicative           as OA
+import           SecretSanta.API                ( AuthToken(..) )
 import           SecretSanta.Backend.Email
 import           SecretSanta.Backend.KVStore
 import "common"  Text.EmailAddress
 
-data Opts = Opts
-  { oEmailBackend   :: AnyEmailBackend
-  , oEmailSender    :: EmailAddress
-  , oWebRoot        :: FilePath
-  , oPort           :: Warp.Port
-  , oKVStoreBackend :: AnyKVStoreBackend
+data Cmd
+  = Serve ServeOpts
+  | CreateDB CreateDBOpts
+
+data ServeOpts = ServeOpts
+  { soEmailBackend   :: AnyEmailBackend
+  , soEmailSender    :: EmailAddress
+  , soWebRoot        :: FilePath
+  , soPort           :: Warp.Port
+  , soKVStoreBackend :: AnyKVStoreBackend
+  , soAdminToken     :: AuthToken
   }
 
-parseOpts :: IO Opts
-parseOpts =
+data CreateDBOpts = CreateDBOpts
+  { cdbDatabaseBackend :: AnyDatabaseBackend
+  }
+
+parseCmd :: IO Cmd
+parseCmd =
   let parserInfo = mconcat [OA.fullDesc, OA.progDesc "Secret Santa server"]
-  in  OA.execParser $ (pOpts <**> OA.helper) `OA.info` parserInfo
+  in  OA.execParser $ (pCmd <**> OA.helper) `OA.info` parserInfo
 
-pOpts :: OA.Parser Opts
-pOpts = do
-  oEmailBackend   <- pEmailBackend
-  oEmailSender    <- pEmailSender
-  oWebRoot        <- pWebRoot
-  oPort           <- pPort
-  oKVStoreBackend <- pKVStoreBackend
-  pure Opts { .. }
+pCmd :: OA.Parser Cmd
+pCmd = OA.hsubparser $ mconcat
+  [ OA.command "serve"
+    $ let serveInfo =
+            mconcat [OA.fullDesc, OA.progDesc "Run the Secret Santa server"]
+      in  Serve <$> pServeOpts `OA.info` serveInfo
+  , OA.command "create-db"
+    $ let createDBInfo = mconcat
+            [ OA.fullDesc
+            , OA.progDesc "Create an empty database for the Secret Santa server"
+            ]
+      in  CreateDB <$> pCreateDBOpts `OA.info` createDBInfo
+  ]
 
+pCreateDBOpts :: OA.Parser CreateDBOpts
+pCreateDBOpts = do
+  cdbDatabaseBackend <- parseDatabaseBackends
+  pure CreateDBOpts { .. }
+
+pServeOpts :: OA.Parser ServeOpts
+pServeOpts = do
+  soEmailBackend   <- pEmailBackend
+  soEmailSender    <- pEmailSender
+  soWebRoot        <- pWebRoot
+  soPort           <- pPort
+  soKVStoreBackend <- pKVStoreBackend
+  soAdminToken     <- pAdminToken
+  pure ServeOpts { .. }
+
+pAdminToken :: OA.Parser AuthToken
+pAdminToken = fmap AuthToken . OA.strOption $ mconcat
+  [ OA.long "admin-token"
+  , OA.metavar "TOKEN"
+  , OA.value "i-am-ze-admin"
+  , OA.showDefault
+  ]
 
 pEmailBackend :: OA.Parser AnyEmailBackend
 pEmailBackend =

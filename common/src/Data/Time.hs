@@ -12,7 +12,6 @@ module Data.Time
   , compareZonedTime
   ) where
 
-import           Control.Monad.Fail             ( fail )
 import qualified Data.Aeson                    as Aeson
 import           Data.Refine
 import qualified Data.Text                     as T
@@ -25,27 +24,14 @@ import "time"    Data.Time                     as Export
                                                 )
 import qualified "time" Data.Time              as Time
 import           Data.Validate
-import qualified Text.Read                     as Read
-import qualified Text.Show                     as Show
 
 newtype TimeZone = TimeZone { unTimeZone :: Time.TimeZone }
-  deriving newtype (Eq, Ord, Read)
+  deriving newtype (Eq, Ord, Read, Show)
+  deriving (Aeson.FromJSON, Aeson.ToJSON) via Refinable Text TimeZone
 
-instance Show TimeZone where
-  show = Time.timeZoneOffsetString . unTimeZone
-
-instance Aeson.FromJSON TimeZone where
-  parseJSON = Aeson.withText "TimeZone" $ \t ->
-    case readMaybe . T.unpack $ t of
-      Just r  -> pure r
-      Nothing -> invalidTimeZone
-   where
-    invalidTimeZone =
-      fail
-        "Invalid timezone. Allowed: ±HHMM format, single-letter military time-zones, and these time-zones: 'UTC', 'UT', 'GMT', 'EST', 'EDT', 'CST', 'CDT', 'MST', 'MDT', 'PST', 'PDT'."
-
-instance Aeson.ToJSON TimeZone where
-  toJSON = Aeson.String . T.pack . show
+instance Refine Text TimeZone where
+  unrefine = show . unTimeZone
+  refine   = readMaybe . T.unpack |>? "Reading time zone failed"
 
 getCurrentTimeZone :: IO TimeZone
 getCurrentTimeZone = TimeZone <$> Time.getCurrentTimeZone
@@ -59,35 +45,25 @@ newtype Date = Date { unDate :: Time.Day }
 validateDateMaybe :: Text -> Refined (Maybe Date)
 validateDateMaybe = readValidationMaybe
 
+instance Refine Text Date where
+  unrefine = show
+  refine   = readMaybe . T.unpack |>? "Reading date failed"
+
 newtype Time = Time { unTime :: Time.TimeOfDay }
-  deriving newtype Eq
+  deriving newtype (Eq, Show, Read)
+  deriving (Aeson.ToJSON, Aeson.FromJSON) via Refinable Text Time
 
-instance Show.Show Time where
-  show (Time (Time.TimeOfDay h m _s)) = show h <> ":" <> show m
-
-instance Read.Read Time where
-  readsPrec _ = \case
-    (h1 : h2 : ':' : m1 : m2 : rest) -> maybe [] pure $ do
-      h' <- readMaybe [h1, h2]
-      m' <- readMaybe [m1, m2]
-      (, rest) . Time <$> Time.makeTimeOfDayValid h' m' 0
-    _ -> []
-
-instance Aeson.FromJSON Time where
-  parseJSON = Aeson.withText "Time" $ \t -> case readMaybe . T.unpack $ t of
-    Just r  -> pure r
-    Nothing -> invalidTime
-    where invalidTime = fail "Invalid time. Format: hh:mm"
-
-instance Aeson.ToJSON Time where
-  toJSON = Aeson.String . show
+validateTimeMaybe :: Text -> Maybe Time
+validateTimeMaybe = \case
+  (T.unpack -> [h1 , h2 , ':' , m1 , m2]) -> do
+    h' <- readMaybe [h1, h2]
+    m' <- readMaybe [m1, m2]
+    Time <$> Time.makeTimeOfDayValid h' m' 0
+  _ -> Nothing
 
 instance Refine Text Time where
-  refine   = readValidation
-  unrefine = show
-
-validateTimeMaybe :: Text -> Refined (Maybe Time)
-validateTimeMaybe = refineTextMaybe
+  refine = validateTimeMaybe |>? "Reading time failed"
+  unrefine (Time (Time.TimeOfDay h m _s)) = show h <> ":" <> show m
 
 validateDateTime
   :: Time.ZonedTime -> TimeZone -> Maybe Date -> Maybe Time -> Refined ()
@@ -107,7 +83,7 @@ validateDateTime serverTime (TimeZone zonedTimeZone) mDate mTime =
               in  Time.ZonedTime { .. }
       in  case compareZonedTime serverTime clientTime of
             LT -> pure ()
-            _  -> Failure "Must be in future" -- TODO: decent errors
+            _  -> Failure "Must be in future"
 
 compareZonedTime :: Time.ZonedTime -> Time.ZonedTime -> Ordering
 compareZonedTime zt1 zt2 = comparing Time.zonedTimeToUTC zt1 zt2

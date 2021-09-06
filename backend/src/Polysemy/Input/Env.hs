@@ -8,6 +8,7 @@ import           Polysemy
 import           Polysemy.Input
 import           Polysemy.Operators
 
+import           Control.Exception              ( throwIO )
 import           System.Envy
 
 newtype EnvError = EnvError { unEnvError :: [Char] }
