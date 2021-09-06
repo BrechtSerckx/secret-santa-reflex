@@ -41,6 +41,7 @@ import           SecretSanta.Server.SecretSanta
 
 type BaseEffects eb kvb
   = '[ Input Sender
+     , Input AuthToken
      , GetTime
      , Email
      , Input (EmailBackendConfig eb)
@@ -76,6 +77,7 @@ secretSantaServer' opts@ServeOpts {..} cfg =
     . runEmailBackendConfig @eb
     . runEmailBackend @eb
     . runGetTime
+    . runInputConst soAdminToken
     . runInputConst (Sender soEmailSender)
     $ do
         requestLogger <- embed $ RL.mkRequestLogger def

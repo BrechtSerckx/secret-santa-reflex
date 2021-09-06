@@ -5,9 +5,11 @@ module SecretSanta.API
   , api
   , TokenAuth
   , TokenAuthData
+  , AuthToken(..)
   , SecretSantaAPI
   , CreateSecretSantaEP
   , InvalidDateTimeError
+  , AuthorizationError
   ) where
 
 import           Servant.API
@@ -24,7 +26,10 @@ api :: Proxy API
 api = Proxy @API
 
 data TokenAuth
-type TokenAuthData = Text
+type TokenAuthData = AuthToken
+newtype AuthToken = AuthToken Text
+  deriving newtype (Eq, Show, IsString)
+type AuthorizationError = ApiError 401 (GenericError "AUTHORIZATION_FAILED")
 
 -- brittany-disable-next-binding
 type CreateSecretSantaEP
@@ -44,4 +49,5 @@ type GetSecretSantasEP
   :> AuthProtect TokenAuth
   :> UVerb 'GET '[JSON]
      '[ WithStatus 200 [SecretSanta]
+      , AuthorizationError
       ]

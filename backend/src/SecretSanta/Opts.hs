@@ -11,6 +11,7 @@ import qualified Data.Text                     as T
 import           Data.Validate
 import qualified Network.Wai.Handler.Warp      as Warp
 import qualified Options.Applicative           as OA
+import           SecretSanta.API                ( AuthToken(..) )
 import           SecretSanta.Backend.Email
 import           SecretSanta.Backend.KVStore
 import "common"  Text.EmailAddress
@@ -25,6 +26,7 @@ data ServeOpts = ServeOpts
   , soWebRoot        :: FilePath
   , soPort           :: Warp.Port
   , soKVStoreBackend :: AnyKVStoreBackend
+  , soAdminToken     :: AuthToken
   }
 
 data CreateDBOpts = CreateDBOpts
@@ -62,8 +64,16 @@ pServeOpts = do
   soWebRoot        <- pWebRoot
   soPort           <- pPort
   soKVStoreBackend <- pKVStoreBackend
+  soAdminToken     <- pAdminToken
   pure ServeOpts { .. }
 
+pAdminToken :: OA.Parser AuthToken
+pAdminToken = fmap AuthToken . OA.strOption $ mconcat
+  [ OA.long "admin-token"
+  , OA.metavar "TOKEN"
+  , OA.value "i-am-ze-admin"
+  , OA.showDefault
+  ]
 
 pEmailBackend :: OA.Parser AnyEmailBackend
 pEmailBackend =

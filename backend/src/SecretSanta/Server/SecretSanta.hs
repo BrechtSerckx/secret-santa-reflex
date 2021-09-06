@@ -1,13 +1,18 @@
 module SecretSanta.Server.SecretSanta
   ( ssServer
+  , fromEmptyEnvelope
   ) where
 
-import           Network.Http.Error
 import           Polysemy
 import           Polysemy.Error
+import           Polysemy.Extra
 import           Polysemy.Input
 import           Polysemy.Log
 import           Polysemy.Operators
+
+import           Data.SOP
+import           Network.Http.Error
+
 import           Servant.API                    ( (:<|>)(..) )
 import           Servant.API.UVerb
 import qualified Servant.Server                as SS
@@ -30,6 +35,7 @@ ssServer
           , Embed IO
           , Input (KVStoreConnection kvb)
           , Log Message
+          , Input AuthToken
           ]
          r
      , RunKVStores kvb
@@ -43,23 +49,40 @@ getSecretSantas
          '[ Embed IO
           , Input (KVStoreConnection kvb)
           , KVStoreInit kvb SecretSantaStore
+          , Input AuthToken
           ]
          r
      , RunKVStoreBackend kvb
      , RunKVStores kvb
      )
   => TokenAuthData
-  -> r @> Union '[WithStatus 200 [SecretSanta]]
+  -> r @> Union '[WithStatus 200 [SecretSanta], AuthorizationError]
 getSecretSantas token = do
-  env :: Envelope '[] [SecretSanta] <-
+  env :: Envelope '[AuthorizationError] [SecretSanta] <-
     runKVStoreTransaction @kvb
-    . fmap Right
+    . runErrorsU @'[AuthorizationError]
+    . rotateEffects2
     . runKVStore @kvb @SecretSantaStore
     . raiseUnder @(KVStoreTransaction kvb)
-    $ readAllCrud
-  SS.respond . WithStatus @200 $ fromEmptyEnvelope env
+    $ do
+        authorizeAdmin token
+        readAllCrud
+  case env of
+    Left  e -> pure $ S e
+    Right r -> SS.respond $ WithStatus @200 r
 
 fromEmptyEnvelope :: Envelope '[] a -> a
 fromEmptyEnvelope = \case
   Right a -> a
   Left  _ -> throwErrorPure $ mkError "Envelope without errors"
+
+authorizeAdmin
+  :: Members '[Input AuthToken , Error AuthorizationError] r
+  => AuthToken
+  -> r @> ()
+authorizeAdmin token = do
+  adminToken <- input @AuthToken
+  if token == adminToken
+    then pure ()
+    else throw @AuthorizationError . ApiError $ mkGenericError
+      "Authorization failed"

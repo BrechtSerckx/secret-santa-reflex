@@ -13,7 +13,8 @@ import qualified Servant.Server                as SS
 import qualified Servant.Server.Experimental.Auth
                                                as SS
 
-import           SecretSanta.API                ( TokenAuth
+import           SecretSanta.API                ( AuthToken(..)
+                                                , TokenAuth
                                                 , TokenAuthData
                                                 )
 
@@ -27,4 +28,4 @@ tokenAuthHandler = SS.mkAuthHandler $ \req ->
   case L.lookup Http.hAuthorization $ Wai.requestHeaders req of
     Nothing ->
       throwError $ SS.err401 { SS.errBody = "No 'Authorization' header" }
-    Just x -> pure $ T.decodeUtf8 x
+    Just x -> pure . AuthToken $ T.decodeUtf8 x

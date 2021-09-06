@@ -7,10 +7,8 @@
 - [x] better error design
 - [x] nonemptytext: strip whitespace
 - [x] revisit Refine class and types
-- [ ] authentication
-- [ ] authorization
-  - user store
-  - servant auth
+- [x] authentication
+- [x] authorization
 - [x] better data design: T2 is not very practical
       differentiate between backend rows and domain data? -> good idea
 - [x] remove protolude. Replace by relude?
@@ -78,6 +76,7 @@
 *** Wishlist
 
 - [ ] Send a secret key to the participants
+- [ ] user store
 - [ ] Add participant page
 - [ ] Add wishlist table
 
