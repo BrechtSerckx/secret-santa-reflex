@@ -15,6 +15,7 @@ module SecretSanta.Backend.KVStore.Database
 import qualified Data.Pool                     as Pool
 import           Data.Time                      ( NominalDiffTime )
 import "this"    Database.Beam
+import           GHC.Show                       ( Show(..) )
 -- import           SecretSanta.Backend.KVStore.Database.Postgres
 --                                                as Export
 import qualified Options.Applicative           as OA
@@ -37,6 +38,9 @@ type DatabaseBackends = '[Sqlite]
 
 data AnyDatabaseBackend where
   AnyDatabaseBackend ::IsDatabaseBackend db => Proxy db -> DBOpts db -> AnyDatabaseBackend
+
+instance Show AnyDatabaseBackend where
+  show = const "AnyDatabaseBackend"
 
 parseDatabaseBackends :: OA.Parser AnyDatabaseBackend
 parseDatabaseBackends = parseDatabaseBackends' @DatabaseBackends

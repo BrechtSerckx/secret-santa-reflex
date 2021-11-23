@@ -9,7 +9,9 @@ module SecretSanta.Backend.KVStore
 
 import           Data.Constraint                ( FoldC )
 import           Data.Type
+import           GHC.Show                       ( Show(..) )
 import qualified Options.Applicative           as OA
+
 import           SecretSanta.Backend.KVStore.Class
                                                as Export
 import           SecretSanta.Backend.KVStore.Database
@@ -40,3 +42,6 @@ data AnyKVStoreBackend where
     ::(RunKVStoreBackend kv, RunKVStores kv)
     => KVStoreOpts kv
     -> AnyKVStoreBackend
+
+instance Show AnyKVStoreBackend where
+  show = const "AnyKVStoreBackend"

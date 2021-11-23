@@ -8,6 +8,8 @@ import           Polysemy.Log
 
 import           Data.Error
 import qualified Data.Text                     as T
+import qualified Data.Text.Lazy                as TL
+import           Text.Pretty.Simple
 
 import           SecretSanta.Backend.KVStore
 import           SecretSanta.Opts
@@ -22,6 +24,8 @@ runSecretSanta = runFinal . embedToFinal . runLogAction logMessageStdout $ do
     . raise @(Error ExtError)
     $ do
         cmd <- embed parseCmd
+        logInfo $ "Command: "
+        logInfo . TL.toStrict $ pShow cmd
         case cmd of
           Serve    serveOpts@ServeOpts {..} -> secretSantaServer serveOpts
           CreateDB CreateDBOpts {..}        -> case cdbDatabaseBackend of

@@ -19,6 +19,7 @@ import "common"  Text.EmailAddress
 data Cmd
   = Serve ServeOpts
   | CreateDB CreateDBOpts
+  deriving stock Show
 
 data ServeOpts = ServeOpts
   { soEmailBackend   :: AnyEmailBackend
@@ -28,10 +29,12 @@ data ServeOpts = ServeOpts
   , soKVStoreBackend :: AnyKVStoreBackend
   , soAdminToken     :: AuthToken
   }
+  deriving stock Show
 
 data CreateDBOpts = CreateDBOpts
   { cdbDatabaseBackend :: AnyDatabaseBackend
   }
+  deriving stock Show
 
 parseCmd :: IO Cmd
 parseCmd =
