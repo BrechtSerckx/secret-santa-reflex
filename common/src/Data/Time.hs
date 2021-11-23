@@ -54,16 +54,16 @@ newtype Time = Time { unTime :: Time.TimeOfDay }
   deriving (Aeson.ToJSON, Aeson.FromJSON) via Refinable Text Time
 
 validateTimeMaybe :: Text -> Maybe Time
-validateTimeMaybe = \case
-  (T.unpack -> [h1 , h2 , ':' , m1 , m2]) -> do
-    h' <- readMaybe [h1, h2]
-    m' <- readMaybe [m1, m2]
-    Time <$> Time.makeTimeOfDayValid h' m' 0
-  _ -> Nothing
+validateTimeMaybe =
+  fmap Time . Time.parseTimeM False Time.defaultTimeLocale timeFormat . T.unpack
+
+timeFormat :: String
+timeFormat = "%H:%M"
 
 instance Refine Text Time where
   refine = validateTimeMaybe |>? "Reading time failed"
-  unrefine (Time (Time.TimeOfDay h m _s)) = show h <> ":" <> show m
+  unrefine =
+    T.pack . Time.formatTime Time.defaultTimeLocale timeFormat . unTime
 
 validateDateTime
   :: Time.ZonedTime -> TimeZone -> Maybe Date -> Maybe Time -> Refined ()
