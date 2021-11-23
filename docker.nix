@@ -1,22 +1,19 @@
+{ pkgs ? import (import ./nix/sources.nix).nixpkgs { }
+, name ? "secret-santa-reflex", tag ? "latest" }:
 let
-  sources = import ./nix/sources.nix;
-  project = (import ./. {});
+  project = (import ./. { });
   pkgs = project.reflex.nixpkgs;
   backend = project.ghc.backend;
   frontend = project.ghcjs.frontend;
-
 in pkgs.dockerTools.buildImage {
-  name = "secret-santa-reflex";
-  tag = "latest";
+  inherit name tag;
   fromImageName = "alpine:latest";
   contents = [ pkgs.cacert backend pkgs.bash pkgs.coreutils ];
   config = {
     Entrypoint = [ "${backend}/bin/backend" ];
     Cmd = [ "-h" ];
     WorkingDir = "/srv/";
-    ExposedPorts = {
-      "8080/tcp" = { };
-    };
+    ExposedPorts = { "8080/tcp" = { }; };
   };
   runAsRoot = ''
     mkdir -p /var
