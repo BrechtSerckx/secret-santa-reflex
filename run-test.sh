@@ -12,8 +12,8 @@ CREATE_DB_FLAGS+=(--sqlite "$DBFILE")
 # Run server
 
 SERVE_FLAGS+=(--email-backend dummy)
-# FLAGS+=(--email-backend gmail)
-# FLAGS+=(--email-backend ses)
+# SERVE_FLAGS+=(--email-backend gmail)
+# SERVE_FLAGS+=(--email-backend ses)
 
 SERVE_FLAGS+=(--email-sender "info@secret-santa.link")
 
@@ -29,11 +29,12 @@ run_cabal_backend() {
     cabal configure
     # run with configuration in a `.env` file, that for obvious reasons is not
     # included in here
+    echo cabal run exe:backend -- "${FLAGS[@]}" "$@"
     env $(cat .env | xargs) cabal run exe:backend -- "${FLAGS[@]}" "$@"
 }
 run_cabal_multi() {
-    nix-shell -A shells.ghc --run "cabal configure -f devel"
-    backend="cabal run -f devel backend -- ${FLAGS[@]} $@"
+    cabal configure -f devel
+    backend="cabal run -f devel exe:backend -- ${FLAGS[@]} $@"
     frontend="cabal run frontend"
 
     init="tmux new-session"
@@ -41,13 +42,14 @@ run_cabal_multi() {
     remain_on_exit="set-option -p remain-on-exit"
     opts="select-layout tiled \; bind-key -n r respawn-pane \; bind-key -n q kill-session"
 
-    nix-shell -A shells.ghc --run  \
-              "$init \"$backend\" \; $remain_on_exit \; $add \"$frontend\" \; $remain_on_exit \; $opts"
+    echo $init "$backend" \; $remain_on_exit \; $add "$frontend" \; $remain_on_exit \; $opts
+    env $(cat .env | xargs) $init "$backend" \; $remain_on_exit \; $add "$frontend" \; $remain_on_exit \; $opts
 }
 run_binary() {
     FRONTEND=$(nix-build -o result-frontend -A ghcjs.frontend)
     BACKEND=$(nix-build -o result-backend -A ghc.backend)
     FLAGS+=(--web-root "$FRONTEND"/bin/frontend.jsexe)
+    echo "$BACKEND"/bin/backend "${FLAGS[@]}" "$@"
     "$BACKEND"/bin/backend "${FLAGS[@]}" "$@"
 }
 run_docker() {
