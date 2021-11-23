@@ -30,7 +30,7 @@ newtype TimeZone = TimeZone { unTimeZone :: Time.TimeZone }
   deriving (Aeson.FromJSON, Aeson.ToJSON) via Refinable Text TimeZone
 
 instance Refine Text TimeZone where
-  unrefine = show . unTimeZone
+  unrefine = T.pack . Time.timeZoneOffsetString . unTimeZone
   refine   = readMaybe . T.unpack |>? "Reading time zone failed"
 
 getCurrentTimeZone :: IO TimeZone
