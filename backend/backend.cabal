@@ -127,7 +127,6 @@ library
     Data.Union
     Data.WithId
     Database.Beam
-    Database.Beam.T2
     Database.Beam.Orphans
     Polysemy.Error
     Polysemy.Input.Env

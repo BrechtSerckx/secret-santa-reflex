@@ -10,9 +10,6 @@
       backend = ./backend;
       frontend = ./frontend;
       servant-reflex = ./servant-reflex;
-      beam-core = ./beam/beam-core;
-      beam-migrate = ./beam/beam-migrate;
-      beam-sqlite = ./beam/beam-sqlite;
     };
 
     shells = {
@@ -21,9 +18,6 @@
         "backend"
         "frontend"
         "servant-reflex"
-        "beam-core"
-        "beam-migrate"
-        "beam-sqlite"
       ];
       ghcjs = [
         "common"
@@ -59,6 +53,12 @@
 
       # brittany
       brittany = self.callCabal2nix "brittany" sources.brittany {};
+
+      # beam
+      beam-core = self.callCabal2nixWithOptions "beam-core" sources.beam "--subpath beam-core" {};
+      beam-migrate = self.callCabal2nixWithOptions "beam-migrate" sources.beam "--subpath beam-migrate" {};
+      beam-postgres = self.callCabal2nixWithOptions "beam-postgres" sources.beam "--subpath beam-postgres" {};
+      beam-sqlite = self.callCabal2nixWithOptions "beam-sqlite" sources.beam "--subpath beam-sqlite" {};
     };
     shellToolOverrides = ghc: super: {
       inherit (ghc) brittany hlint;

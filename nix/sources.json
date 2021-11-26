@@ -5,6 +5,18 @@
         "rev": "64fbf7ca39c0d5cb418b70d490d07de589806b60",
         "type": "git"
     },
+    "beam": {
+        "branch": "master",
+        "description": "A type-safe, non-TH Haskell SQL library and ORM",
+        "homepage": "https://haskell-beam.github.io/beam/",
+        "owner": "haskell-beam",
+        "repo": "beam",
+        "rev": "40d04135faf4d0b55cbc2e705ab28b8c5c819762",
+        "sha256": "1cq1sighdx96x49a9cmcq4xn93vdjp90n0n646bhd2r1vyf1y000",
+        "type": "tarball",
+        "url": "https://github.com/haskell-beam/beam/archive/40d04135faf4d0b55cbc2e705ab28b8c5c819762.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
     "brittany": {
         "branch": "master",
         "description": "haskell source code formatter",

@@ -1,2 +1,0 @@
-*.md linguist-documentation=true
-beam-sqlite/examples/*.sql linguist-detectable=false

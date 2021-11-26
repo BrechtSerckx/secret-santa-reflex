@@ -19,8 +19,6 @@ import "beam-migrate" Database.Beam.Migrate.Simple
                                                 ( createSchema )
 import "beam-core" Database.Beam.Schema.Tables as Core
                                                 ( FieldsFulfillConstraint )
-import "this"    Database.Beam.T2              as Core
-                                                ( T2(..) )
 
 newtype C' a f = C' (C f a)
   deriving stock Generic

@@ -4,6 +4,3 @@ packages:
   backend/
   frontend/
   servant-reflex/
-  beam/beam-core/
-  beam/beam-migrate/
-  beam/beam-sqlite/

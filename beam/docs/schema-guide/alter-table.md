@@ -1,1 +1,0 @@
-ALTer table support
