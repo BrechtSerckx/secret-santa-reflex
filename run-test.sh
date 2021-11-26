@@ -42,8 +42,8 @@ run_cabal_multi() {
     remain_on_exit="set-option -p remain-on-exit"
     opts="select-layout tiled \; bind-key -n r respawn-pane \; bind-key -n q kill-session"
 
-    echo $init "$backend" \; $remain_on_exit \; $add "$frontend" \; $remain_on_exit \; $opts
-    env $(cat .env | xargs) $init "$backend" \; $remain_on_exit \; $add "$frontend" \; $remain_on_exit \; $opts
+    echo $init "\"$backend\"" \; $remain_on_exit \; $add "\"$frontend\"" \; $remain_on_exit \; $opts
+    env $(cat .env | xargs) $init "\"$backend\"" \; $remain_on_exit \; $add "\"$frontend\"" \; $remain_on_exit \; $opts
 }
 run_binary() {
     FRONTEND=$(nix-build -o result-frontend -A ghcjs.frontend)
